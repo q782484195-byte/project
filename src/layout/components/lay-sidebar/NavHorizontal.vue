@@ -5,6 +5,7 @@ import LaySearch from "../lay-search/index.vue";
 import LayNotice from "../lay-notice/index.vue";
 import { responsiveStorageNameSpace } from "@/config";
 import { ref, nextTick, computed, onMounted } from "vue";
+import { useRouter } from "vue-router";
 import { storageLocal, isAllEmpty } from "@pureadmin/utils";
 import { usePermissionStoreHook } from "@/store/modules/permission";
 import LaySidebarItem from "../lay-sidebar/components/SidebarItem.vue";
@@ -12,6 +13,7 @@ import LaySidebarFullScreen from "../lay-sidebar/components/SidebarFullScreen.vu
 
 import LogoutCircleRLine from "~icons/ri/logout-circle-r-line";
 import Setting from "~icons/ri/settings-3-line";
+import User from "~icons/ri/user-3-line";
 
 const menuRef = ref();
 const showLogo = ref(
@@ -19,6 +21,8 @@ const showLogo = ref(
     `${responsiveStorageNameSpace()}configure`
   )?.showLogo ?? true
 );
+
+const router = useRouter();
 
 const {
   route,
@@ -35,6 +39,11 @@ const {
 const defaultActive = computed(() =>
   !isAllEmpty(route.meta?.activePath) ? route.meta.activePath : route.path
 );
+
+// 跳转到个人资料页面
+const goToProfile = () => {
+  router.push("/profile");
+};
 
 nextTick(() => {
   menuRef.value?.handleResize();
@@ -85,7 +94,11 @@ onMounted(() => {
         </span>
         <template #dropdown>
           <el-dropdown-menu class="logout">
-            <el-dropdown-item @click="logout">
+            <el-dropdown-item @click="goToProfile">
+              <IconifyIconOffline :icon="User" style="margin: 5px" />
+              个人资料
+            </el-dropdown-item>
+            <el-dropdown-item divided @click="logout">
               <IconifyIconOffline
                 :icon="LogoutCircleRLine"
                 style="margin: 5px"

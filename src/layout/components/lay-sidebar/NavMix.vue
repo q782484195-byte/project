@@ -4,6 +4,7 @@ import { useNav } from "@/layout/hooks/useNav";
 import LaySearch from "../lay-search/index.vue";
 import LayNotice from "../lay-notice/index.vue";
 import { ref, toRaw, watch, onMounted, nextTick } from "vue";
+import { useRouter } from "vue-router";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
 import { getParentPaths, findRouteByPath } from "@/router/utils";
 import { usePermissionStoreHook } from "@/store/modules/permission";
@@ -12,9 +13,11 @@ import LaySidebarFullScreen from "../lay-sidebar/components/SidebarFullScreen.vu
 
 import LogoutCircleRLine from "~icons/ri/logout-circle-r-line";
 import Setting from "~icons/ri/settings-3-line";
+import User from "~icons/ri/user-3-line";
 
 const menuRef = ref();
 const defaultActive = ref(null);
+const router = useRouter();
 
 const {
   route,
@@ -27,6 +30,11 @@ const {
   getDivStyle,
   avatarsStyle
 } = useNav();
+
+// 跳转到个人资料页面
+const goToProfile = () => {
+  router.push("/profile");
+};
 
 function getDefaultActive(routePath) {
   const wholeMenus = usePermissionStoreHook().wholeMenus;
@@ -105,7 +113,11 @@ watch(
         </span>
         <template #dropdown>
           <el-dropdown-menu class="logout">
-            <el-dropdown-item @click="logout">
+            <el-dropdown-item @click="goToProfile">
+              <IconifyIconOffline :icon="User" style="margin: 5px" />
+              个人资料
+            </el-dropdown-item>
+            <el-dropdown-item divided @click="logout">
               <IconifyIconOffline
                 :icon="LogoutCircleRLine"
                 style="margin: 5px"

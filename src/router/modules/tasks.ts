@@ -1,0 +1,42 @@
+const Layout = () => import("@/layout/index.vue");
+
+export default {
+  path: "/tasks",
+  name: "Tasks",
+  component: Layout,
+  redirect: "/tasks/list",
+  meta: {
+    icon: "ri:task-line",
+    title: "任务管理",
+    rank: 3
+  },
+  children: [
+    {
+      path: "/tasks/list",
+      name: "TasksList",
+      component: () => import("@/views/tasks/index.vue"),
+      meta: {
+        title: "任务列表",
+        showLink: true
+      }
+    },
+    {
+      path: "/tasks/my-tasks",
+      name: "MyTasks",
+      component: () => import("@/views/tasks/my-tasks.vue"),
+      meta: {
+        title: "我的任务",
+        showLink: true
+      }
+    },
+    {
+      path: "/tasks/detail/:id",
+      name: "TaskDetail",
+      component: () => import("@/views/tasks/detail.vue"),
+      meta: {
+        title: "任务详情",
+        showLink: false
+      }
+    }
+  ]
+} satisfies RouteConfigsTable;

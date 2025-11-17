@@ -1,5 +1,16 @@
 import { http } from "@/utils/http";
 
+/** 实际登录接口返回的数据格式 */
+export type LoginApiResponse = {
+  code: number;
+  message: string;
+  token: string;
+  role: Array<string>;
+  button_permissions: Array<string>;
+  username: string;
+};
+
+/** 转换后的用户结果格式 */
 export type UserResult = {
   success: boolean;
   data: {

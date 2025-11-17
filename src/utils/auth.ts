@@ -127,6 +127,30 @@ export const formatToken = (token: string): string => {
   return "Bearer " + token;
 };
 
+/**
+ * 从 JWT token 中解析过期时间
+ * @param token JWT token
+ * @returns 过期时间戳，如果解析失败返回 null
+ */
+export const parseTokenExpiration = (token: string): number | null => {
+  try {
+    const base64Url = token.split(".")[1];
+    if (!base64Url) return null;
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map(c => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
+    );
+    const payload = JSON.parse(jsonPayload);
+    return payload.exp ? payload.exp * 1000 : null; // 转换为毫秒时间戳
+  } catch (error) {
+    console.warn("解析 token 过期时间失败:", error);
+    return null;
+  }
+};
+
 /** 是否有按钮级别的权限（根据登录接口返回的`permissions`字段进行判断）*/
 export const hasPerms = (value: string | Array<string>): boolean => {
   if (!value) return false;
