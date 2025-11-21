@@ -4,20 +4,21 @@ export default {
   path: "/requirements",
   name: "Requirements",
   component: Layout,
-  redirect: "/requirements/index",
+  redirect: "/requirements/list",
   meta: {
     icon: "ri:file-list-line",
-    title: "需求管理",
+    title: "需求",
     rank: 2
   },
   children: [
     {
-      path: "/requirements/index",
-      name: "RequirementsIndex",
+      path: "/requirements/list",
+      name: "RequirementsList",
       component: () => import("@/views/requirements/index.vue"),
       meta: {
-        title: "需求管理",
-        showLink: true
+        title: "需求列表",
+        showLink: true,
+        showParent: true
       }
     },
     {

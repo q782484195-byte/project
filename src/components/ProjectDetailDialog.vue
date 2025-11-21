@@ -1,10 +1,5 @@
 <template>
-  <el-dialog
-    v-model="dialogVisible"
-    title="项目详情"
-    width="900px"
-    @close="handleClose"
-  >
+  <el-dialog v-model="dialogVisible" title="项目详情" width="900px" @close="handleClose">
     <div v-if="project" class="project-detail">
       <!-- 使用标签页 -->
       <el-tabs v-model="activeTab" class="project-tabs">
@@ -20,13 +15,8 @@
                 project.name
               }}</el-descriptions-item>
               <el-descriptions-item label="状态">
-                <el-select
-                  v-model="currentStatus"
-                  :loading="statusUpdating"
-                  size="small"
-                  style="width: 120px"
-                  @change="handleStatusChange"
-                >
+                <el-select v-model="currentStatus" :loading="statusUpdating" size="small" style="width: 120px"
+                  @change="handleStatusChange">
                   <el-option label="未开始" value="未开始" />
                   <el-option label="进行中" value="进行中" />
                   <el-option label="已完成" value="已完成" />
@@ -38,18 +28,15 @@
                 </el-tag>
                 <span v-else>-</span>
               </el-descriptions-item>
-              <el-descriptions-item label="进度"
-                >{{ project.progress || 0 }}%</el-descriptions-item
-              >
+              <el-descriptions-item label="进度">{{ project.progress || 0 }}%</el-descriptions-item>
               <el-descriptions-item label="开始日期">{{
                 formatDate(project.startDate)
               }}</el-descriptions-item>
               <el-descriptions-item label="结束日期">{{
                 formatDate(project.endDate)
               }}</el-descriptions-item>
-              <el-descriptions-item v-if="project.budget" label="预算"
-                >¥{{ formatBudget(project.budget) }}</el-descriptions-item
-              >
+              <el-descriptions-item v-if="project.budget" label="预算">¥{{ formatBudget(project.budget)
+              }}</el-descriptions-item>
               <el-descriptions-item v-if="project.createdAt" label="创建时间">{{
                 formatDate(project.createdAt)
               }}</el-descriptions-item>
@@ -57,10 +44,7 @@
           </el-card>
 
           <!-- 项目描述 -->
-          <el-card
-            v-if="project.describe && project.describe.length > 0"
-            class="mb-20"
-          >
+          <el-card v-if="project.describe && project.describe.length > 0" class="mb-20">
             <template #header>
               <span>项目描述</span>
             </template>
@@ -72,19 +56,11 @@
                 </p>
                 <!-- URL 图片 -->
                 <div v-else-if="item.type === 'url'" class="description-image">
-                  <img
-                    :src="getImageUrl(item.content)"
-                    :alt="`图片 ${index + 1}`"
-                    @error="handleImageError"
-                  />
+                  <img :src="getImageUrl(item.content)" :alt="`图片 ${index + 1}`" @error="handleImageError" />
                 </div>
                 <!-- 文件图片 -->
                 <div v-else-if="item.type === 'file'" class="description-image">
-                  <img
-                    :src="getImageUrl(item.content)"
-                    :alt="item.content"
-                    @error="handleImageError"
-                  />
+                  <img :src="getImageUrl(item.content)" :alt="item.content" @error="handleImageError" />
                 </div>
               </template>
             </div>
@@ -98,35 +74,20 @@
           </el-card>
 
           <!-- 项目附件 -->
-          <el-card
-            v-if="project.attachment && project.attachment.length > 0"
-            class="mb-20"
-          >
+          <el-card v-if="project.attachment && project.attachment.length > 0" class="mb-20">
             <template #header>
               <span>项目附件</span>
             </template>
             <div class="attachment-list">
-              <div
-                v-for="(attachment, index) in project.attachment"
-                :key="index"
-                class="attachment-item"
-              >
+              <div v-for="(attachment, index) in project.attachment" :key="index" class="attachment-item">
                 <el-icon class="attachment-icon">
                   <Document />
                 </el-icon>
-                <a
-                  :href="getAttachmentUrl(attachment)"
-                  :download="getFileName(attachment)"
-                  class="attachment-link"
-                  target="_blank"
-                >
+                <a :href="getAttachmentUrl(attachment)" :download="getFileName(attachment)" class="attachment-link"
+                  target="_blank">
                   {{ getFileName(attachment) }}
                 </a>
-                <el-button
-                  type="text"
-                  size="small"
-                  @click="downloadAttachment(attachment)"
-                >
+                <el-button type="text" size="small" @click="downloadAttachment(attachment)">
                   <el-icon>
                     <Download />
                   </el-icon>
@@ -137,19 +98,12 @@
           </el-card>
 
           <!-- 团队成员 -->
-          <el-card
-            v-if="project.members && project.members.length > 0"
-            class="mb-20"
-          >
+          <el-card v-if="project.members && project.members.length > 0" class="mb-20">
             <template #header>
               <span>团队成员</span>
             </template>
             <div class="members-list">
-              <div
-                v-for="member in project.members"
-                :key="member.id"
-                class="member-item"
-              >
+              <div v-for="member in project.members" :key="member.id" class="member-item">
                 <el-avatar :src="member.avatar">{{
                   member.name.charAt(0)
                 }}</el-avatar>
@@ -170,11 +124,7 @@
             <template #header>
               <div class="requirement-header">
                 <span>需求列表</span>
-                <el-button
-                  type="primary"
-                  size="small"
-                  @click="showRequirementDrawer = true"
-                >
+                <el-button type="primary" size="small" @click="showRequirementDrawer = true">
                   <el-icon>
                     <Plus />
                   </el-icon>
@@ -183,73 +133,41 @@
               </div>
             </template>
             <div v-loading="requirementsLoading" class="requirement-list">
-              <div
-                v-if="projectRequirements.length === 0"
-                class="empty-requirements"
-              >
+              <div v-if="projectRequirements.length === 0" class="empty-requirements">
                 <el-empty description="暂无需求" :image-size="100">
-                  <el-button
-                    type="primary"
-                    @click="showRequirementDrawer = true"
-                    >创建第一个需求</el-button
-                  >
+                  <el-button type="primary" @click="showRequirementDrawer = true">创建第一个需求</el-button>
                 </el-empty>
               </div>
               <div v-else class="requirements-container">
-                <div
-                  v-for="requirement in projectRequirements"
-                  :key="requirement.id"
-                  class="requirement-item"
-                  @click="openRequirementDrawer(requirement)"
-                >
+                <div v-for="requirement in projectRequirements" :key="requirement.id" class="requirement-item"
+                  @click="openRequirementDrawer(requirement)">
                   <div class="requirement-main">
                     <div class="requirement-title-row">
                       <span class="requirement-title">{{
                         requirement.title
                       }}</span>
                       <div class="requirement-badges">
-                        <el-tag
-                          :type="
-                            getRequirementStatusTagType(requirement.status)
-                          "
-                          size="small"
-                        >
+                        <el-tag :type="getRequirementStatusTagType(requirement.status)
+                          " size="small">
                           {{ getRequirementStatusText(requirement.status) }}
                         </el-tag>
-                        <el-tag
-                          :type="
-                            getRequirementPriorityTagType(requirement.priority)
-                          "
-                          size="small"
-                          effect="plain"
-                        >
+                        <el-tag :type="getRequirementPriorityTagType(requirement.priority)
+                          " size="small" effect="plain">
                           {{ getRequirementPriorityText(requirement.priority) }}
                         </el-tag>
                       </div>
                     </div>
-                    <p
-                      v-if="requirement.description"
-                      class="requirement-description"
-                    >
+                    <p v-if="requirement.description" class="requirement-description">
                       {{ requirement.description }}
                     </p>
                     <div class="requirement-meta">
-                      <div
-                        v-if="requirement.assignee"
-                        class="requirement-assignee"
-                      >
-                        <el-avatar
-                          :src="requirement.assignee.avatar"
-                          :size="20"
-                        >
+                      <div v-if="requirement.assignee" class="requirement-assignee">
+                        <el-avatar :src="requirement.assignee.avatar" :size="20">
                           {{ requirement.assignee.name?.charAt(0) }}
                         </el-avatar>
                         <span>{{ requirement.assignee.name }}</span>
                       </div>
-                      <div
-                        v-if="requirement.category"
-                        class="requirement-category"
-                      >
+                      <div v-if="requirement.category" class="requirement-category">
                         <el-icon>
                           <Folder />
                         </el-icon>
@@ -262,17 +180,9 @@
                         <span>截止: {{ formatDate(requirement.endDate) }}</span>
                       </div>
                     </div>
-                    <div
-                      v-if="requirement.tags && requirement.tags.length > 0"
-                      class="requirement-tags"
-                    >
-                      <el-tag
-                        v-for="tag in requirement.tags"
-                        :key="tag"
-                        size="small"
-                        effect="plain"
-                        style="margin-right: 6px"
-                      >
+                    <div v-if="requirement.tags && requirement.tags.length > 0" class="requirement-tags">
+                      <el-tag v-for="tag in requirement.tags" :key="tag" size="small" effect="plain"
+                        style="margin-right: 6px">
                         {{ tag }}
                       </el-tag>
                     </div>
@@ -300,37 +210,21 @@
             <div v-loading="tasksLoading" class="task-list">
               <div v-if="projectTasks.length === 0" class="empty-tasks">
                 <el-empty description="暂无任务" :image-size="100">
-                  <el-button type="primary" @click="handleAddTask"
-                    >创建第一个任务</el-button
-                  >
+                  <el-button type="primary" @click="handleAddTask">创建第一个任务</el-button>
                 </el-empty>
               </div>
               <div v-else class="tasks-container">
-                <div
-                  v-for="task in projectTasks"
-                  :key="task.id"
-                  class="task-item"
-                >
+                <div v-for="task in projectTasks" :key="task.id" class="task-item">
                   <div class="task-main">
                     <div class="task-title-row">
-                      <el-checkbox
-                        :model-value="task.status === TaskStatus.DONE"
-                        @change="
-                          (val: boolean) => handleTaskStatusChange(task, val)
-                        "
-                      >
-                        <span
-                          class="task-title"
-                          :class="{
-                            completed: task.status === TaskStatus.DONE
-                          }"
-                          >{{ task.title }}</span
-                        >
+                      <el-checkbox :model-value="task.status === TaskStatus.COMPLETED" @change="
+                        (val: boolean) => handleTaskStatusChange(task, val)
+                      ">
+                        <span class="task-title" :class="{
+                          completed: task.status === TaskStatus.COMPLETED
+                        }">{{ task.title }}</span>
                       </el-checkbox>
-                      <el-tag
-                        :type="getTaskStatusTagType(task.status)"
-                        size="small"
-                      >
+                      <el-tag :type="getTaskStatusTagType(task.status)" size="small">
                         {{ getTaskStatusText(task.status) }}
                       </el-tag>
                     </div>
@@ -345,17 +239,11 @@
                         <span>{{ task.assignee.name }}</span>
                       </div>
                       <div v-if="task.priority" class="task-priority">
-                        <el-tag
-                          :type="getPriorityTagType(task.priority)"
-                          size="small"
-                        >
+                        <el-tag :type="getPriorityTagType(task.priority)" size="small">
                           {{ getPriorityText(task.priority) }}
                         </el-tag>
                       </div>
-                      <div
-                        v-if="task.startDate || task.endDate"
-                        class="task-dates"
-                      >
+                      <div v-if="task.startDate || task.endDate" class="task-dates">
                         <el-icon>
                           <Calendar />
                         </el-icon>
@@ -363,34 +251,19 @@
                           formatDateRange(task.startDate, task.endDate)
                         }}</span>
                       </div>
-                      <div
-                        v-if="task.estimatedHours || task.actualHours"
-                        class="task-hours"
-                      >
+                      <div v-if="task.estimatedHours || task.actualHours" class="task-hours">
                         <el-icon>
                           <Clock />
                         </el-icon>
-                        <span
-                          >{{ task.actualHours || 0 }}/{{
-                            task.estimatedHours || 0
-                          }}h</span
-                        >
+                        <span>{{ task.actualHours || 0 }}/{{
+                          task.estimatedHours || 0
+                          }}h</span>
                       </div>
                     </div>
                   </div>
                   <div class="task-actions">
-                    <el-button
-                      type="text"
-                      size="small"
-                      @click="handleEditTask(task)"
-                      >编辑</el-button
-                    >
-                    <el-button
-                      type="text"
-                      size="small"
-                      @click="handleDeleteTask(task)"
-                      >删除</el-button
-                    >
+                    <el-button type="text" size="small" @click="handleEditTask(task)">编辑</el-button>
+                    <el-button type="text" size="small" @click="handleDeleteTask(task)">删除</el-button>
                   </div>
                 </div>
               </div>
@@ -406,14 +279,9 @@
   </el-dialog>
 
   <!-- 需求管理 Drawer -->
-  <RequirementDrawer
-    :visible="showRequirementDrawer"
-    :project-id="project?.id"
-    :project-name="project?.name"
-    :requirement="currentRequirement"
-    @update:visible="showRequirementDrawer = $event"
-    @refresh="() => project?.id && loadProjectRequirements(project.id)"
-  />
+  <RequirementDrawer :visible="showRequirementDrawer" :project-id="project?.id" :project-name="project?.name"
+    :requirement="currentRequirement" @update:visible="showRequirementDrawer = $event"
+    @refresh="() => project?.id && loadProjectRequirements(project.id)" />
 </template>
 
 <script setup lang="ts">
@@ -674,9 +542,9 @@ const loadProjectTasks = (projectId: string) => {
 const handleTaskStatusChange = (task: Task, completed: boolean) => {
   // TODO: 调用 API 更新任务状态
   if (completed) {
-    task.status = TaskStatus.DONE;
+    task.status = TaskStatus.COMPLETED;
   } else {
-    task.status = TaskStatus.TODO;
+    task.status = TaskStatus.NOT_STARTED;
   }
   projectStore.updateTask(task);
   console.log("任务状态变更:", task);
@@ -719,27 +587,26 @@ const handleDeleteTask = async (task: Task) => {
 const getTaskStatusTagType = (
   status: TaskStatus
 ): "success" | "primary" | "info" | "warning" | "danger" => {
-  const typeMap: Record<
-    TaskStatus,
-    "success" | "primary" | "info" | "warning" | "danger"
+  const typeMap: Partial<
+    Record<TaskStatus, "success" | "primary" | "info" | "warning" | "danger">
   > = {
-    [TaskStatus.TODO]: "info",
+    [TaskStatus.NOT_STARTED]: "info",
     [TaskStatus.IN_PROGRESS]: "primary",
     [TaskStatus.TESTING]: "warning",
-    [TaskStatus.DONE]: "success",
-    [TaskStatus.BLOCKED]: "danger"
+    [TaskStatus.COMPLETED]: "success",
+    [TaskStatus.CANCELLED]: "danger"
   };
   return typeMap[status] || "info";
 };
 
 // 获取任务状态文本
 const getTaskStatusText = (status: TaskStatus): string => {
-  const textMap: Record<TaskStatus, string> = {
-    [TaskStatus.TODO]: "待办",
+  const textMap: Partial<Record<TaskStatus, string>> = {
+    [TaskStatus.NOT_STARTED]: "待办",
     [TaskStatus.IN_PROGRESS]: "进行中",
     [TaskStatus.TESTING]: "测试中",
-    [TaskStatus.DONE]: "已完成",
-    [TaskStatus.BLOCKED]: "已阻塞"
+    [TaskStatus.COMPLETED]: "已完成",
+    [TaskStatus.CANCELLED]: "已阻塞"
   };
   return textMap[status] || status;
 };

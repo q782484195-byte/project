@@ -3,33 +3,16 @@
     <div class="page-header">
       <h2>需求管理</h2>
       <div class="header-actions">
-        <el-select
-          v-model="selectedProjectId"
-          placeholder="所属项目"
-          clearable
-          style="width: 180px"
-          @change="handleProjectChange"
-        >
-          <el-option
-            v-for="project in projects"
-            :key="project.id"
-            :label="project.name"
-            :value="project.id"
-          />
+        <el-select v-model="selectedProjectId" placeholder="所属项目" clearable style="width: 180px"
+          @change="handleProjectChange">
+          <el-option v-for="project in projects" :key="project.id" :label="project.name" :value="project.id" />
         </el-select>
-        <el-input
-          v-model="searchKeyword"
-          placeholder="搜索需求..."
-          prefix-icon="Search"
-          clearable
-          style="width: 200px"
-        />
-        <el-select
-          v-model="statusFilter"
-          placeholder="状态筛选"
-          clearable
-          style="width: 120px"
-        >
+        <el-select v-model="searchRequirementId" placeholder="选择需求" filterable clearable style="width: 220px"
+          @change="handleRequirementSelectChange" @clear="handleRequirementSelectChange">
+          <el-option v-for="option in requirementOptions" :key="option.value" :label="option.label"
+            :value="option.value" />
+        </el-select>
+        <el-select v-model="statusFilter" placeholder="状态筛选" clearable style="width: 120px">
           <el-option label="草稿" value="草稿" />
           <el-option label="进行中" value="进行中" />
           <el-option label="已完成" value="已完成" />
@@ -47,30 +30,29 @@
     <!-- 需求列表 -->
     <el-card v-loading="loading" class="requirements-table-card">
       <el-table :data="filteredRequirements" style="width: 100%" height="680">
-        <el-table-column
-          prop="requirement_name"
-          label="需求名称"
-          min-width="200"
-        />
+        <el-table-column prop="requirement_name" label="需求名称" min-width="200" />
         <el-table-column prop="project_name" label="所属项目" width="150" />
         <el-table-column prop="priority" label="优先级" width="100">
           <template #default="{ row }">
-            <el-tag
-              :type="getPriorityType(row.priority) || undefined"
-              size="small"
-            >
+            <el-tag :type="getPriorityType(row.priority) || undefined" size="small">
               {{ row.priority || "-" }}
             </el-tag>
           </template>
         </el-table-column>
+        <el-table-column prop="priority" label="优先级" width="150">
+          <template #default="{ row }">
+            <el-select v-model="row.priority" size="small" style="width: 120px" placeholder="选择优先级"
+              @change="handlePriorityChange(row)">
+              <el-option label="低" value="低" />
+              <el-option label="中" value="中" />
+              <el-option label="高" value="高" />
+              <el-option label="紧急" value="紧急" />
+            </el-select>
+          </template>
+        </el-table-column>
         <el-table-column prop="status" label="状态" width="150">
           <template #default="{ row }">
-            <el-select
-              v-model="row.status"
-              size="small"
-              style="width: 100px"
-              @change="handleStatusChange(row)"
-            >
+            <el-select v-model="row.status" size="small" style="width: 100px" @change="handleStatusChange(row)">
               <el-option label="草稿" value="草稿" />
               <el-option label="进行中" value="进行中" />
               <el-option label="已完成" value="已完成" />
@@ -81,12 +63,8 @@
         <el-table-column prop="create_time" label="创建时间" width="180" />
         <el-table-column label="操作" width="150" fixed="right">
           <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="handleView(row)"
-              >查看</el-button
-            >
-            <el-button type="primary" link size="small" @click="handleEdit(row)"
-              >编辑</el-button
-            >
+            <el-button type="primary" link size="small" @click="handleView(row)">查看</el-button>
+            <el-button type="primary" link size="small" @click="handleEdit(row)">编辑</el-button>
             <!-- <el-button type="danger" link size="small" @click="handleDelete(row)">删除</el-button> -->
           </template>
         </el-table-column>
@@ -94,35 +72,26 @@
     </el-card>
 
     <div class="pagination">
-      <el-pagination
-        v-model:current-page="currentPage"
-        v-model:page-size="pageSize"
-        :page-sizes="[10, 20, 50, 100]"
-        :total="totalRequirements"
-        layout="total, sizes, prev, pager, next, jumper"
-      />
+      <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" :page-sizes="[10, 20, 50, 100]"
+        :total="totalRequirements" layout="total, sizes, prev, pager, next, jumper" />
     </div>
 
     <!-- 新建/编辑需求抽屉 -->
-    <RequirementDrawer
-      v-model:visible="showRequirementDrawer"
-      :project-id="currentProjectId"
-      :project-name="currentProjectName"
-      :requirement="currentRequirement"
-      @refresh="handleRequirementRefresh"
-    />
+    <RequirementDrawer v-model:visible="showRequirementDrawer" :project-id="currentProjectId"
+      :project-name="currentProjectName" :requirement="currentRequirement" @refresh="handleRequirementRefresh" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, watch, nextTick } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { Plus, Search } from "@element-plus/icons-vue";
+import { Plus } from "@element-plus/icons-vue";
 import {
   selectRequirements,
   selectProjects,
   updateRequirementState,
+  updateRequirement,
   type SelectRequirementParams,
   type RequirementListItem,
   type ProjectListItem
@@ -134,8 +103,8 @@ import RequirementDrawer from "@/components/RequirementDrawer.vue";
 const router = useRouter();
 const route = useRoute();
 
-const searchKeyword = ref("");
 const statusFilter = ref<string>("");
+const searchRequirementId = ref("");
 const currentPage = ref(1);
 const pageSize = ref(20);
 const loading = ref(false);
@@ -147,6 +116,8 @@ const projects = ref<Project[]>([]);
 const selectedProjectId = ref<string>("");
 const showRequirementDrawer = ref(false);
 const currentRequirement = ref<Requirement | null>(null);
+const requirementOptions = ref<Array<{ label: string; value: string }>>([]);
+const hasOpenedCreateDrawer = ref(false); // 标志，用于避免重复打开新建抽屉
 
 // 当前使用的项目ID（用于加载需求）
 const projectId = computed(() => selectedProjectId.value);
@@ -161,20 +132,9 @@ const currentProjectName = computed(() => {
 // 过滤后的需求列表
 const filteredRequirements = computed(() => {
   let result = requirements.value;
-
-  if (searchKeyword.value) {
-    const keyword = searchKeyword.value.toLowerCase();
-    result = result.filter(
-      r =>
-        r.requirement_name?.toLowerCase().includes(keyword) ||
-        r.project_name?.toLowerCase().includes(keyword)
-    );
-  }
-
   if (statusFilter.value) {
     result = result.filter(r => r.status === statusFilter.value);
   }
-
   return result;
 });
 
@@ -276,8 +236,22 @@ const loadProjects = async () => {
       const routeProjectId = route.query.project_id as string | undefined;
       if (routeProjectId && projects.value.some(p => p.id === routeProjectId)) {
         selectedProjectId.value = routeProjectId;
-      } else if (projects.value.length > 0) {
+      } else if (projects.value.length > 0 && !selectedProjectId.value) {
+        // 只有在还没有选择项目时才选择第一个
         selectedProjectId.value = projects.value[0].id;
+      }
+
+      // 如果路由有 create 参数且项目已选择，尝试打开新建抽屉
+      const createParam = route.query.create;
+      const shouldCreate = createParam === "true" || (Array.isArray(createParam) && createParam.includes("true"));
+      if (shouldCreate && selectedProjectId.value && !hasOpenedCreateDrawer.value) {
+        hasOpenedCreateDrawer.value = true;
+        // 使用 nextTick 确保在下一个 tick 打开
+        nextTick(() => {
+          currentRequirement.value = null;
+          showRequirementDrawer.value = true;
+          // 清除 query 参数，避免刷新时重复打开
+        });
       }
     } else {
       ElMessage.error(response.message || "加载项目列表失败");
@@ -298,11 +272,15 @@ const loadProjects = async () => {
 const loadRequirements = async () => {
   loading.value = true;
   try {
-    const response = await selectRequirements({
-      project_id: projectId.value || "", // 如果没有项目ID，传 undefined 查询所有需求
+    const params: SelectRequirementParams & { requirement_id?: string } = {
+      project_id: projectId.value || "",
       page: currentPage.value,
       page_size: pageSize.value
-    });
+    };
+    if (searchRequirementId.value && searchRequirementId.value.trim() !== "") {
+      params.requirement_id = searchRequirementId.value.trim();
+    }
+    const response = await selectRequirements(params);
 
     if (response.code === 200 && response.result) {
       // 将 API 返回的数据映射到前端需要的格式
@@ -350,9 +328,32 @@ const loadRequirements = async () => {
   }
 };
 
+// 加载需求选项（用于需求 ID 下拉）
+const loadRequirementOptions = async () => {
+  try {
+    const response = await selectRequirements({
+      project_id: projectId.value || "",
+      page: 1,
+      page_size: 100
+    });
+    if (response.code === 200 && response.result) {
+      requirementOptions.value = response.result.map(item => ({
+        label: item.需求名 || item._id,
+        value: item._id
+      }));
+    } else {
+      requirementOptions.value = [];
+    }
+  } catch (error) {
+    console.error("加载需求选项失败:", error);
+    requirementOptions.value = [];
+  }
+};
+
 // 处理项目选择变化
 const handleProjectChange = () => {
   currentPage.value = 1; // 重置到第一页
+  loadRequirementOptions();
   loadRequirements();
 };
 
@@ -369,6 +370,11 @@ const handleCreate = () => {
 
 // 处理需求刷新
 const handleRequirementRefresh = () => {
+  loadRequirements();
+};
+
+const handleRequirementSelectChange = () => {
+  currentPage.value = 1;
   loadRequirements();
 };
 
@@ -430,6 +436,47 @@ const handleStatusChange = async (requirement: any) => {
   }
 };
 
+const handlePriorityChange = async (requirement: any) => {
+  try {
+    const describeList = Array.isArray(requirement.describe)
+      ? requirement.describe.map((item: any) => {
+        if (typeof item === "string") return item;
+        if (item && typeof item === "object") {
+          if ("content" in item && typeof item.content === "string") {
+            return item.content;
+          }
+          if ("url" in item && typeof item.url === "string") {
+            return item.url;
+          }
+        }
+        return "";
+      }).filter(Boolean)
+      : [];
+
+    const response = await updateRequirement({
+      requirement_id: requirement.id,
+      requirement_name: requirement.requirement_name,
+      priority: requirement.priority || "",
+      describe: describeList,
+      attachment: requirement.attachment || []
+    });
+
+    if (response.code === 200) {
+      ElMessage.success("优先级更新成功");
+      loadRequirements();
+    } else {
+      ElMessage.error(response.message || "优先级更新失败");
+      loadRequirements();
+    }
+  } catch (error: any) {
+    console.error("更新优先级失败:", error);
+    ElMessage.error(
+      error?.response?.data?.message || error?.message || "优先级更新失败"
+    );
+    loadRequirements();
+  }
+};
+
 // 删除需求
 const handleDelete = async (requirement: any) => {
   try {
@@ -459,6 +506,7 @@ watch(
   () => {
     if (selectedProjectId.value) {
       currentPage.value = 1; // 重置到第一页
+      loadRequirementOptions();
       loadRequirements();
     } else {
       requirements.value = [];
@@ -481,13 +529,62 @@ watch(
   }
 );
 
+// 监听路由需求ID变化
+watch(
+  () => route.query.requirement_id,
+  newRequirementId => {
+    if (typeof newRequirementId === "string" && newRequirementId) {
+      searchRequirementId.value = newRequirementId;
+      currentPage.value = 1;
+      loadRequirements();
+    }
+  }
+);
+
+// 监听 create 参数和项目选择，自动打开新建模态框
+watch(
+  [() => route.query.create, () => selectedProjectId.value],
+  ([createParam, projectId]) => {
+    const shouldCreate = createParam === "true" || (Array.isArray(createParam) && createParam.includes("true"));
+    // 如果 create 参数存在且项目已选择，且还没有打开过，则打开抽屉
+    if (shouldCreate && projectId && !hasOpenedCreateDrawer.value) {
+      hasOpenedCreateDrawer.value = true;
+      nextTick(() => {
+        currentRequirement.value = null;
+        showRequirementDrawer.value = true;
+        // 清除 query 参数，避免刷新时重复打开
+      });
+    }
+  },
+  { immediate: false }
+);
+
 onMounted(async () => {
   // 先加载项目列表
   await loadProjects();
+  const routeRequirementId = route.query.requirement_id as string | undefined;
+  if (routeRequirementId) {
+    searchRequirementId.value = routeRequirementId;
+  }
+  await loadRequirementOptions();
   // 项目列表加载完成后，会自动设置selectedProjectId，然后加载需求列表
   if (projectId.value) {
     loadRequirements();
   }
+
+  // 检查是否需要自动打开新建模态框（在项目加载完成后检查）
+  const createParam = route.query.create;
+  const shouldCreate = createParam === "true" || (Array.isArray(createParam) && createParam.includes("true"));
+  if (shouldCreate && selectedProjectId.value && !hasOpenedCreateDrawer.value) {
+    hasOpenedCreateDrawer.value = true;
+    // 延迟一下，确保所有响应式更新完成
+    await nextTick();
+    currentRequirement.value = null;
+    showRequirementDrawer.value = true;
+    // 清除 query 参数，避免刷新时重复打开
+
+  }
+  // 如果项目还未选择，watch 会在项目选择后自动处理
 });
 </script>
 

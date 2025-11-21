@@ -7,7 +7,7 @@ export default {
   redirect: "/system/user",
   meta: {
     icon: "ri:settings-3-line",
-    title: "系统管理",
+    title: "系统",
     rank: 10
   },
   children: [
@@ -16,7 +16,7 @@ export default {
       name: "SystemDepartment",
       component: () => import("@/views/system/department/index.vue"),
       meta: {
-        title: "部门管理",
+        title: "部门",
         showParent: true,
         roles: ["Admin"] // 只有 Admin 角色可以访
       }
@@ -26,7 +26,7 @@ export default {
       name: "SystemUser",
       component: () => import("@/views/system/user/index.vue"),
       meta: {
-        title: "用户管理",
+        title: "用户",
         showParent: true,
         roles: ["Admin", "DepartmentManager"] // Admin 和 DepartmentManager 角色可以访问
       }

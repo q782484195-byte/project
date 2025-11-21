@@ -117,6 +117,65 @@ export const selectProjects = (params: SelectProjectParams) => {
   );
 };
 
+
+
+/** 查询项目下所有需求和任务参数 */
+export interface SelectAllRequirementsAndTasksParams {
+  project_id: string;
+}
+
+/** 需求项（包含任务列表） */
+export interface RequirementWithTasksItem {
+  _id: string;
+  需求名: string;
+  describe: DescribeContent[];
+  当前处理人?: string;
+  状态: string;
+  优先级: string;
+  进度?: number; // 需求进度
+  project_name: string;
+  project_id: string;
+  creator: string;
+  attachment: any[];
+  create_time: string;
+  task_list: TaskWithDetailItem[];
+}
+
+/** 任务项（详细信息） */
+export interface TaskWithDetailItem {
+  _id?: string; // 任务ID（如果后端返回）
+  任务名: string;
+  describe: DescribeContent[];
+  状态: string;
+  优先级: string;
+  requirement_name: string;
+  requirement_id: string;
+  creator: string;
+  create_time: string;
+  当前处理人?: string;
+  指派人?: string;
+  指派给?: string;
+  审阅人?: string;
+  测试人?: string;
+  进度?: number;
+  预计工时?: number;
+  已用工时?: number;
+  attachment?: any[];
+  备注?: string;
+  历史记录?: string[];
+}
+
+/** 查询项目下所有需求和任务 */
+export const selectAllRequirementsAndTasks = (params: SelectAllRequirementsAndTasksParams) => {
+  return http.request<ApiResponse<RequirementWithTasksItem[]>>(
+    "post",
+    "/project/select_all",
+    {
+      data: params
+    }
+  );
+};
+
 /** 上传项目附件参数 */
 export interface UploadAttachmentParams {
   project_id: string;
@@ -203,6 +262,16 @@ export const selectRequirements = (params: SelectRequirementParams) => {
   return http.request<RequirementListResponse>(
     "post",
     "/project/select_requirement",
+    {
+      data: params
+    }
+  );
+};
+
+export const selectUserRequirements = (params: SelectRequirementParams) => {
+  return http.request<RequirementListResponse>(
+    "post",
+    "/requirement/user_select",
     {
       data: params
     }
@@ -355,6 +424,7 @@ export interface TaskListResponse {
   result: TaskListItem[];
   total_count: number;
   message?: string;
+  dynamic?: string[];
 }
 
 /** 根据需求ID查询任务列表 */
@@ -373,6 +443,7 @@ export const selectTasksByRequirement = (
 /** 查询任务列表参数 */
 export interface SelectTasksParams {
   requirement_id?: string;
+  task_name?: string;
   page?: number;
   page_size?: number;
 }
@@ -382,6 +453,7 @@ export const selectTasks = (params: SelectTasksParams) => {
   return http.request<TaskListResponse>("post", "/task/requirement_select", {
     data: {
       requirement_id: params.requirement_id,
+      task_name: params.task_name,
       page: params.page || 1,
       page_size: params.page_size || 20
     }
@@ -470,6 +542,57 @@ export const selectMyTasks = (params: SelectMyTasksParams) => {
   return http.request<TaskListResponse>("post", "/task/user_select", {
     data: {
       state: params.state || "",
+      page: params.page || 1,
+      page_size: params.page_size || 20
+    }
+  });
+};
+
+/** 汇报任务进度参数 */
+export interface ReportTaskProgressParams {
+  recipient: string;
+  task_id: string;
+  task_name: string;
+  progress: number;
+  message: string;
+}
+
+/** 汇报任务进度 */
+export const reportTaskProgress = (params: ReportTaskProgressParams) => {
+  return http.request<ApiResponse<any>>("post", "/task/report", {
+    data: {
+      recipient: params.recipient,
+      task_id: params.task_id,
+      task_name: params.task_name,
+      progress: params.progress,
+      message: params.message
+    }
+  });
+};
+
+/** 任务统计响应 */
+export interface TaskStatisticsResponse {
+  code: number;
+  取消的任务: number; // 取消的任务数
+  已完成任务: number; // 已完成任务数
+  未完成任务: number; // 未完成任务数
+}
+
+/** 获取任务统计 */
+export const getTaskStatistics = () => {
+  return http.request<TaskStatisticsResponse>("get", "/task/statistics");
+};
+
+/** 查询待办任务参数 */
+export interface SelectPendingTasksParams {
+  page?: number;
+  page_size?: number;
+}
+
+/** 查询待办任务列表 */
+export const selectPendingTasks = (params: SelectPendingTasksParams) => {
+  return http.request<TaskListResponse>("post", "/task/pending", {
+    data: {
       page: params.page || 1,
       page_size: params.page_size || 20
     }

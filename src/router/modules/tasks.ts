@@ -7,7 +7,7 @@ export default {
   redirect: "/tasks/list",
   meta: {
     icon: "ri:task-line",
-    title: "任务管理",
+    title: "任务",
     rank: 3
   },
   children: [
@@ -17,18 +17,19 @@ export default {
       component: () => import("@/views/tasks/index.vue"),
       meta: {
         title: "任务列表",
-        showLink: true
+        showLink: true,
+        showParent: true
       }
     },
-    {
-      path: "/tasks/my-tasks",
-      name: "MyTasks",
-      component: () => import("@/views/tasks/my-tasks.vue"),
-      meta: {
-        title: "我的任务",
-        showLink: true
-      }
-    },
+    // {
+    //   path: "/tasks/my-tasks",
+    //   name: "MyTasks",
+    //   component: () => import("@/views/tasks/my-tasks.vue"),
+    //   meta: {
+    //     title: "我的任务",
+    //     showLink: true
+    //   }
+    // },
     {
       path: "/tasks/detail/:id",
       name: "TaskDetail",

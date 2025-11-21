@@ -1,21 +1,11 @@
 <template>
-  <el-dialog
-    v-model="dialogVisible"
-    :title="isEdit ? '编辑项目' : '新建项目'"
-    width="900px"
-    @close="handleClose"
-  >
-    <el-form
-      ref="formRef"
-      :model="projectForm"
-      :rules="rules"
-      label-width="100px"
-    >
+  <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑项目' : '新建项目'" width="900px" @close="handleClose">
+    <el-form ref="formRef" :model="projectForm" :rules="rules" label-width="100px">
       <el-form-item label="项目名称" prop="name">
         <el-input v-model="projectForm.name" placeholder="请输入项目名称" />
       </el-form-item>
 
-      <el-form-item label="项目类型" prop="typeId">
+      <!-- <el-form-item label="项目类型" prop="typeId">
         <el-select
           v-model="projectForm.typeId"
           placeholder="选择项目类型"
@@ -29,8 +19,8 @@
             :value="type.id"
           />
         </el-select>
-      </el-form-item>
-
+      </el-form-item> -->
+      <!-- 
       <el-form-item label="项目模板" prop="templateId">
         <el-select
           v-model="projectForm.templateId"
@@ -45,25 +35,16 @@
             :value="template.id"
           />
         </el-select>
-      </el-form-item>
+      </el-form-item> -->
 
       <el-form-item label="项目描述" prop="describe">
-        <RichTextEditor
-          ref="richTextEditorRef"
-          v-model="projectForm.describe"
-        />
+        <RichTextEditor ref="richTextEditorRef" v-model="projectForm.describe" />
       </el-form-item>
 
       <!-- 附件上传（新建和编辑都可以） -->
       <el-form-item label="附件文件">
-        <el-upload
-          v-model:file-list="fileList"
-          multiple
-          :auto-upload="false"
-          :on-remove="handleFileRemove"
-          :on-change="handleFileChange"
-          :before-upload="handleBeforeUpload"
-        >
+        <el-upload v-model:file-list="fileList" multiple :auto-upload="false" :on-remove="handleFileRemove"
+          :on-change="handleFileChange" :before-upload="handleBeforeUpload">
           <el-button type="primary">
             <el-icon>
               <Upload />
@@ -79,52 +60,28 @@
       <el-row :gutter="20">
         <el-col :span="12">
           <el-form-item label="开始日期" prop="startDate">
-            <el-date-picker
-              v-model="projectForm.startDate"
-              type="date"
-              placeholder="选择开始日期"
-              format="YYYY-MM-DD"
-              value-format="YYYY-MM-DD"
-              style="width: 100%"
-            />
+            <el-date-picker v-model="projectForm.startDate" type="date" placeholder="选择开始日期" format="YYYY-MM-DD"
+              value-format="YYYY-MM-DD" style="width: 100%" />
           </el-form-item>
         </el-col>
         <el-col :span="12">
           <el-form-item label="结束日期" prop="endDate">
-            <el-date-picker
-              v-model="projectForm.endDate"
-              type="date"
-              placeholder="选择结束日期"
-              format="YYYY-MM-DD"
-              value-format="YYYY-MM-DD"
-              style="width: 100%"
-            />
+            <el-date-picker v-model="projectForm.endDate" type="date" placeholder="选择结束日期" format="YYYY-MM-DD"
+              value-format="YYYY-MM-DD" style="width: 100%" />
           </el-form-item>
         </el-col>
       </el-row>
 
-      <el-form-item label="团队成员">
-        <el-select
-          v-model="projectForm.memberIds"
-          multiple
-          placeholder="选择团队成员"
-          style="width: 100%"
-        >
-          <el-option
-            v-for="user in allUsers"
-            :key="user.id"
-            :label="user.name"
-            :value="user.id"
-          />
+      <!-- <el-form-item label="团队成员">
+        <el-select v-model="projectForm.memberIds" multiple placeholder="选择团队成员" style="width: 100%">
+          <el-option v-for="user in allUsers" :key="user.id" :label="user.name" :value="user.id" />
         </el-select>
-      </el-form-item>
+      </el-form-item> -->
     </el-form>
 
     <template #footer>
       <el-button :disabled="submitting" @click="handleClose">取消</el-button>
-      <el-button type="primary" :loading="submitting" @click="handleSubmit"
-        >确定</el-button
-      >
+      <el-button type="primary" :loading="submitting" @click="handleSubmit">确定</el-button>
     </template>
   </el-dialog>
 </template>
@@ -515,8 +472,8 @@ const handleSubmit = async () => {
             : undefined;
           const projectTemplate = projectForm.templateId
             ? getAllProjectTemplates().find(
-                t => t.id === projectForm.templateId
-              )
+              t => t.id === projectForm.templateId
+            )
             : undefined;
 
           const updatedProject: Project = {
@@ -586,8 +543,8 @@ const handleSubmit = async () => {
             : undefined;
           const projectTemplate = projectForm.templateId
             ? getAllProjectTemplates().find(
-                t => t.id === projectForm.templateId
-              )
+              t => t.id === projectForm.templateId
+            )
             : undefined;
 
           const newProject: Project = {

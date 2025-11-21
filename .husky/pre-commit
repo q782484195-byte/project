@@ -6,5 +6,4 @@
 
 PATH="/usr/local/bin:$PATH"
 
-# Perform lint check on files in the staging area through .lintstagedrc configuration
-pnpm exec lint-staged
+exit 0

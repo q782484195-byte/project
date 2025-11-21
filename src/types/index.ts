@@ -1,15 +1,15 @@
 // 任务状态枚举
 export enum TaskStatus {
-  PENDING_ASSIGN_TO_DEPT_LEADER = "待分配给部门主管",
+  PENDING_ASSIGN_TO_DEPT_LEADER = "待分配给部门负责人",
   PENDING_ASSIGN_TO_MEMBER = "待指派给成员",
   NOT_STARTED = "任务未开始",
   IN_PROGRESS = "任务进行中",
   PENDING_TEST = "待测试",
   TESTING = "测试中",
-  TEST_COMPLETED = "测试完成",
+  TEST_COMPLETED = "测试完毕",
   PENDING_REVIEW = "待审阅",
   REVIEWING = "审阅中",
-  REVIEW_COMPLETED = "审阅完成",
+  REVIEW_COMPLETED = "审阅完毕",
   CANCELLED = "已取消",
   COMPLETED = "已完成"
 }
@@ -36,6 +36,7 @@ export interface Task {
   endDate?: string;
   actualHours?: number;
   estimatedHours?: number;
+  任务名?: string;
 }
 
 // 项目类型枚举
@@ -121,13 +122,13 @@ export interface Project {
   description?: string;
   describe?: DescribeContent[]; // 项目描述内容数组（包含文本、图片URL、文件路径）
   status?:
-    | "未开始"
-    | "进行中"
-    | "已完成"
-    | "active"
-    | "completed"
-    | "paused"
-    | "cancelled"; // 支持中文和英文状态
+  | "未开始"
+  | "进行中"
+  | "已完成"
+  | "active"
+  | "completed"
+  | "paused"
+  | "cancelled"; // 支持中文和英文状态
   progress?: number;
   startDate?: string;
   endDate?: string;
@@ -148,6 +149,7 @@ export interface Project {
   attachment?: string[]; // 项目附件链接数组
   createdAt?: string;
   updatedAt?: string;
+  总进度?: number; // 项目总进度（来自后端API）
 }
 
 // 需求状态枚举

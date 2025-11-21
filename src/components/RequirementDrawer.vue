@@ -1,11 +1,6 @@
 <template>
-  <el-drawer
-    v-model="drawerVisible"
-    :title="isEdit ? '编辑需求' : '新建需求'"
-    size="600px"
-    direction="rtl"
-    @close="handleClose"
-  >
+  <el-drawer v-model="drawerVisible" :title="isEdit ? '编辑需求' : '新建需求'" size="600px" direction="rtl"
+    @close="handleClose">
     <div class="requirement-drawer">
       <!-- 创建模式选择（仅新建时显示） -->
       <div v-if="!isEdit" class="create-mode-selector">
@@ -16,37 +11,18 @@
       </div>
 
       <!-- 手动创建表单 -->
-      <el-form
-        v-if="isEdit || createMode === 'manual'"
-        ref="formRef"
-        :model="requirementForm"
-        :rules="rules"
-        label-width="100px"
-        label-position="left"
-      >
+      <el-form v-if="isEdit || createMode === 'manual'" ref="formRef" :model="requirementForm" :rules="rules"
+        label-width="100px" label-position="left">
         <el-form-item label="需求标题" prop="title">
-          <el-input
-            v-model="requirementForm.title"
-            placeholder="请输入需求标题"
-            maxlength="100"
-            show-word-limit
-          />
+          <el-input v-model="requirementForm.title" placeholder="请输入需求标题" maxlength="100" show-word-limit />
         </el-form-item>
 
         <el-form-item label="需求描述" prop="describe">
-          <RichTextEditor
-            ref="richTextEditorRef"
-            v-model="requirementForm.describe"
-          />
+          <RichTextEditor ref="richTextEditorRef" v-model="requirementForm.describe" />
         </el-form-item>
 
         <el-form-item label="优先级" prop="priority">
-          <el-select
-            v-model="requirementForm.priority"
-            placeholder="选择优先级"
-            clearable
-            style="width: 100%"
-          >
+          <el-select v-model="requirementForm.priority" placeholder="选择优先级" clearable style="width: 100%">
             <el-option label="低" value="low">
               <el-tag type="info" size="small">低</el-tag>
             </el-option>
@@ -60,15 +36,9 @@
         </el-form-item>
 
         <!-- 合同附件上传 -->
-        <el-form-item label="合同附件">
-          <el-upload
-            v-model:file-list="fileList"
-            multiple
-            :auto-upload="false"
-            :on-remove="handleFileRemove"
-            :on-change="handleFileChange"
-            :before-upload="handleBeforeUpload"
-          >
+        <el-form-item label="需求附件">
+          <el-upload v-model:file-list="fileList" multiple :auto-upload="false" :on-remove="handleFileRemove"
+            :on-change="handleFileChange" :before-upload="handleBeforeUpload">
             <el-button type="primary">
               <el-icon>
                 <Upload />
@@ -83,22 +53,13 @@
       </el-form>
 
       <!-- 导入JSON区域 -->
-      <div
-        v-if="!isEdit && createMode === 'import'"
-        class="import-json-section"
-      >
+      <div v-if="!isEdit && createMode === 'import'" class="import-json-section">
         <el-alert type="info" :closable="false" style="margin-bottom: 20px">
           <template #title>
             <span>请选择JSON文件导入生成需求</span>
           </template>
         </el-alert>
-        <el-button
-          type="primary"
-          size="large"
-          :loading="importing"
-          style="width: 100%"
-          @click="handleImportJson"
-        >
+        <el-button type="primary" size="large" :loading="importing" style="width: 100%" @click="handleImportJson">
           <el-icon>
             <Upload />
           </el-icon>
@@ -114,12 +75,8 @@
       <div class="drawer-footer">
         <div class="footer-right">
           <el-button @click="handleClose">取消</el-button>
-          <el-button
-            v-if="isEdit || createMode === 'manual'"
-            type="primary"
-            :loading="submitting"
-            @click="handleSubmit"
-          >
+          <el-button v-if="isEdit || createMode === 'manual'" type="primary" :loading="submitting"
+            @click="handleSubmit">
             {{ isEdit ? "保存" : "创建" }}
           </el-button>
         </div>
@@ -572,8 +529,8 @@ const handleSubmit = async () => {
         console.error(isEdit.value ? "更新需求失败:" : "创建需求失败:", error);
         ElMessage.error(
           error?.response?.data?.message ||
-            error?.message ||
-            (isEdit.value ? "需求更新失败" : "需求创建失败")
+          error?.message ||
+          (isEdit.value ? "需求更新失败" : "需求创建失败")
         );
       } finally {
         submitting.value = false;

@@ -89,6 +89,20 @@ export const selectAllUsers = () => {
   }>("get", "department/select_all_users ");
 };
 
+export interface DepartmentUserItem {
+  username?: string;
+  nickname?: string;
+  department?: string;
+  role?: string[];
+}
+
+export const selectDepartmentUsers = () => {
+  return http.request<{
+    code: number;
+    result: DepartmentUserItem[];
+  }>("get", "/department/select_users");
+};
+
 // /** 编辑部门 */
 // export const updateDepartment = (data: Department) => {
 //   return http.request<ApiResponse<Department>>("put", "/department/update", {

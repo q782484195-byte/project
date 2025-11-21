@@ -7,7 +7,7 @@ export default {
   redirect: "/projects/index",
   meta: {
     icon: "ri/folder-line",
-    title: "项目管理",
+    title: "项目",
     rank: 1
   },
   children: [
@@ -16,7 +16,7 @@ export default {
       name: "ProjectsIndex",
       component: () => import("@/views/projects/index.vue"),
       meta: {
-        title: "项目管理",
+        title: "项目列表",
         showLink: true
       }
     },
@@ -34,7 +34,7 @@ export default {
       name: "ProjectTypes",
       component: () => import("@/views/projects/types/index.vue"),
       meta: {
-        title: "项目类型管理",
+        title: "项目类型",
         showLink: true
       }
     },
@@ -43,7 +43,7 @@ export default {
       name: "ProjectTemplates",
       component: () => import("@/views/projects/templates/index.vue"),
       meta: {
-        title: "项目模板管理",
+        title: "项目模板",
         showLink: true
       }
     }

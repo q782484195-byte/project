@@ -61,90 +61,6 @@
         </el-card>
       </el-col>
     </el-row>
-
-    <el-row :gutter="20">
-      <!-- 最近任务 -->
-      <el-col :span="14" :xs="24">
-        <el-card>
-          <template #header>
-            <div class="flex-between">
-              <span>最近任务</span>
-              <el-button
-                type="primary"
-                size="small"
-                @click="$router.push('/tasks/my-tasks')"
-              >
-                查看更多
-              </el-button>
-            </div>
-          </template>
-          <el-table :data="recentTasks" style="width: 100%">
-            <el-table-column prop="title" label="任务名称" />
-            <el-table-column prop="status" label="状态" width="100">
-              <template #default="{ row }">
-                <el-tag :type="getStatusTagType(row.status)" size="small">
-                  {{ getStatusText(row.status) }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="assignee" label="负责人" width="100">
-              <template #default="{ row }">
-                {{ row.assignee?.name || "-" }}
-              </template>
-            </el-table-column>
-            <el-table-column prop="endDate" label="截止日期" width="120" />
-          </el-table>
-        </el-card>
-      </el-col>
-
-      <!-- 团队成员工作量 -->
-      <el-col :span="10" :xs="24">
-        <el-card>
-          <template #header>
-            <div class="card-header-title">
-              <span>团队成员工作量</span>
-            </div>
-          </template>
-          <div v-if="teamWorkload.length === 0" class="empty-workload">
-            <el-empty description="暂无数据" :image-size="80" />
-          </div>
-          <div v-else>
-            <div
-              v-for="member in teamWorkload"
-              :key="member.userId"
-              class="member-workload mb-16"
-            >
-              <div class="flex-between mb-8">
-                <div class="member-name">
-                  <el-avatar
-                    :size="24"
-                    :src="member.user.avatar"
-                    style="margin-right: 8px"
-                  >
-                    {{ member.user.name?.charAt(0) }}
-                  </el-avatar>
-                  <span>{{ member.user.name }}</span>
-                </div>
-                <span class="task-count"
-                  >{{ member.completedTasks }} 个任务</span
-                >
-              </div>
-              <el-progress
-                :percentage="
-                  Math.round(
-                    (member.completedTasks /
-                      Math.max(...teamWorkload.map(m => m.completedTasks), 1)) *
-                      100
-                  )
-                "
-                :stroke-width="10"
-                :color="getProgressColor(member.completedTasks)"
-              />
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
   </div>
 </template>
 
@@ -162,10 +78,12 @@ import {
 import { use } from "echarts/core";
 import { useProjectStoreHook } from "@/store/modules/project";
 import { useUserStoreHook } from "@/store/modules/user";
-import { TaskStatus, type Statistics } from "@/types";
+import { TaskStatus, type Statistics, type Project } from "@/types";
 import { mockProjects } from "@/mock/projects";
 import { mockTasks } from "@/mock/tasks";
 import { mockUsers } from "@/mock/users";
+import { selectProjects, type SelectProjectParams } from "@/api/project";
+import { ElMessage } from "element-plus";
 
 // 注册 echarts 组件
 use([
@@ -196,6 +114,8 @@ const projectProgressChart = ref<HTMLDivElement>();
 const taskStatusChart = ref<HTMLDivElement>();
 let projectProgressChartInstance: echarts.ECharts | null = null;
 let taskStatusChartInstance: echarts.ECharts | null = null;
+const projects = ref<Project[]>([]);
+const loadingProjects = ref(false);
 
 const recentTasks = computed(() => {
   // 如果没有当前用户，显示所有任务
@@ -225,17 +145,148 @@ const teamWorkload = computed(() => {
   });
 });
 
+// 加载项目数据
+const loadProjects = async () => {
+  loadingProjects.value = true;
+  try {
+    const params: SelectProjectParams = {
+      project_name: "",
+      creator: "",
+      state: "",
+      page: 1,
+      page_size: 100 // 获取所有项目用于图表显示
+    };
+
+    const response = await selectProjects(params);
+
+    if (response.code === 200) {
+      const projectList = response.result || response.data || [];
+
+      // 将 API 返回的数据转换为前端 Project 类型
+      projects.value = projectList.map((item: any) => {
+        // 处理 describe 数组，转换为描述文本
+        let description = "";
+        if (item.describe && Array.isArray(item.describe)) {
+          description = item.describe
+            .filter((d: any) => d.type === "text")
+            .map((d: any) => d.content)
+            .join("\n");
+        }
+
+        // 处理状态
+        let state = item.state || "进行中";
+        if (state.includes(",")) {
+          state = state.split(",")[0].trim();
+        }
+
+        // 处理 describe 数组
+        let processedDescribe = item.describe || [];
+        if (Array.isArray(processedDescribe)) {
+          processedDescribe = processedDescribe.map((d: any) => {
+            if (d.type === "image" && d.url) {
+              return {
+                type: "url" as const,
+                content: d.url
+              };
+            }
+            if (d.type === "url" && d.url && !d.content) {
+              return {
+                type: "url" as const,
+                content: d.url
+              };
+            }
+            return d;
+          });
+        }
+
+        return {
+          id: item._id || item.project_id || item.id,
+          name: item.project_name || item.name,
+          description: description || item.description || "",
+          describe: processedDescribe,
+          status: state,
+          creator: item.creator || "",
+          managerId: item.manager_id || item.managerId || "",
+          manager: item.manager || undefined,
+          members: item.members || [],
+          typeId: item.type_id || item.typeId,
+          templateId: item.template_id || item.templateId,
+          budget: item.budget || 0,
+          startDate:
+            item.plant_start_time ||
+            item.start_time ||
+            item.start_date ||
+            item.startDate,
+          endDate:
+            item.plant_end_time ||
+            item.completion_time ||
+            item.end_date ||
+            item.endDate,
+          progress: item.progress || 0,
+          总进度: item.总进度 || item.progress || 0, // 优先使用后端返回的 总进度 字段
+          attachment: item.attachment || [],
+          createdAt:
+            item.create_time ||
+            item.created_at ||
+            item.createdAt ||
+            new Date().toISOString(),
+          updatedAt:
+            item.updated_at || item.updatedAt || new Date().toISOString()
+        } as Project;
+      });
+
+      // 数据加载完成后更新图表
+      updateProjectProgressChart();
+    } else {
+      ElMessage.error(response.message || "加载项目数据失败");
+      // 如果 API 失败，使用 mock 数据作为后备
+      projects.value = [...mockProjects];
+      updateProjectProgressChart();
+    }
+  } catch (error: any) {
+    console.error("加载项目数据失败:", error);
+    ElMessage.error(
+      error?.response?.data?.message || error?.message || "加载项目数据失败"
+    );
+    // 如果 API 失败，使用 mock 数据作为后备
+    projects.value = [...mockProjects];
+    updateProjectProgressChart();
+  } finally {
+    loadingProjects.value = false;
+  }
+};
+
+// 获取项目进度值
+const getProjectProgress = (project: Project): number => {
+  return project.总进度 ?? project.progress ?? 0;
+};
+
 // 初始化项目进度图表
 const initProjectProgressChart = () => {
   if (!projectProgressChart.value) return;
 
   projectProgressChartInstance = echarts.init(projectProgressChart.value);
+  updateProjectProgressChart();
+};
+
+// 更新项目进度图表
+const updateProjectProgressChart = () => {
+  if (!projectProgressChartInstance) return;
+
+  // 按进度排序，显示前10个项目
+  const sortedProjects = [...projects.value]
+    .sort((a, b) => getProjectProgress(b) - getProjectProgress(a))
+    .slice(0, 10);
 
   const option = {
     tooltip: {
       trigger: "axis",
       axisPointer: {
         type: "shadow"
+      },
+      formatter: (params: any) => {
+        const param = params[0];
+        return `${param.name}<br/>${param.seriesName}: ${param.value}%`;
       }
     },
     grid: {
@@ -246,19 +297,40 @@ const initProjectProgressChart = () => {
     },
     xAxis: {
       type: "value",
-      max: 100
+      max: 100,
+      axisLabel: {
+        formatter: "{value}%"
+      }
     },
     yAxis: {
       type: "category",
-      data: mockProjects.map(p => p.name)
+      data: sortedProjects.map(p => p.name),
+      axisLabel: {
+        interval: 0,
+        formatter: (value: string) => {
+          // 如果名称太长，截断并显示省略号
+          return value.length > 10 ? value.substring(0, 10) + "..." : value;
+        }
+      }
     },
     series: [
       {
         name: "进度",
         type: "bar",
-        data: mockProjects.map(p => p.progress || 0),
+        data: sortedProjects.map(p => getProjectProgress(p)),
         itemStyle: {
-          color: "#409eff"
+          color: (params: any) => {
+            const progress = params.value;
+            if (progress >= 80) return "#67c23a";
+            if (progress >= 50) return "#409eff";
+            if (progress >= 20) return "#e6a23c";
+            return "#909399";
+          }
+        },
+        label: {
+          show: true,
+          position: "right",
+          formatter: "{c}%"
         }
       }
     ]
@@ -394,10 +466,10 @@ const getStatusText = (status: TaskStatus) => {
     [TaskStatus.IN_PROGRESS]: "任务进行中",
     [TaskStatus.PENDING_TEST]: "待测试",
     [TaskStatus.TESTING]: "测试中",
-    [TaskStatus.TEST_COMPLETED]: "测试完成",
+    [TaskStatus.TEST_COMPLETED]: "测试完毕",
     [TaskStatus.PENDING_REVIEW]: "待审阅",
     [TaskStatus.REVIEWING]: "审阅中",
-    [TaskStatus.REVIEW_COMPLETED]: "审阅完成",
+    [TaskStatus.REVIEW_COMPLETED]: "审阅完毕",
     [TaskStatus.CANCELLED]: "已取消",
     [TaskStatus.COMPLETED]: "已完成"
   };
@@ -452,8 +524,9 @@ const handleResize = () => {
   }
 };
 
-onMounted(() => {
+onMounted(async () => {
   loadDashboardData();
+  await loadProjects(); // 加载项目数据
   nextTick(() => {
     initProjectProgressChart();
     initTaskStatusChart();

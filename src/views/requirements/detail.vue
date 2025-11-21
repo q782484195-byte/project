@@ -12,8 +12,68 @@
 
     <div v-loading="loading" class="detail-content">
       <div v-if="requirement" class="detail-layout">
-        <!-- 左侧：需求信息 -->
+        <!-- 左侧：任务列表 -->
         <div class="left-panel">
+          <el-card class="tasks-card">
+            <template #header>
+              <div class="tasks-header">
+                <span>相关任务</span>
+                <el-tag effect="plain" size="small">{{
+                  requirementTasks.length
+                  }}</el-tag>
+              </div>
+            </template>
+
+            <div v-loading="tasksLoading" class="tasks-list">
+              <div v-if="requirementTasks.length === 0" class="empty-tasks">
+                <el-empty description="暂无任务" :image-size="100">
+                  <el-button type="primary" @click="goToTasksListToCreate">创建第一个任务</el-button>
+                </el-empty>
+              </div>
+              <div v-else>
+                <div v-for="task in requirementTasks" :key="task._id || task.id" class="task-item"
+                  @click="goToTasksList(task)">
+                  <div class="task-main">
+                    <div class="task-title-row">
+                      <span class="task-title"
+                        :class="{ completed: (task.状态 || task.status) === '已完成' || (task.状态 || task.status) === TaskStatus.COMPLETED }">
+                        {{ task.任务名 || task.task_name || task.title || '-' }}
+                      </span>
+                      <div class="task-badges">
+                        <el-tag :type="getTaskStatusTagType(task.状态 || task.status)" size="small">
+                          {{ task.状态 || task.status || "-" }}
+                        </el-tag>
+                        <el-tag :type="getPriorityType(task.优先级 || task.priority) || undefined" size="small">
+                          {{ task.优先级 || task.priority || "-" }}
+                        </el-tag>
+                      </div>
+                    </div>
+                    <div class="task-meta">
+                      <span v-if="task.指派人 || task.指派给 || task.当前处理人">
+                        <strong>负责人：</strong>{{ task.指派人 || task.指派给 || task.当前处理人 || "-" }}
+                      </span>
+                      <span v-if="task.creator">
+                        <strong>创建人：</strong>{{ task.creator }}
+                      </span>
+                      <span v-if="task.create_time">
+                        <el-icon>
+                          <Clock />
+                        </el-icon>
+                        {{ formatDate(task.create_time) }}
+                      </span>
+                      <span v-if="task.预计工时">
+                        预计 {{ task.预计工时 }} 小时 / 已用 {{ task.已用工时 || 0 }} 小时
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </el-card>
+        </div>
+
+        <!-- 右侧：基本信息 -->
+        <div class="right-panel">
           <el-card class="info-card">
             <template #header>
               <span>基本信息</span>
@@ -21,25 +81,17 @@
             <el-descriptions :column="1" border>
               <el-descriptions-item label="需求名称">{{
                 requirement.requirement_name
-              }}</el-descriptions-item>
+                }}</el-descriptions-item>
               <el-descriptions-item label="所属项目">{{
                 requirement.project_name
-              }}</el-descriptions-item>
+                }}</el-descriptions-item>
               <el-descriptions-item label="优先级">
-                <el-tag
-                  :type="getPriorityType(requirement.priority) || undefined"
-                  size="small"
-                >
+                <el-tag :type="getPriorityType(requirement.priority) || undefined" size="small">
                   {{ formatPriorityText(requirement.priority) }}
                 </el-tag>
               </el-descriptions-item>
               <el-descriptions-item label="状态">
-                <el-select
-                  v-model="requirement.status"
-                  size="small"
-                  style="width: 120px"
-                  @change="handleStatusChange"
-                >
+                <el-select v-model="requirement.status" size="small" style="width: 120px" @change="handleStatusChange">
                   <el-option label="草稿" value="草稿" />
                   <el-option label="进行中" value="进行中" />
                   <el-option label="已完成" value="已完成" />
@@ -49,155 +101,51 @@
               <el-descriptions-item v-if="requirement.creator" label="创建人">
                 {{ requirement.creator }}
               </el-descriptions-item>
-              <el-descriptions-item
-                v-if="requirement.create_time"
-                label="创建时间"
-              >
+              <el-descriptions-item v-if="requirement.create_time" label="创建时间">
                 {{ formatDate(requirement.create_time) }}
               </el-descriptions-item>
             </el-descriptions>
           </el-card>
 
           <!-- 需求描述 -->
-          <el-card
-            v-if="requirement.describe && requirement.describe.length > 0"
-            class="info-card"
-          >
+          <el-card v-if="requirement.describe && requirement.describe.length > 0" class="info-card">
             <template #header>
               <span>需求描述</span>
             </template>
             <div class="requirement-description">
-              <template
-                v-for="(item, index) in requirement.describe"
-                :key="index"
-              >
+              <template v-for="(item, index) in requirement.describe" :key="index">
                 <p v-if="item.type === 'text'" class="description-text">
                   {{ item.content }}
                 </p>
-                <div
-                  v-else-if="item.type === 'url' || item.type === 'file'"
-                  class="description-image"
-                >
-                  <el-image
-                    :src="getImageUrl(item.content)"
-                    :alt="`图片 ${index + 1}`"
-                    :preview-src-list="previewImageList"
-                    :initial-index="getImageIndex(index)"
-                    preview-teleported
-                    fit="contain"
-                    class="description-image-el"
-                    @error="handleImageError"
-                  />
+                <div v-else-if="item.type === 'url' || item.type === 'file'" class="description-image">
+                  <el-image :src="getImageUrl(item.content)" :alt="`图片 ${index + 1}`"
+                    :preview-src-list="previewImageList" :initial-index="getImageIndex(index)" preview-teleported
+                    fit="contain" class="description-image-el" @error="handleImageError" />
                 </div>
               </template>
             </div>
           </el-card>
 
-          <!-- 合同附件 -->
-          <el-card
-            v-if="requirement.attachment && requirement.attachment.length > 0"
-            class="info-card"
-          >
+          <!-- 需求附件 -->
+          <el-card v-if="requirement.attachment && requirement.attachment.length > 0" class="info-card">
             <template #header>
               <span>需求附件</span>
             </template>
             <div class="attachment-list">
-              <div
-                v-for="(attachment, index) in requirement.attachment"
-                :key="index"
-                class="attachment-item"
-              >
+              <div v-for="(attachment, index) in requirement.attachment" :key="index" class="attachment-item">
                 <el-icon class="attachment-icon">
                   <DocumentIcon />
                 </el-icon>
-                <a
-                  :href="getAttachmentUrl(attachment)"
-                  :download="getFileNameFromPath(attachment)"
-                  class="attachment-link"
-                  target="_blank"
-                >
+                <a :href="getAttachmentUrl(attachment)" :download="getFileNameFromPath(attachment)"
+                  class="attachment-link" target="_blank">
                   {{ getFileNameFromPath(attachment) }}
                 </a>
-                <el-button
-                  type="text"
-                  size="small"
-                  @click="downloadAttachment(attachment)"
-                >
+                <el-button type="text" size="small" @click="downloadAttachment(attachment)">
                   <el-icon>
                     <Download />
                   </el-icon>
                   下载
                 </el-button>
-              </div>
-            </div>
-          </el-card>
-        </div>
-
-        <!-- 右侧：任务列表 -->
-        <div class="right-panel">
-          <el-card class="tasks-card">
-            <template #header>
-              <div class="tasks-header">
-                <span>相关任务</span>
-                <el-tag effect="plain" size="small">{{
-                  requirementTasks.length
-                }}</el-tag>
-              </div>
-            </template>
-
-            <div v-loading="tasksLoading" class="tasks-list">
-              <div v-if="requirementTasks.length === 0" class="empty-tasks">
-                <el-empty description="暂无任务" :image-size="100" />
-              </div>
-              <div v-else>
-                <div
-                  v-for="task in requirementTasks"
-                  :key="task.id"
-                  class="task-item"
-                >
-                  <div class="task-main">
-                    <div class="task-title-row">
-                      <span
-                        class="task-title"
-                        :class="{ completed: task.status === TaskStatus.DONE }"
-                        >{{ task.title }}</span
-                      >
-                      <div class="task-badges">
-                        <el-tag
-                          :type="getTaskStatusTagType(task.status)"
-                          size="small"
-                        >
-                          {{ getTaskStatusText(task.status) }}
-                        </el-tag>
-                        <el-tag
-                          v-if="task.assignee"
-                          type="info"
-                          size="small"
-                          effect="plain"
-                        >
-                          {{ task.assignee }}
-                        </el-tag>
-                      </div>
-                    </div>
-                    <p v-if="task.description" class="task-description">
-                      {{ task.description }}
-                    </p>
-                    <div class="task-meta">
-                      <span v-if="task.startDate || task.endDate">
-                        <el-icon>
-                          <Calendar />
-                        </el-icon>
-                        {{ formatDateRange(task.startDate, task.endDate) }}
-                      </span>
-                      <span v-if="getTaskCreatedAt(task)">
-                        <el-icon>
-                          <Clock />
-                        </el-icon>
-                        {{ formatTaskCreatedAt(task) }}
-                      </span>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
           </el-card>
@@ -218,7 +166,8 @@ import {
   Clock,
   Download
 } from "@element-plus/icons-vue";
-import dayjs from "dayjs";
+import * as dayjsLib from "dayjs";
+const dayjs: typeof import("dayjs") = ((dayjsLib as any).default || dayjsLib) as typeof import("dayjs");
 import {
   selectRequirements,
   updateRequirementState,
@@ -255,7 +204,7 @@ interface RequirementDetail {
 }
 
 const requirement = ref<RequirementDetail | null>(null);
-const requirementTasks = ref<Task[]>([]);
+const requirementTasks = ref<any[]>([]);
 const tasksLoading = ref(false);
 const tasksTotal = ref(0);
 const tasksCurrentPage = ref(1);
@@ -432,7 +381,7 @@ const convertDescribeContent = (describe: any[]): DescribeContent[] => {
 const loadRequirement = async () => {
   if (!requirementId.value || !projectId.value) {
     ElMessage.error("缺少项目信息，无法查看需求详情");
-    router.push({ name: "RequirementsIndex" });
+    router.push({ name: "RequirementsList" });
     return;
   }
 
@@ -450,7 +399,7 @@ const loadRequirement = async () => {
       );
       if (!matched) {
         ElMessage.error("未找到该需求");
-        router.push({ name: "RequirementsIndex" });
+        router.push({ name: "RequirementsList" });
         return;
       }
 
@@ -468,14 +417,14 @@ const loadRequirement = async () => {
       };
     } else {
       ElMessage.error(response.message || "加载需求详情失败");
-      router.push({ name: "RequirementsIndex" });
+      router.push({ name: "RequirementsList" });
     }
   } catch (error: any) {
     console.error("加载需求详情失败:", error);
     ElMessage.error(
       error?.response?.data?.message || error?.message || "加载需求详情失败"
     );
-    router.push({ name: "RequirementsIndex" });
+    router.push({ name: "RequirementsList" });
   } finally {
     loading.value = false;
   }
@@ -497,30 +446,12 @@ const loadRequirementTasks = async (requirementId: string) => {
     });
 
     if (response.code === 200 && response.result) {
-      // 将 API 返回的数据映射到前端需要的 Task 格式
-      requirementTasks.value = response.result.map(
-        (item: TaskListItem): Task => {
-          return {
-            id: item._id,
-            title: item.title || item.任务名 || "",
-            description: item.description || "",
-            status: mapTaskStatus(item.status || item.状态 || ""),
-            priority: mapTaskPriority(item.priority || item.优先级 || ""),
-            assigneeId:
-              item.assigneeId ||
-              (typeof item.assignee === "string" ? item.assignee : "") ||
-              "",
-            assignee:
-              typeof item.assignee === "object" ? item.assignee : undefined,
-            projectId: item.projectId || "",
-            startDate: item.startDate || "",
-            endDate: item.endDate || "",
-            actualHours: item.actualHours || 0,
-            estimatedHours: item.estimatedHours || 0,
-            createdAt: item.create_time || ""
-          } as Task;
-        }
-      );
+      // 直接使用接口返回的原始数据，不进行状态映射
+      requirementTasks.value = response.result.map((item: TaskListItem) => ({
+        ...item,
+        id: item._id,
+        _id: item._id
+      }));
       tasksTotal.value = response.total_count || 0;
     } else {
       ElMessage.error(response.message || "加载任务列表失败");
@@ -542,18 +473,18 @@ const loadRequirementTasks = async (requirementId: string) => {
 // 映射任务状态
 const mapTaskStatus = (status: string): TaskStatus => {
   const statusMap: Record<string, TaskStatus> = {
-    待开始: TaskStatus.TODO,
+    待开始: TaskStatus.NOT_STARTED,
     进行中: TaskStatus.IN_PROGRESS,
     测试中: TaskStatus.TESTING,
-    已完成: TaskStatus.DONE,
-    已阻塞: TaskStatus.BLOCKED,
-    todo: TaskStatus.TODO,
+    已完成: TaskStatus.COMPLETED,
+    已阻塞: TaskStatus.CANCELLED,
+    todo: TaskStatus.NOT_STARTED,
     in_progress: TaskStatus.IN_PROGRESS,
     testing: TaskStatus.TESTING,
-    done: TaskStatus.DONE,
-    blocked: TaskStatus.BLOCKED
+    done: TaskStatus.COMPLETED,
+    blocked: TaskStatus.CANCELLED
   };
-  return statusMap[status] || TaskStatus.TODO;
+  return statusMap[status] || TaskStatus.NOT_STARTED;
 };
 
 // 映射任务优先级
@@ -572,27 +503,41 @@ const mapTaskPriority = (priority: string): "low" | "medium" | "high" => {
 const getTaskStatusTagType = (
   status: TaskStatus | string
 ): "success" | "info" | "warning" | "danger" | undefined => {
+  if (!status) return undefined;
+  const statusStr = String(status);
   const map: Record<
     string,
     "success" | "info" | "warning" | "danger" | undefined
   > = {
-    [TaskStatus.TODO]: "info",
+    // 枚举值映射（枚举值本身就是中文字符串）
+    [TaskStatus.PENDING_ASSIGN_TO_DEPT_LEADER]: "warning",
+    [TaskStatus.PENDING_ASSIGN_TO_MEMBER]: "warning",
+    [TaskStatus.NOT_STARTED]: "info",
     [TaskStatus.IN_PROGRESS]: "warning",
+    [TaskStatus.PENDING_TEST]: "info",
     [TaskStatus.TESTING]: "warning",
-    [TaskStatus.DONE]: "success",
-    [TaskStatus.BLOCKED]: "danger",
-    cancelled: "info"
+    [TaskStatus.TEST_COMPLETED]: "success",
+    [TaskStatus.PENDING_REVIEW]: "info",
+    [TaskStatus.REVIEWING]: "warning",
+    [TaskStatus.REVIEW_COMPLETED]: "success",
+    [TaskStatus.COMPLETED]: "success",
+    [TaskStatus.CANCELLED]: "danger",
+    // 其他可能的原始状态字符串（如果接口返回的与枚举值不同）
+    "待分配给部门主管": "warning",
+    "待开始": "info",
+    "进行中": "warning",
+    "取消": "danger"
   };
-  return map[status] || undefined;
+  return map[statusStr] || "info";
 };
 
 const getTaskStatusText = (status: TaskStatus | string) => {
   const map: Record<string, string> = {
-    [TaskStatus.TODO]: "待开始",
+    [TaskStatus.NOT_STARTED]: "待开始",
     [TaskStatus.IN_PROGRESS]: "进行中",
     [TaskStatus.TESTING]: "测试中",
-    [TaskStatus.DONE]: "已完成",
-    [TaskStatus.BLOCKED]: "阻塞中",
+    [TaskStatus.COMPLETED]: "已完成",
+    [TaskStatus.CANCELLED]: "阻塞中",
     cancelled: "已取消"
   };
   return map[status] || status;
@@ -649,7 +594,65 @@ const handleStatusChange = async () => {
 
 // 返回
 const goBack = () => {
-  router.push({ name: "RequirementsIndex" });
+  const from = route.query.from as string;
+  if (from === "workspace") {
+    // 从工作台来的，返回到工作台的需求TAB
+    router.push({
+      name: "Workspace",
+      query: { tab: "requirements" }
+    });
+  } else {
+    // 默认返回到需求列表
+    router.push({ name: "RequirementsList" });
+  }
+};
+
+const goToTasksList = (task: Task | Record<string, any>) => {
+  const rawTask = task as Record<string, any>;
+  const taskName = rawTask?.任务名 || rawTask?.task_name || task.title || "";
+  router.push({
+    name: "TasksList",
+    query: {
+      project_id: requirement.value?.project_id || projectId.value || "",
+      requirement_id: requirement.value?.id || "",
+      task_name: taskName
+    }
+  });
+};
+
+// 跳转到任务列表页并自动打开新建任务抽屉
+const goToTasksListToCreate = () => {
+  if (!requirement.value?.id) {
+    ElMessage.warning("需求信息不完整，无法创建任务");
+    return;
+  }
+  router.push({
+    name: "TasksList",
+    query: {
+      project_id: requirement.value?.project_id || projectId.value || "",
+      requirement_id: requirement.value?.id || "",
+      create: "true"
+    }
+  });
+};
+
+const hasTextContent = (describe: any[]): boolean => {
+  if (!Array.isArray(describe)) return false;
+  return describe.some(item => {
+    if (typeof item === "string") return item.trim().length > 0;
+    if (item && typeof item === "object" && item.type === "text") {
+      return !!item.content?.trim();
+    }
+    return false;
+  });
+};
+
+const getDescribeText = (describe: any[]): string => {
+  if (!Array.isArray(describe)) return "";
+  return describe
+    .filter(item => typeof item === "string" || (item && item.type === "text"))
+    .map(item => (typeof item === "string" ? item : item.content))
+    .join(" ");
 };
 
 onMounted(() => {
@@ -681,7 +684,7 @@ onMounted(() => {
   .detail-content {
     .detail-layout {
       display: grid;
-      grid-template-columns: 35vw 1fr;
+      grid-template-columns: 2fr 1fr;
       gap: 24px;
       align-items: start;
 

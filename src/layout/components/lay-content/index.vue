@@ -4,7 +4,7 @@ import LayFooter from "../lay-footer/index.vue";
 import { useTags } from "@/layout/hooks/useTag";
 import { useGlobal, isNumber } from "@pureadmin/utils";
 import BackTopIcon from "@/assets/svg/back_top.svg?component";
-import { h, computed, Transition, defineComponent } from "vue";
+import { h, computed, Transition, defineComponent, onMounted, ref } from "vue";
 import { usePermissionStoreHook } from "@/store/modules/permission";
 
 const props = defineProps({
@@ -30,6 +30,13 @@ const hideTabs = computed(() => {
 
 const hideFooter = computed(() => {
   return $storage?.configure.hideFooter;
+});
+
+const backtopReady = ref(false);
+const backtopTarget = ".app-main .el-scrollbar__wrap";
+
+onMounted(() => {
+  backtopReady.value = true;
 });
 
 const stretch = computed(() => {
@@ -64,11 +71,10 @@ const getSectionStyle = computed(() => {
       : "",
     props.fixedHeader
       ? ""
-      : `padding-top: 0;${
-          hideTabs.value
-            ? "min-height: calc(100vh - 48px);"
-            : "min-height: calc(100vh - 86px);"
-        }`
+      : `padding-top: 0;${hideTabs.value
+        ? "min-height: calc(100vh - 48px);"
+        : "min-height: calc(100vh - 86px);"
+      }`
   ];
 });
 
@@ -106,80 +112,42 @@ const transitionMain = defineComponent({
 </script>
 
 <template>
-  <section
-    :class="[fixedHeader ? 'app-main' : 'app-main-nofixed-header']"
-    :style="getSectionStyle"
-  >
+  <section :class="[fixedHeader ? 'app-main' : 'app-main-nofixed-header']" :style="getSectionStyle">
     <router-view>
       <template #default="{ Component, route }">
         <LayFrame :currComp="Component" :currRoute="route">
           <template #default="{ Comp, fullPath, frameInfo }">
-            <el-scrollbar
-              v-if="fixedHeader"
-              :wrap-style="{
-                display: 'flex',
-                'flex-wrap': 'wrap',
-                'max-width': getMainWidth,
-                margin: '0 auto',
-                transition: 'all 300ms cubic-bezier(0.4, 0, 0.2, 1)'
-              }"
-              :view-style="{
+            <el-scrollbar v-if="fixedHeader" :wrap-style="{
+              display: 'flex',
+              'flex-wrap': 'wrap',
+              'max-width': getMainWidth,
+              margin: '0 auto',
+              transition: 'all 300ms cubic-bezier(0.4, 0, 0.2, 1)'
+            }" :view-style="{
                 display: 'flex',
                 flex: 'auto',
                 overflow: 'hidden',
                 'flex-direction': 'column'
-              }"
-            >
-              <el-backtop
-                title="回到顶部"
-                target=".app-main .el-scrollbar__wrap"
-              >
+              }">
+              <el-backtop v-if="backtopReady" title="回到顶部" :target="backtopTarget">
                 <BackTopIcon />
               </el-backtop>
               <div class="grow">
                 <transitionMain :route="route">
-                  <keep-alive
-                    v-if="isKeepAlive"
-                    :include="usePermissionStoreHook().cachePageList"
-                  >
-                    <component
-                      :is="Comp"
-                      :key="fullPath"
-                      :frameInfo="frameInfo"
-                      class="main-content"
-                    />
+                  <keep-alive v-if="isKeepAlive" :include="usePermissionStoreHook().cachePageList">
+                    <component :is="Comp" :key="fullPath" :frameInfo="frameInfo" class="main-content" />
                   </keep-alive>
-                  <component
-                    :is="Comp"
-                    v-else
-                    :key="fullPath"
-                    :frameInfo="frameInfo"
-                    class="main-content"
-                  />
+                  <component :is="Comp" v-else :key="fullPath" :frameInfo="frameInfo" class="main-content" />
                 </transitionMain>
               </div>
               <LayFooter v-if="!hideFooter" />
             </el-scrollbar>
             <div v-else class="grow">
               <transitionMain :route="route">
-                <keep-alive
-                  v-if="isKeepAlive"
-                  :include="usePermissionStoreHook().cachePageList"
-                >
-                  <component
-                    :is="Comp"
-                    :key="fullPath"
-                    :frameInfo="frameInfo"
-                    class="main-content"
-                  />
+                <keep-alive v-if="isKeepAlive" :include="usePermissionStoreHook().cachePageList">
+                  <component :is="Comp" :key="fullPath" :frameInfo="frameInfo" class="main-content" />
                 </keep-alive>
-                <component
-                  :is="Comp"
-                  v-else
-                  :key="fullPath"
-                  :frameInfo="frameInfo"
-                  class="main-content"
-                />
+                <component :is="Comp" v-else :key="fullPath" :frameInfo="frameInfo" class="main-content" />
               </transitionMain>
             </div>
           </template>

@@ -13,202 +13,194 @@
     </div>
 
     <div v-loading="loading" class="detail-content">
-      <el-tabs v-if="task" v-model="activeTab" class="detail-tabs">
-        <!-- 基本信息 Tab -->
-        <el-tab-pane label="基本信息" name="info">
-          <el-card class="info-card">
-            <template #header>
-              <span>基本信息</span>
-            </template>
-            <el-descriptions :column="1" border>
-              <el-descriptions-item label="任务名称">{{
-                task.任务名 || task.task_name || task.title || "-"
-              }}</el-descriptions-item>
-              <el-descriptions-item label="所属项目">{{
-                task.project_name || "-"
-              }}</el-descriptions-item>
-              <el-descriptions-item label="关联需求">{{
-                task.requirement_name || "-"
-              }}</el-descriptions-item>
-              <el-descriptions-item label="负责人">{{
-                task.指派给 || task.assignee || "-"
-              }}</el-descriptions-item>
-              <el-descriptions-item label="状态">
-                <div style="display: flex; align-items: center; gap: 12px">
-                  <el-tag
-                    :type="getStatusType(task.状态 || task.status) || undefined"
-                    size="small"
-                  >
-                    {{ task.状态 || task.status || "-" }}
+      <el-card v-if="task" class="main-card">
+        <el-tabs v-model="activeTab" class="detail-tabs">
+          <!-- 基本信息 Tab -->
+          <el-tab-pane label="基本信息" name="info">
+            <el-card class="info-card" shadow="never">
+              <template #header>
+                <span>基本信息</span>
+              </template>
+              <el-descriptions :column="1" border>
+                <el-descriptions-item label="任务名称">{{
+                  task.任务名 || task.task_name || task.title || "-"
+                }}</el-descriptions-item>
+                <el-descriptions-item label="所属项目">{{
+                  task.project_name || "-"
+                }}</el-descriptions-item>
+                <el-descriptions-item label="关联需求">{{
+                  task.requirement_name || "-"
+                }}</el-descriptions-item>
+                <el-descriptions-item label="负责人">{{
+                  task.指派给 || task.assignee || "-"
+                }}</el-descriptions-item>
+                <el-descriptions-item label="状态">
+                  <div style="display: flex; align-items: center; gap: 12px">
+                    <el-tag :type="getStatusType(task.状态 || task.status) || undefined" size="small">
+                      {{ task.状态 || task.status || "-" }}
+                    </el-tag>
+                    <el-button v-if="getNextStatus(task.状态 || task.status)" type="primary" size="small"
+                      :loading="statusFlowLoading" @click="openStatusFlowDialog">
+                      流转
+                    </el-button>
+                  </div>
+                </el-descriptions-item>
+                <el-descriptions-item label="优先级">
+                  <el-tag :type="getPriorityType(task.优先级 || task.priority) || undefined
+                    " size="small">
+                    {{ task.优先级 || task.priority || "-" }}
                   </el-tag>
-                  <el-button
-                    v-if="getNextStatus(task.状态 || task.status)"
-                    type="primary"
-                    size="small"
-                    :loading="statusFlowLoading"
-                    @click="handleStatusFlow"
-                  >
-                    流转
-                  </el-button>
-                </div>
-              </el-descriptions-item>
-              <el-descriptions-item label="优先级">
-                <el-tag
-                  :type="
-                    getPriorityType(task.优先级 || task.priority) || undefined
-                  "
-                  size="small"
-                >
-                  {{ task.优先级 || task.priority || "-" }}
-                </el-tag>
-              </el-descriptions-item>
-              <el-descriptions-item label="预计工时"
-                >{{
+                </el-descriptions-item>
+                <el-descriptions-item label="预计工时">{{
                   task.预计工时 || task.estimated_time || 0
                 }}
-                小时</el-descriptions-item
-              >
-              <el-descriptions-item label="已用工时"
-                >{{
+                  小时</el-descriptions-item>
+                <el-descriptions-item label="已用工时">{{
                   task.已用工时 || task.actualHours || 0
                 }}
-                小时</el-descriptions-item
-              >
-              <el-descriptions-item label="进度">
-                <el-progress :percentage="task.进度 || task.progress || 0" />
-              </el-descriptions-item>
-              <el-descriptions-item v-if="task.create_time" label="创建时间">
-                {{ formatDate(task.create_time) }}
-              </el-descriptions-item>
-              <el-descriptions-item v-if="task.creator" label="创建人">{{
-                task.creator
-              }}</el-descriptions-item>
-            </el-descriptions>
-          </el-card>
+                  小时</el-descriptions-item>
+                <el-descriptions-item label="进度">
+                  <el-progress :percentage="task.进度 || task.progress || 0" />
+                </el-descriptions-item>
+                <el-descriptions-item v-if="task.create_time" label="创建时间">
+                  {{ task.create_time }}
+                </el-descriptions-item>
+                <el-descriptions-item v-if="task.creator" label="创建人">{{
+                  task.creator
+                }}</el-descriptions-item>
+              </el-descriptions>
+            </el-card>
 
-          <!-- 任务描述 -->
-          <el-card
-            v-if="task?.describe && task.describe.length > 0"
-            class="info-card"
-          >
-            <template #header>
-              <span>任务描述</span>
-            </template>
-            <div class="task-description">
-              <template v-for="(item, index) in task.describe" :key="index">
-                <p
-                  v-if="typeof item === 'string' && !item.startsWith('/data/')"
-                  class="description-text"
-                >
-                  {{ item }}
-                </p>
-                <div
-                  v-else-if="
+            <!-- 任务描述 -->
+            <el-card v-if="task?.describe && task.describe.length > 0" class="info-card" shadow="never">
+              <template #header>
+                <span>任务描述</span>
+              </template>
+              <div class="task-description">
+                <template v-for="(item, index) in task.describe" :key="index">
+                  <p v-if="typeof item === 'string' && !item.startsWith('/data/')" class="description-text">
+                    {{ item }}
+                  </p>
+                  <div v-else-if="
                     typeof item === 'string' && item.startsWith('/data/')
-                  "
-                  class="description-image"
-                >
-                  <el-image
-                    :src="getImageUrl(item)"
-                    :alt="`图片 ${index + 1}`"
-                    :preview-src-list="previewImageList"
-                    :initial-index="getImageIndex(index)"
-                    preview-teleported
-                    fit="contain"
-                    class="description-image-el"
-                    @error="handleImageError"
-                  />
+                  " class="description-image">
+                    <el-image :src="getImageUrl(item)" :alt="`图片 ${index + 1}`" :preview-src-list="previewImageList"
+                      :initial-index="getImageIndex(index)" preview-teleported fit="contain"
+                      class="description-image-el" @error="handleImageError" />
+                  </div>
+                  <p v-else-if="item.type === 'text'" class="description-text">
+                    {{ item.content }}
+                  </p>
+                  <div v-else-if="item.type === 'url' || item.type === 'file'" class="description-image">
+                    <el-image :src="getImageUrl(item.content)" :alt="`图片 ${index + 1}`"
+                      :preview-src-list="previewImageList" :initial-index="getImageIndex(index)" preview-teleported
+                      fit="contain" class="description-image-el" @error="handleImageError" />
+                  </div>
+                </template>
+              </div>
+            </el-card>
+
+            <!-- 任务附件 -->
+            <el-card v-if="task?.attachment && task.attachment.length > 0" class="info-card" shadow="never">
+              <template #header>
+                <span>任务附件</span>
+              </template>
+              <div class="attachment-list">
+                <div v-for="(attachment, index) in task.attachment" :key="index" class="attachment-item">
+                  <el-icon class="attachment-icon">
+                    <DocumentIcon />
+                  </el-icon>
+                  <a :href="getAttachmentUrl(attachment)" :download="getFileNameFromPath(attachment)"
+                    class="attachment-link" target="_blank">
+                    {{ getFileNameFromPath(attachment) }}
+                  </a>
+                  <el-button type="text" size="small" @click="downloadAttachment(attachment)">
+                    <el-icon>
+                      <Download />
+                    </el-icon>
+                    下载
+                  </el-button>
                 </div>
-                <p v-else-if="item.type === 'text'" class="description-text">
-                  {{ item.content }}
-                </p>
-                <div
-                  v-else-if="item.type === 'url' || item.type === 'file'"
-                  class="description-image"
-                >
-                  <el-image
-                    :src="getImageUrl(item.content)"
-                    :alt="`图片 ${index + 1}`"
-                    :preview-src-list="previewImageList"
-                    :initial-index="getImageIndex(index)"
-                    preview-teleported
-                    fit="contain"
-                    class="description-image-el"
-                    @error="handleImageError"
-                  />
+              </div>
+            </el-card>
+          </el-tab-pane>
+
+          <!-- 历史记录 Tab -->
+          <el-tab-pane label="历史记录" name="history">
+            <el-card class="history-card" shadow="never">
+              <template #header>
+                <span>历史记录</span>
+              </template>
+              <div v-if="task.历史记录 && task.历史记录.length > 0" class="history-list">
+                <div v-for="(record, index) in task.历史记录" :key="index" class="history-item">
+                  <div class="history-content">{{ record }}</div>
+                </div>
+              </div>
+              <el-empty v-else description="暂无历史记录" :image-size="100" />
+            </el-card>
+          </el-tab-pane>
+
+          <!-- BUG记录 Tab -->
+          <el-tab-pane label="BUG记录" name="bugs">
+            <el-card class="bugs-card" shadow="never">
+              <template #header>
+                <div class="bugs-header">
+                  <span>BUG记录</span>
+                  <el-button v-if="canRecordBug(task?.状态 || task?.status)" type="primary" size="small"
+                    @click="openBugDialog">
+                    记录BUG
+                  </el-button>
                 </div>
               </template>
-            </div>
-          </el-card>
-
-          <!-- 任务附件 -->
-          <el-card
-            v-if="task?.attachment && task.attachment.length > 0"
-            class="info-card"
-          >
-            <template #header>
-              <span>任务附件</span>
-            </template>
-            <div class="attachment-list">
-              <div
-                v-for="(attachment, index) in task.attachment"
-                :key="index"
-                class="attachment-item"
-              >
-                <el-icon class="attachment-icon">
-                  <DocumentIcon />
-                </el-icon>
-                <a
-                  :href="getAttachmentUrl(attachment)"
-                  :download="getFileNameFromPath(attachment)"
-                  class="attachment-link"
-                  target="_blank"
-                >
-                  {{ getFileNameFromPath(attachment) }}
-                </a>
-                <el-button
-                  type="text"
-                  size="small"
-                  @click="downloadAttachment(attachment)"
-                >
-                  <el-icon>
-                    <Download />
-                  </el-icon>
-                  下载
-                </el-button>
+              <div v-loading="bugsLoading">
+                <el-table :data="bugList" style="width: 100%" v-if="bugList.length > 0">
+                  <el-table-column prop="bug_name" label="BUG名称" min-width="200" />
+                  <el-table-column prop="describe" label="BUG描述" min-width="300" show-overflow-tooltip />
+                  <el-table-column prop="create_time" label="创建时间" width="180" />
+                  <el-table-column prop="creator" label="创建人" width="120" />
+                </el-table>
+                <el-empty v-else description="暂无BUG记录" :image-size="100" />
+                <el-pagination v-if="bugTotal > 0" v-model:current-page="bugPage" v-model:page-size="bugPageSize"
+                  :total="bugTotal" :page-sizes="[10, 20, 50, 100]" layout="total, sizes, prev, pager, next, jumper"
+                  @size-change="handleBugPageSizeChange" @current-change="handleBugPageChange"
+                  style="margin-top: 16px; justify-content: flex-end" />
               </div>
-            </div>
-          </el-card>
-        </el-tab-pane>
+            </el-card>
+          </el-tab-pane>
+        </el-tabs>
+      </el-card>
+      <TaskStatusFlowDialog v-model:visible="statusFlowDialogVisible" :task="task"
+        @success="handleStatusFlowDialogSuccess" @flow-start="handleStatusFlowStart" @flow-end="handleStatusFlowEnd" />
 
-        <!-- 历史记录 Tab -->
-        <el-tab-pane label="历史记录" name="history">
-          <el-card class="history-card">
-            <template #header>
-              <span>历史记录</span>
-            </template>
-            <div
-              v-if="task.历史记录 && task.历史记录.length > 0"
-              class="history-list"
-            >
-              <div
-                v-for="(record, index) in task.历史记录"
-                :key="index"
-                class="history-item"
-              >
-                <div class="history-content">{{ record }}</div>
-              </div>
-            </div>
-            <el-empty v-else description="暂无历史记录" :image-size="100" />
-          </el-card>
-        </el-tab-pane>
-      </el-tabs>
+      <!-- BUG记录对话框 -->
+      <el-dialog v-model="bugDialogVisible" title="记录BUG" width="600px" append-to-body>
+        <el-form ref="bugFormRef" :model="bugForm" :rules="bugFormRules" label-width="100px">
+          <el-form-item label="BUG名称" prop="bug_name">
+            <el-input v-model="bugForm.bug_name" placeholder="请输入BUG名称" />
+          </el-form-item>
+          <el-form-item label="BUG描述" prop="describe">
+            <el-input v-model="bugForm.describe" type="textarea" :rows="4" placeholder="请输入BUG描述" />
+          </el-form-item>
+          <el-form-item label="关联项目">
+            <el-input v-model="bugForm.project_name" disabled />
+          </el-form-item>
+          <el-form-item label="关联任务">
+            <el-input v-model="bugForm.task_name" disabled />
+          </el-form-item>
+        </el-form>
+        <template #footer>
+          <span class="dialog-footer">
+            <el-button @click="bugDialogVisible = false">取消</el-button>
+            <el-button type="primary" :loading="bugSubmitting" @click="submitBug">提交</el-button>
+          </span>
+        </template>
+      </el-dialog>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, nextTick, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import {
@@ -216,31 +208,57 @@ import {
   Document as DocumentIcon,
   Download
 } from "@element-plus/icons-vue";
-import dayjs from "dayjs";
-import { updateTaskState } from "@/api/project";
 import { TaskStatus } from "@/types";
-import { useUserStoreHook } from "@/store/modules/user";
+import TaskStatusFlowDialog from "@/components/TaskStatusFlowDialog.vue";
+import { createBug, selectBugsByTask, type BugRecord } from "@/api/bug";
+import type { FormInstance, FormRules } from "element-plus";
 
 const route = useRoute();
 const router = useRouter();
-const userStore = useUserStoreHook();
 
 const taskId = computed(() => route.params.id as string);
 const projectId = computed(() => route.query.project_id as string | undefined);
 const projectName = computed(
   () => route.query.project_name as string | undefined
 );
+const from = computed(() => route.query.from as string | undefined);
 const loading = ref(false);
 const task = ref<any>(null);
 const originalStatus = ref<string>("");
 const activeTab = ref("info");
 const statusFlowLoading = ref(false);
+const statusFlowDialogVisible = ref(false);
 
-// 格式化日期
-const formatDate = (date: string) => {
-  if (!date) return "";
-  return dayjs(date).format("YYYY-MM-DD HH:mm:ss");
+// BUG记录相关
+const bugList = ref<BugRecord[]>([]);
+const bugsLoading = ref(false);
+const bugPage = ref(1);
+const bugPageSize = ref(10);
+const bugTotal = ref(0);
+
+// BUG记录对话框
+const bugDialogVisible = ref(false);
+const bugFormRef = ref<FormInstance>();
+const bugSubmitting = ref(false);
+const bugForm = ref({
+  bug_name: "",
+  describe: "",
+  project_id: "",
+  task_id: "",
+  task_name: "",
+  project_name: ""
+});
+
+const bugFormRules: FormRules = {
+  bug_name: [
+    { required: true, message: "请输入BUG名称", trigger: "blur" }
+  ],
+  describe: [
+    { required: true, message: "请输入BUG描述", trigger: "blur" }
+  ]
 };
+
+
 
 // 获取状态类型
 const getStatusType = (
@@ -375,50 +393,37 @@ const getNextStatus = (currentStatus: string): string | null => {
   return statusFlow[currentStatus] || null;
 };
 
-// 处理状态流转
-const handleStatusFlow = async () => {
+const openStatusFlowDialog = () => {
   if (!task.value) return;
-
-  const currentState = task.value.状态 || task.value.status;
-  const nextState = getNextStatus(currentState);
-
+  const nextState = getNextStatus(task.value.状态 || task.value.status);
   if (!nextState) {
     ElMessage.warning("当前状态无法流转");
     return;
   }
+  statusFlowDialogVisible.value = true;
+};
 
-  statusFlowLoading.value = true;
-  try {
-    const personName = userStore.username || userStore.nickname || "Admin";
-
-    const response = await updateTaskState({
-      task_id: task.value._id || task.value.id,
-      current_state: currentState,
-      next_state: nextState,
-      person_name: personName
-    });
-
-    if (response.code === 200) {
-      ElMessage.success("状态流转成功");
-      // 更新任务状态
-      task.value.状态 = nextState;
-      originalStatus.value = nextState;
-      // 更新 sessionStorage 中的数据
-      sessionStorage.setItem(
-        `task_${taskId.value}`,
-        JSON.stringify(task.value)
-      );
-    } else {
-      ElMessage.error(response.message || "状态流转失败");
-    }
-  } catch (error: any) {
-    console.error("状态流转失败:", error);
-    ElMessage.error(
-      error?.response?.data?.message || error?.message || "状态流转失败"
-    );
-  } finally {
-    statusFlowLoading.value = false;
+const handleStatusFlowDialogSuccess = (
+  nextState: string,
+  personName: string
+) => {
+  if (!task.value) return;
+  task.value.状态 = nextState;
+  task.value.status = nextState;
+  originalStatus.value = nextState;
+  if (personName) {
+    task.value.指派人 = personName;
+    task.value.assignee = personName;
   }
+  sessionStorage.setItem(`task_${taskId.value}`, JSON.stringify(task.value));
+};
+
+const handleStatusFlowStart = () => {
+  statusFlowLoading.value = true;
+};
+
+const handleStatusFlowEnd = () => {
+  statusFlowLoading.value = false;
 };
 
 // 加载任务详情（从 sessionStorage 获取）
@@ -468,27 +473,168 @@ const loadTask = () => {
 
 // 返回
 const goBack = () => {
-  // 构建查询参数，传递项目ID和需求ID
-  const query: Record<string, string> = {};
-  if (projectId.value) {
-    query.project_id = projectId.value;
-  }
-  if (projectName.value) {
-    query.project_name = projectName.value;
-  }
-  // 从任务数据中获取需求ID
-  if (task.value?.requirement_id) {
-    query.requirement_id = task.value.requirement_id;
-  }
-  if (task.value?.requirement_name) {
-    query.requirement_name = task.value.requirement_name;
-  }
+  // 根据来源决定返回到哪里
+  if (from.value === "workspace") {
+    // 从工作台进入的，返回到工作台
+    router.push({ name: "Workspace" });
+  } else {
+    // 从任务列表进入的，返回到任务列表
+    // 构建查询参数，传递项目ID和需求ID
+    const query: Record<string, string> = {};
+    if (projectId.value) {
+      query.project_id = projectId.value;
+    }
+    if (projectName.value) {
+      query.project_name = projectName.value;
+    }
+    // 从任务数据中获取需求ID
+    if (task.value?.requirement_id) {
+      query.requirement_id = task.value.requirement_id;
+    }
+    if (task.value?.requirement_name) {
+      query.requirement_name = task.value.requirement_name;
+    }
 
-  router.push({
-    name: "TasksList",
-    query: Object.keys(query).length > 0 ? query : undefined
+    router.push({
+      name: "TasksList",
+      query: Object.keys(query).length > 0 ? query : undefined
+    });
+  }
+};
+
+// 判断是否可以记录BUG（测试或审阅状态）
+const canRecordBug = (status: string): boolean => {
+  if (!status) return false;
+  const testReviewStatuses = [
+    TaskStatus.PENDING_TEST,
+    TaskStatus.TESTING,
+    TaskStatus.TEST_COMPLETED,
+    TaskStatus.PENDING_REVIEW,
+    TaskStatus.REVIEWING,
+    TaskStatus.REVIEW_COMPLETED,
+    "待测试", "测试中", "测试完毕",
+    "待审阅", "审阅中", "审阅完毕",
+    "测试审阅中"
+  ];
+  return testReviewStatuses.includes(status);
+};
+
+// 加载BUG记录
+const loadBugs = async () => {
+  if (!task.value) return;
+  const currentTaskId = task.value._id || task.value.id;
+  if (!currentTaskId) return;
+
+  bugsLoading.value = true;
+  try {
+    const response = await selectBugsByTask({
+      task_id: currentTaskId,
+      page: bugPage.value,
+      page_size: bugPageSize.value
+    });
+
+    if (response.code === 200) {
+      bugList.value = response.result || response.data || [];
+      bugTotal.value = response.total_count || response.total || bugList.value.length;
+    } else {
+      ElMessage.error(response.message || "加载BUG记录失败");
+      bugList.value = [];
+      bugTotal.value = 0;
+    }
+  } catch (error: any) {
+    console.error("加载BUG记录失败:", error);
+    ElMessage.error(
+      error?.response?.data?.message || error?.message || "加载BUG记录失败"
+    );
+    bugList.value = [];
+    bugTotal.value = 0;
+  } finally {
+    bugsLoading.value = false;
+  }
+};
+
+// 打开BUG记录对话框
+const openBugDialog = () => {
+  if (!task.value) return;
+  bugForm.value = {
+    bug_name: "",
+    describe: "",
+    project_id: task.value.project_id || "",
+    task_id: task.value._id || task.value.id || "",
+    task_name: task.value.任务名 || task.value.task_name || task.value.title || "",
+    project_name: task.value.project_name || ""
+  };
+  bugDialogVisible.value = true;
+  nextTick(() => {
+    bugFormRef.value?.clearValidate();
   });
 };
+
+// 提交BUG记录
+const submitBug = async () => {
+  if (!bugFormRef.value) return;
+
+  await bugFormRef.value.validate(async (valid) => {
+    if (!valid) return;
+
+    bugSubmitting.value = true;
+    try {
+      const response = await createBug({
+        bug_name: bugForm.value.bug_name,
+        describe: bugForm.value.describe,
+        project_id: bugForm.value.project_id,
+        task_id: bugForm.value.task_id,
+        task_name: bugForm.value.task_name
+      });
+
+      if (response.code === 200) {
+        ElMessage.success("BUG记录成功");
+        bugDialogVisible.value = false;
+        bugForm.value = {
+          bug_name: "",
+          describe: "",
+          project_id: "",
+          task_id: "",
+          task_name: "",
+          project_name: ""
+        };
+        // 重新加载BUG记录列表
+        await loadBugs();
+      } else {
+        ElMessage.error(response.message || "BUG记录失败");
+      }
+    } catch (error: any) {
+      console.error("提交BUG失败:", error);
+      ElMessage.error(
+        error?.response?.data?.message || error?.message || "BUG记录失败"
+      );
+    } finally {
+      bugSubmitting.value = false;
+    }
+  });
+};
+
+// BUG分页处理
+const handleBugPageSizeChange = (size: number) => {
+  bugPageSize.value = size;
+  bugPage.value = 1;
+  loadBugs();
+};
+
+const handleBugPageChange = (page: number) => {
+  bugPage.value = page;
+  loadBugs();
+};
+
+// 监听activeTab变化，切换到BUG记录tab时加载数据
+watch(
+  () => activeTab.value,
+  (newTab) => {
+    if (newTab === "bugs" && task.value) {
+      loadBugs();
+    }
+  }
+);
 
 onMounted(() => {
   loadTask();
@@ -497,8 +643,6 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .task-detail-page {
-  padding: 20px;
-
   .page-header {
     display: flex;
     align-items: center;
@@ -517,96 +661,106 @@ onMounted(() => {
   }
 
   .detail-content {
-    .detail-tabs {
-      .info-card {
-        margin-bottom: 20px;
-      }
-
-      .task-description {
-        line-height: 1.8;
-        color: #606266;
-        font-size: 14px;
-        white-space: pre-wrap;
-        word-wrap: break-word;
-
-        .description-text {
-          margin: 8px 0;
+    .main-card {
+      .detail-tabs {
+        .info-card {
+          margin-bottom: 20px;
         }
 
-        .description-image {
-          margin: 16px 0;
-          text-align: center;
+        .task-description {
+          line-height: 1.8;
+          color: #606266;
+          font-size: 14px;
+          white-space: pre-wrap;
+          word-wrap: break-word;
 
-          .description-image-el {
-            max-width: 100px;
-            max-height: 100px;
-            cursor: pointer;
-            border-radius: 4px;
-            transition: transform 0.3s;
+          .description-text {
+            margin: 8px 0;
+          }
 
-            &:hover {
-              transform: scale(1.02);
+          .description-image {
+            margin: 16px 0;
+            text-align: center;
+
+            .description-image-el {
+              max-width: 100px;
+              max-height: 100px;
+              cursor: pointer;
+              border-radius: 4px;
+              transition: transform 0.3s;
+
+              &:hover {
+                transform: scale(1.02);
+              }
             }
           }
         }
-      }
 
-      .attachment-list {
-        .attachment-item {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 12px;
-          border: 1px solid #e4e7ed;
-          border-radius: 4px;
-          margin-bottom: 8px;
-          transition: background-color 0.3s;
-
-          &:hover {
-            background-color: #f5f7fa;
-          }
-
-          .attachment-icon {
-            font-size: 20px;
-            color: #409eff;
-          }
-
-          .attachment-link {
-            flex: 1;
-            color: #606266;
-            text-decoration: none;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-
-            &:hover {
-              color: #409eff;
-            }
-          }
-        }
-      }
-
-      .history-card {
-        .history-list {
-          .history-item {
+        .attachment-list {
+          .attachment-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
             padding: 12px;
-            border-bottom: 1px solid #e4e7ed;
+            border: 1px solid #e4e7ed;
+            border-radius: 4px;
+            margin-bottom: 8px;
             transition: background-color 0.3s;
-
-            &:last-child {
-              border-bottom: none;
-            }
 
             &:hover {
               background-color: #f5f7fa;
             }
 
-            .history-content {
-              color: #606266;
-              font-size: 14px;
-              line-height: 1.6;
-              word-wrap: break-word;
+            .attachment-icon {
+              font-size: 20px;
+              color: #409eff;
             }
+
+            .attachment-link {
+              flex: 1;
+              color: #606266;
+              text-decoration: none;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+
+              &:hover {
+                color: #409eff;
+              }
+            }
+          }
+        }
+
+        .history-card {
+          .history-list {
+            .history-item {
+              padding: 12px;
+              border-bottom: 1px solid #e4e7ed;
+              transition: background-color 0.3s;
+
+              &:last-child {
+                border-bottom: none;
+              }
+
+              &:hover {
+                background-color: #f5f7fa;
+              }
+
+              .history-content {
+                color: #606266;
+                font-size: 14px;
+                line-height: 1.6;
+                word-wrap: break-word;
+              }
+            }
+          }
+        }
+
+        .bugs-card {
+          .bugs-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
           }
         }
       }

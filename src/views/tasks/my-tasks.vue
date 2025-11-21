@@ -4,48 +4,27 @@
     <el-card class="search-card mb-20">
       <el-form :model="searchForm" :inline="true" class="search-form">
         <el-form-item label="关键词">
-          <el-input
-            v-model="searchForm.keyword"
-            placeholder="搜索任务名称、需求名称..."
-            clearable
-            style="width: 250px"
-            prefix-icon="Search"
-          />
+          <el-input v-model="searchForm.keyword" placeholder="搜索任务名称、需求名称..." clearable style="width: 250px"
+            prefix-icon="Search" />
         </el-form-item>
         <el-form-item label="状态">
-          <el-select
-            v-model="searchForm.status"
-            placeholder="全部状态"
-            clearable
-            style="width: 180px"
-          >
-            <el-option
-              label="待分配给部门主管"
-              :value="TaskStatus.PENDING_ASSIGN_TO_DEPT_LEADER"
-            />
-            <el-option
-              label="待指派给成员"
-              :value="TaskStatus.PENDING_ASSIGN_TO_MEMBER"
-            />
+          <el-select v-model="searchForm.status" placeholder="全部状态" clearable style="width: 180px">
+            <el-option label="待分配给部门主管" :value="TaskStatus.PENDING_ASSIGN_TO_DEPT_LEADER" />
+            <el-option label="待指派给成员" :value="TaskStatus.PENDING_ASSIGN_TO_MEMBER" />
             <el-option label="任务未开始" :value="TaskStatus.NOT_STARTED" />
             <el-option label="任务进行中" :value="TaskStatus.IN_PROGRESS" />
             <el-option label="待测试" :value="TaskStatus.PENDING_TEST" />
             <el-option label="测试中" :value="TaskStatus.TESTING" />
-            <el-option label="测试完成" :value="TaskStatus.TEST_COMPLETED" />
+            <el-option label="测试完毕" :value="TaskStatus.TEST_COMPLETED" />
             <el-option label="待审阅" :value="TaskStatus.PENDING_REVIEW" />
             <el-option label="审阅中" :value="TaskStatus.REVIEWING" />
-            <el-option label="审阅完成" :value="TaskStatus.REVIEW_COMPLETED" />
+            <el-option label="审阅完毕" :value="TaskStatus.REVIEW_COMPLETED" />
             <el-option label="已取消" :value="TaskStatus.CANCELLED" />
             <el-option label="已完成" :value="TaskStatus.COMPLETED" />
           </el-select>
         </el-form-item>
         <el-form-item label="优先级">
-          <el-select
-            v-model="searchForm.priority"
-            placeholder="全部优先级"
-            clearable
-            style="width: 120px"
-          >
+          <el-select v-model="searchForm.priority" placeholder="全部优先级" clearable style="width: 120px">
             <el-option label="低" value="低" />
             <el-option label="中" value="中" />
             <el-option label="高" value="高" />
@@ -76,20 +55,14 @@
         <el-table-column prop="requirement_name" label="关联需求" width="200" />
         <el-table-column prop="优先级" label="优先级" width="100">
           <template #default="{ row }">
-            <el-tag
-              :type="getPriorityType(row.优先级 || row.priority) || undefined"
-              size="small"
-            >
+            <el-tag :type="getPriorityType(row.优先级 || row.priority) || undefined" size="small">
               {{ row.优先级 || row.priority || "-" }}
             </el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="状态" label="状态" width="150">
           <template #default="{ row }">
-            <el-tag
-              :type="getStatusType(row.状态 || row.status) || undefined"
-              size="small"
-            >
+            <el-tag :type="getStatusType(row.状态 || row.status) || undefined" size="small">
               {{ row.状态 || row.status || "-" }}
             </el-tag>
           </template>
@@ -106,33 +79,22 @@
         </el-table-column>
         <el-table-column prop="进度" label="进度" width="120">
           <template #default="{ row }">
-            <el-progress
-              :percentage="row.进度 || row.progress || 0"
-              :stroke-width="8"
-            />
+            <el-progress :percentage="row.进度 || row.progress || 0" :stroke-width="8" />
           </template>
         </el-table-column>
         <el-table-column prop="create_time" label="创建时间" width="180" />
         <el-table-column label="操作" width="120" fixed="right">
           <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="handleView(row)"
-              >查看</el-button
-            >
+            <el-button type="primary" link size="small" @click="handleView(row)">查看</el-button>
           </template>
         </el-table-column>
       </el-table>
 
       <!-- 分页 -->
       <div class="pagination-container">
-        <el-pagination
-          v-model:current-page="currentPage"
-          v-model:page-size="pageSize"
-          :page-sizes="[10, 20, 50, 100]"
-          :total="totalTasks"
-          layout="total, sizes, prev, pager, next, jumper"
-          @size-change="handleSizeChange"
-          @current-change="handlePageChange"
-        />
+        <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" :page-sizes="[10, 20, 50, 100]"
+          :total="totalTasks" layout="total, sizes, prev, pager, next, jumper" @size-change="handleSizeChange"
+          @current-change="handlePageChange" />
       </div>
     </el-card>
   </div>

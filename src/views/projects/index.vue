@@ -3,19 +3,8 @@
     <div class="page-header">
       <h2>项目管理</h2>
       <div class="header-actions">
-        <el-input
-          v-model="searchKeyword"
-          placeholder="搜索项目..."
-          prefix-icon="Search"
-          clearable
-          style="width: 200px"
-        />
-        <el-select
-          v-model="statusFilter"
-          placeholder="状态筛选"
-          clearable
-          style="width: 120px"
-        >
+        <el-input v-model="searchKeyword" placeholder="搜索项目..." prefix-icon="Search" clearable style="width: 200px" />
+        <el-select v-model="statusFilter" placeholder="状态筛选" clearable style="width: 120px">
           <el-option label="未开始" value="未开始" />
           <el-option label="进行中" value="进行中" />
           <el-option label="已完成" value="已完成" />
@@ -58,21 +47,17 @@
     </el-row>
 
     <!-- 视图切换 -->
-    <div class="view-controls">
+    <!-- <div class="view-controls">
       <el-radio-group v-model="viewMode" size="small">
         <el-radio-button label="card">卡片视图</el-radio-button>
         <el-radio-button label="table">表格视图</el-radio-button>
       </el-radio-group>
-    </div>
+    </div> -->
 
     <!-- 卡片视图 -->
     <div v-if="viewMode === 'card'" v-loading="loading" class="projects-grid">
-      <div
-        v-for="project in filteredProjects"
-        :key="project.id"
-        class="project-card"
-        @click="openProjectDetail(project)"
-      >
+      <div v-for="project in filteredProjects" :key="project.id" class="project-card"
+        @click="openProjectDetail(project)">
         <div class="card-header">
           <div class="project-info">
             <h3>{{ project.name }}</h3>
@@ -90,9 +75,7 @@
               <el-dropdown-menu>
                 <el-dropdown-item command="edit">编辑项目</el-dropdown-item>
                 <el-dropdown-item command="members">管理成员</el-dropdown-item>
-                <el-dropdown-item command="delete" divided
-                  >删除项目</el-dropdown-item
-                >
+                <el-dropdown-item command="delete" divided>删除项目</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -104,7 +87,7 @@
           <div class="progress-info">
             <span>进度</span>
           </div>
-          <el-progress :percentage="project.progress || 0" :stroke-width="6" />
+          <el-progress :percentage="getProjectProgress(project)" :stroke-width="6" />
         </div>
 
         <div class="project-meta">
@@ -120,7 +103,7 @@
             </el-icon>
             <span>{{
               formatDateRange(project.startDate, project.endDate)
-            }}</span>
+              }}</span>
           </div>
           <div v-if="project.members" class="meta-item">
             <el-icon>
@@ -135,37 +118,12 @@
             <span>¥{{ formatBudget(project.budget) }}</span>
           </div>
         </div>
-
-        <div
-          v-if="project.members && project.members.length > 0"
-          class="project-members"
-        >
-          <div class="avatar-group">
-            <el-avatar
-              v-for="(member, index) in project.members.slice(0, 4)"
-              :key="member.id"
-              :src="member.avatar"
-              :title="member.name"
-              size="small"
-              :style="{ marginLeft: index > 0 ? '-8px' : '0' }"
-            >
-              {{ member.name.charAt(0) }}
-            </el-avatar>
-            <span v-if="project.members.length > 4" class="more-members">
-              +{{ project.members.length - 4 }}
-            </span>
-          </div>
-        </div>
       </div>
     </div>
 
     <!-- 表格视图 -->
     <el-card v-else class="projects-table">
-      <el-table
-        v-loading="loading"
-        :data="filteredProjects"
-        style="width: 100%"
-      >
+      <el-table v-loading="loading" :data="filteredProjects" style="width: 100%">
         <el-table-column prop="name" label="项目名称" min-width="200">
           <template #default="{ row }">
             <div class="project-name" @click="openProjectDetail(row)">
@@ -196,36 +154,23 @@
 
         <el-table-column prop="progress" label="进度" width="120">
           <template #default="{ row }">
-            <el-progress
-              :percentage="row.progress || 0"
-              :stroke-width="6"
-              :show-text="false"
-            />
-            <span class="progress-text">{{ row.progress || 0 }}%</span>
+            <el-progress :percentage="getProjectProgress(row)" :stroke-width="6" :show-text="false" />
+            <span class="progress-text">{{ getProjectProgress(row) }}%</span>
           </template>
         </el-table-column>
 
-        <el-table-column prop="members" label="团队成员" width="150">
+        <!-- <el-table-column prop="members" label="团队成员" width="150">
           <template #default="{ row }">
-            <div
-              v-if="row.members && row.members.length > 0"
-              class="table-avatar-group"
-            >
-              <el-avatar
-                v-for="(member, index) in row.members.slice(0, 3)"
-                :key="member.id"
-                :src="member.avatar"
-                :title="member.name"
-                size="small"
-                :style="{ marginLeft: index > 0 ? '-6px' : '0' }"
-              >
+            <div v-if="row.members && row.members.length > 0" class="table-avatar-group">
+              <el-avatar v-for="(member, index) in row.members.slice(0, 3)" :key="member.id" :src="member.avatar"
+                :title="member.name" size="small" :style="{ marginLeft: index > 0 ? '-6px' : '0' }">
                 {{ member.name.charAt(0) }}
               </el-avatar>
               <span class="member-count">{{ row.members.length }}人</span>
             </div>
             <span v-else>-</span>
           </template>
-        </el-table-column>
+        </el-table-column> -->
 
         <el-table-column prop="duration" label="项目周期" width="150">
           <template #default="{ row }">
@@ -252,9 +197,7 @@
                 <el-dropdown-menu>
                   <el-dropdown-item command="edit">编辑</el-dropdown-item>
                   <el-dropdown-item command="members">成员</el-dropdown-item>
-                  <el-dropdown-item command="delete" divided
-                    >删除</el-dropdown-item
-                  >
+                  <el-dropdown-item command="delete" divided>删除</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
@@ -263,31 +206,18 @@
       </el-table>
 
       <div class="pagination">
-        <el-pagination
-          v-model:current-page="currentPage"
-          v-model:page-size="pageSize"
-          :page-sizes="[10, 20, 50, 100]"
-          :total="totalProjects"
-          :loading="loading"
-          layout="total, sizes, prev, pager, next, jumper"
-        />
+        <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" :page-sizes="[10, 20, 50, 100]"
+          :total="totalProjects" :loading="loading" layout="total, sizes, prev, pager, next, jumper" />
       </div>
     </el-card>
 
     <!-- 新建/编辑项目对话框 -->
-    <ProjectFormDialog
-      v-model:visible="showProjectDialog"
-      :project="editingProject"
-      @created="handleProjectCreated"
-      @updated="handleProjectUpdated"
-    />
+    <ProjectFormDialog v-model:visible="showProjectDialog" :project="editingProject" @created="handleProjectCreated"
+      @updated="handleProjectUpdated" />
 
     <!-- 成员管理对话框 -->
-    <ProjectMembersDialog
-      v-model:visible="showMembersDialog"
-      :project="selectedProject"
-      @updated="handleProjectUpdated"
-    />
+    <ProjectMembersDialog v-model:visible="showMembersDialog" :project="selectedProject"
+      @updated="handleProjectUpdated" />
   </div>
 </template>
 
@@ -426,6 +356,7 @@ const loadProjects = async () => {
             item.end_date ||
             item.endDate,
           progress: item.progress || 0,
+          总进度: item.总进度 || item.progress || 0, // 优先使用后端返回的 总进度 字段
           attachment: item.attachment || [], // 保存附件数组
           createdAt:
             item.create_time ||
@@ -462,6 +393,17 @@ const projectStats = computed(() => ({
   active: projects.value.filter(p => p.status === "进行中").length,
   completed: projects.value.filter(p => p.status === "已完成").length
 }));
+
+const getProjectProgress = (project: Project & Record<string, unknown>) => {
+  const extraProgress = project["总进度"];
+  if (typeof extraProgress === "number") {
+    return extraProgress;
+  }
+  if (typeof project.progress === "number") {
+    return project.progress;
+  }
+  return 0;
+};
 
 // 打开项目详情（跳转到详情页）
 const openProjectDetail = (project: Project) => {
