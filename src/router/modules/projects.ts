@@ -17,7 +17,9 @@ export default {
       component: () => import("@/views/projects/index.vue"),
       meta: {
         title: "项目列表",
-        showLink: true
+        showLink: true,
+        showParent: true,
+        roles: ["Admin", "ProjectManager", "Member", "DepartmentManager"]
       }
     },
     {
@@ -26,26 +28,29 @@ export default {
       component: () => import("@/views/projects/detail.vue"),
       meta: {
         title: "项目详情",
-        showLink: false
+        showLink: false,
+        roles: ["Admin", "ProjectManager", "DepartmentManager", "Member"]
       }
     },
-    {
-      path: "/projects/types",
-      name: "ProjectTypes",
-      component: () => import("@/views/projects/types/index.vue"),
-      meta: {
-        title: "项目类型",
-        showLink: true
-      }
-    },
-    {
-      path: "/projects/templates",
-      name: "ProjectTemplates",
-      component: () => import("@/views/projects/templates/index.vue"),
-      meta: {
-        title: "项目模板",
-        showLink: true
-      }
-    }
+    // {
+    //   path: "/projects/types",
+    //   name: "ProjectTypes",
+    //   component: () => import("@/views/projects/types/index.vue"),
+    //   meta: {
+    //     title: "项目类型",
+    //     showLink: true,
+    //     roles: ["Admin", "ProjectManager"]
+    //   }
+    // },
+    // {
+    //   path: "/projects/templates",
+    //   name: "ProjectTemplates",
+    //   component: () => import("@/views/projects/templates/index.vue"),
+    //   meta: {
+    //     title: "项目模板",
+    //     showLink: true,
+    //     roles: ["Admin", "ProjectManager"]
+    //   }
+    // }
   ]
 } satisfies RouteConfigsTable;

@@ -56,17 +56,31 @@
           </template>
         </el-upload>
       </el-form-item>
-
+      <el-form-item label="立项文件" prop="project_proposal">
+        <el-upload v-model:file-list="proposalFileList" multiple :auto-upload="false"
+          :on-remove="handleProposalFileRemove" :on-change="handleProposalFileChange"
+          :before-upload="handleBeforeUpload">
+          <el-button type="primary">
+            <el-icon>
+              <Upload />
+            </el-icon>
+            选择文件
+          </el-button>
+          <template #tip>
+            <div class="el-upload__tip">可以上传多个文件</div>
+          </template>
+        </el-upload>
+      </el-form-item>
       <el-row :gutter="20">
         <el-col :span="12">
-          <el-form-item label="开始日期" prop="startDate">
-            <el-date-picker v-model="projectForm.startDate" type="date" placeholder="选择开始日期" format="YYYY-MM-DD"
+          <el-form-item label="计划开始时间" prop="startDate" class="date-form-item">
+            <el-date-picker v-model="projectForm.startDate" type="date" placeholder="选择计划开始时间" format="YYYY-MM-DD"
               value-format="YYYY-MM-DD" style="width: 100%" />
           </el-form-item>
         </el-col>
         <el-col :span="12">
-          <el-form-item label="结束日期" prop="endDate">
-            <el-date-picker v-model="projectForm.endDate" type="date" placeholder="选择结束日期" format="YYYY-MM-DD"
+          <el-form-item label="计划结束时间" prop="endDate" class="date-form-item">
+            <el-date-picker v-model="projectForm.endDate" type="date" placeholder="选择计划结束时间" format="YYYY-MM-DD"
               value-format="YYYY-MM-DD" style="width: 100%" />
           </el-form-item>
         </el-col>
@@ -125,7 +139,8 @@ const projectTemplateStore = useProjectTemplateStoreHook();
 
 const formRef = ref<FormInstance>();
 const richTextEditorRef = ref<InstanceType<typeof RichTextEditor>>();
-const fileList = ref<UploadFile[]>([]);
+const fileList = ref<UploadFile[]>([]); // 附件文件列表
+const proposalFileList = ref<UploadFile[]>([]); // 立项文件列表
 const submitting = ref(false); // 提交状态
 
 const projectForm = reactive({
@@ -135,14 +150,28 @@ const projectForm = reactive({
   templateId: "",
   startDate: "",
   endDate: "",
-  memberIds: [] as string[]
+  memberIds: [] as string[],
+  project_proposal: [] as string[] // 用于表单验证
 });
 
 const rules: FormRules = {
   name: [{ required: true, message: "请输入项目名称", trigger: "blur" }],
   describe: [{ required: true, message: "请输入项目描述", trigger: "change" }],
-  startDate: [{ required: true, message: "请选择开始日期", trigger: "change" }],
-  endDate: [{ required: true, message: "请选择结束日期", trigger: "change" }]
+  startDate: [{ required: true, message: "请选择计划开始时间", trigger: "change" }],
+  project_proposal: [
+    {
+      required: true,
+      validator: (rule: any, value: any, callback: any) => {
+        if (!proposalFileList.value || proposalFileList.value.length === 0) {
+          callback(new Error("请上传立项文件"));
+        } else {
+          callback();
+        }
+      },
+      trigger: "change"
+    }
+  ],
+  endDate: [{ required: true, message: "请选择计划结束时间", trigger: "change" }]
 };
 
 const isEdit = computed(() => !!props.project);
@@ -182,6 +211,24 @@ const handleFileChange = (file: UploadFile, files: UploadFiles) => {
 // 处理文件移除
 const handleFileRemove = (file: UploadFile, files: UploadFiles) => {
   fileList.value = files;
+};
+
+// 处理立项文件变化
+const handleProposalFileChange = (file: UploadFile, files: UploadFiles) => {
+  proposalFileList.value = files;
+  // 更新表单验证字段
+  projectForm.project_proposal = files.map(f => f.name || "");
+  // 触发表单验证
+  formRef.value?.validateField("project_proposal");
+};
+
+// 处理立项文件移除
+const handleProposalFileRemove = (file: UploadFile, files: UploadFiles) => {
+  proposalFileList.value = files;
+  // 更新表单验证字段
+  projectForm.project_proposal = files.map(f => f.name || "");
+  // 触发表单验证
+  formRef.value?.validateField("project_proposal");
 };
 
 // 上传单个附件文件
@@ -312,9 +359,27 @@ watch(
       } else {
         fileList.value = [];
       }
+
+      // 填充立项文件列表（编辑模式下）
+      if ((project as any).project_proposal && (project as any).project_proposal.length > 0) {
+        proposalFileList.value = (project as any).project_proposal.map((proposalPath: string, index: number) => {
+          const fileName = getFileNameFromPath(proposalPath);
+          const fileUrl = getAttachmentUrl(proposalPath);
+          return {
+            name: fileName,
+            url: fileUrl,
+            status: "success" as const,
+            uid: Date.now() + 10000 + index, // 生成唯一ID（与附件文件区分）
+            response: proposalPath // 保存原始路径，用于后续处理
+          } as UploadFile;
+        });
+      } else {
+        proposalFileList.value = [];
+      }
     } else {
-      // 清空附件列表
+      // 清空附件列表和立项文件列表
       fileList.value = [];
+      proposalFileList.value = [];
     }
   },
   { immediate: true }
@@ -332,9 +397,11 @@ const handleClose = () => {
     templateId: "",
     startDate: "",
     endDate: "",
-    memberIds: []
+    memberIds: [],
+    project_proposal: []
   });
   fileList.value = [];
+  proposalFileList.value = [];
   dialogVisible.value = false;
 };
 
@@ -358,7 +425,14 @@ const handleSubmit = async () => {
 
     // 验证日期
     if (!projectForm.startDate || !projectForm.endDate) {
-      ElMessage.warning("请选择项目开始和结束日期");
+      ElMessage.warning("请选择项目开始和计划结束时间");
+      submitting.value = false;
+      return;
+    }
+
+    // 验证立项文件
+    if (!proposalFileList.value || proposalFileList.value.length === 0) {
+      ElMessage.warning("请上传立项文件");
       submitting.value = false;
       return;
     }
@@ -406,6 +480,43 @@ const handleSubmit = async () => {
     // 去重（都使用相对路径）
     const allAttachmentUrls = Array.from(new Set(attachmentUrls));
 
+    // 处理立项文件
+    const proposalUrls: string[] = [];
+    for (const file of proposalFileList.value) {
+      if (file.raw) {
+        // 新上传的文件，需要上传
+        const url = await uploadAttachmentFile(file.raw);
+        if (url) {
+          // 上传接口返回的已经是相对路径，直接使用
+          proposalUrls.push(url);
+        }
+      } else if (file.response) {
+        // 已有的文件，从 response 中获取相对路径
+        let url = "";
+        if (typeof file.response === "string") {
+          url = file.response;
+        } else if (
+          file.response &&
+          typeof file.response === "object" &&
+          "url" in file.response
+        ) {
+          url = (file.response as any).url || "";
+        }
+        if (url) {
+          // 确保是相对路径
+          proposalUrls.push(convertToRelativePath(url));
+        }
+      } else if (file.url) {
+        // 如果 response 不存在，尝试从 url 中提取相对路径
+        const url = convertToRelativePath(file.url);
+        if (url) {
+          proposalUrls.push(url);
+        }
+      }
+    }
+    // 去重（都使用相对路径）
+    const allProposalUrls = Array.from(new Set(proposalUrls));
+
     // 将 describe 转换为 URL 字符串数组（用于提交）
     // projectForm.describe 已经包含了所有内容（文本和图片），直接转换即可
     // 注意：提交时使用相对路径，显示时保持完整 URL
@@ -447,7 +558,8 @@ const handleSubmit = async () => {
         plant_start_time: projectForm.startDate,
         plant_end_time: projectForm.endDate,
         describe: describeUrls,
-        attachment: allAttachmentUrls
+        attachment: allAttachmentUrls,
+        project_proposal: allProposalUrls
       };
 
       // 调用真实 API
@@ -507,7 +619,8 @@ const handleSubmit = async () => {
         plant_start_time: projectForm.startDate,
         plant_end_time: projectForm.endDate,
         describe: describeUrls,
-        attachment: allAttachmentUrls
+        attachment: allAttachmentUrls,
+        project_proposal: allProposalUrls
       };
 
       // 先打印表单数据，不调用接口
@@ -515,7 +628,7 @@ const handleSubmit = async () => {
       console.log("提交数据:", JSON.stringify(submitData, null, 2));
       console.log("项目名称:", submitData.project_name);
       console.log("开始时间:", submitData.plant_start_time);
-      console.log("结束时间:", submitData.plant_end_time);
+      console.log("计划结束时间:", submitData.plant_end_time);
       console.log("描述内容 (describe):", submitData.describe);
       console.log("附件列表 (attachment):", submitData.attachment);
       console.log("==================");
@@ -593,3 +706,11 @@ onMounted(() => {
   projectTemplateStore.loadTemplates();
 });
 </script>
+
+<style scoped lang="scss">
+.date-form-item {
+  :deep(.el-form-item__label) {
+    white-space: nowrap;
+  }
+}
+</style>

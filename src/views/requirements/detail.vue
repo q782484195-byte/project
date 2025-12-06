@@ -172,6 +172,7 @@ import {
   selectRequirements,
   updateRequirementState,
   selectTasksByRequirement,
+  flattenRequirementData,
   type RequirementListItem,
   type DescribeContent,
   type TaskListItem
@@ -394,7 +395,9 @@ const loadRequirement = async () => {
     });
 
     if (response.code === 200 && response.result) {
-      const matched = (response.result as RequirementListItem[]).find(
+      // 扁平化嵌套对象结构为数组
+      const flattenedResult = flattenRequirementData(response.result);
+      const matched = flattenedResult.find(
         item => item._id === requirementId.value
       );
       if (!matched) {

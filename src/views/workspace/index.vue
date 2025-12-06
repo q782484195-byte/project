@@ -76,7 +76,7 @@
                   <span>待办事项</span>
                 </div>
               </template>
-              <el-table :data="todoTasks" v-loading="tasksLoading" style="width: 100%" :height="400">
+              <el-table :data="todoTasks" v-loading="tasksLoading" :style="{ width: '100%' }" :height="400">
                 <el-table-column prop="任务名" label="任务名称" width="150">
                   <template #default="{ row }">
                     {{ row.任务名 || row.task_name || row.title || "-" }}
@@ -115,13 +115,16 @@
                 <el-table-column label="操作" width="220" fixed="right">
                   <template #default="{ row }">
                     <el-button type="primary" link size="small" @click="viewTask(row)">查看</el-button>
-                    <el-button type="primary" link size="small" :disabled="!getNextStatus(row.状态 || row.status)"
+                    <el-button v-if="(row.当前处理人 || row.current_handler) === userStore.username" type="primary" link
+                      size="small" :disabled="!getNextStatus(row.状态 || row.status)"
                       :loading="statusFlowButtonLoadingTaskId === (row._id || row.id)"
                       @click="openStatusFlowDialog(row)">
                       流转
                     </el-button>
-                    <el-button v-if="canRecordBug(row.状态 || row.status)" type="warning" link size="small"
-                      @click="openBugDialog(row)">记录BUG</el-button>
+                    <el-button type="success" link size="small" @click="openReportDialog(row)"
+                      v-perms="['task:report']">进度汇报</el-button>
+                    <el-button v-perms="['bug:record']" v-if="canRecordBug(row.状态 || row.status)" type="warning" link
+                      size="small" @click="openBugDialog(row)">记录BUG</el-button>
                   </template>
                 </el-table-column>
               </el-table>
@@ -132,7 +135,6 @@
 
             </el-card>
           </el-col>
-
           <!-- 右侧：占1/3 -->
           <el-col :span="8" :xs="24">
             <!-- 流程示意图 -->
@@ -193,15 +195,15 @@
                     <div class="role-title">研发人员</div>
                   </div>
                   <div class="role-tasks">
-                    <div class="task-item">领取任务</div>
+                    <div class="task-item">接受任务</div>
                     <div class="task-arrow">→</div>
-                    <div class="task-item">设计实现</div>
+                    <div class="task-item">执行</div>
                     <div class="task-arrow">→</div>
-                    <div class="task-item">更新状态</div>
+                    <div class="task-item">汇报进度</div>
                     <div class="task-arrow">→</div>
-                    <div class="task-item">完成任务</div>
+                    <div class="task-item">提交测试与验收</div>
                     <div class="task-arrow">→</div>
-                    <div class="task-item">提交测试/审批</div>
+                    <div class="task-item">完成</div>
                   </div>
                 </div>
 
@@ -228,21 +230,53 @@
             <el-card>
               <template #header>
                 <div class="card-header">
-                  <span>最新动态</span>
+                  <span>动态</span>
                 </div>
               </template>
-              <div class="activity-list">
-                <div v-for="(activity, index) in activities" :key="index" class="activity-item">
-                  <div class="activity-time">{{ activity.time }}</div>
-                  <div class="activity-content">
-                    <el-icon class="activity-icon">
-                      <Document />
-                    </el-icon>
-                    <span>{{ activity.content }}</span>
+              <el-tabs v-model="activityTab" @tab-change="handleActivityTabChange">
+                <el-tab-pane label="任务动态" name="activities">
+                  <div class="activity-list">
+                    <div v-for="(activity, index) in activities" :key="index" class="activity-item">
+                      <div class="activity-time">{{ activity.time }}</div>
+                      <div class="activity-content">
+                        <el-icon class="activity-icon">
+                          <Document />
+                        </el-icon>
+                        <span>{{ activity.content }}</span>
+                      </div>
+                    </div>
+                    <el-empty v-if="activities.length === 0" description="暂无动态" />
                   </div>
-                </div>
-                <el-empty v-if="activities.length === 0" description="暂无动态" />
-              </div>
+                </el-tab-pane>
+                <el-tab-pane label="我汇报的" name="myReports">
+                  <div class="activity-list">
+                    <div v-for="(report, index) in myReports" :key="index" class="activity-item">
+                      <div class="activity-time">{{ report.time }}</div>
+                      <div class="activity-content">
+                        <el-icon class="activity-icon">
+                          <Document />
+                        </el-icon>
+                        <span>{{ report.content }}</span>
+                      </div>
+                    </div>
+                    <el-empty v-if="myReports.length === 0" description="暂无汇报记录" />
+                  </div>
+                </el-tab-pane>
+                <el-tab-pane v-if="canViewReceivedReports" label="收到的汇报" name="receivedReports">
+                  <div class="activity-list">
+                    <div v-for="(report, index) in receivedReports" :key="index" class="activity-item">
+                      <div class="activity-time">{{ report.time }}</div>
+                      <div class="activity-content">
+                        <el-icon class="activity-icon">
+                          <Document />
+                        </el-icon>
+                        <span>{{ report.content }}</span>
+                      </div>
+                    </div>
+                    <el-empty v-if="receivedReports.length === 0" description="暂无收到的汇报" />
+                  </div>
+                </el-tab-pane>
+              </el-tabs>
             </el-card>
           </el-col>
         </el-row>
@@ -250,14 +284,46 @@
 
       <!-- 任务 Tab -->
       <el-tab-pane label="任务" name="tasks">
+        <!-- 搜索表单 -->
+        <el-card class="mb-20">
+          <template #header>
+            <div class="card-header">
+              <span>任务查询</span>
+            </div>
+          </template>
+          <el-form :model="taskSearchForm" :inline="true" class="search-form">
+            <el-form-item label="状态">
+              <el-select v-model="taskSearchForm.state" placeholder="全部状态" clearable style="width: 180px"
+                @change="handleTaskStateChange">
+                <el-option label="待分配给部门负责人" value="待分配给部门负责人" />
+                <el-option label="待指派给成员" value="待指派给成员" />
+                <el-option label="任务未开始" value="任务未开始" />
+                <el-option label="任务进行中" value="任务进行中" />
+                <el-option label="待测试" value="待测试" />
+                <el-option label="测试中" value="测试中" />
+                <el-option label="测试完毕" value="测试完毕" />
+                <el-option label="待审阅" value="待审阅" />
+                <el-option label="审阅中" value="审阅中" />
+                <el-option label="审阅完毕" value="审阅完毕" />
+                <el-option label="已取消" value="已取消" />
+                <el-option label="已完成" value="已完成" />
+              </el-select>
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" @click="handleTaskSearch">搜索</el-button>
+              <el-button @click="handleTaskSearchReset">重置</el-button>
+            </el-form-item>
+          </el-form>
+        </el-card>
+
         <el-card>
           <template #header>
             <div class="card-header">
               <span>任务列表</span>
-              <el-button type="primary" size="small" @click="goToMyTasks">查看更多</el-button>
+              <!-- <el-button type="primary" size="small" @click="goToMyTasks">查看更多</el-button> -->
             </div>
           </template>
-          <el-table :data="allTasks" v-loading="allTasksLoading" style="width: 100%" :height="700">
+          <el-table :data="filteredAllTasks" v-loading="allTasksLoading" :style="{ width: '100%' }" :height="700">
             <el-table-column prop="任务名" label="任务名称" min-width="200" />
             <el-table-column prop="状态" label="状态" width="140">
               <template #default="{ row }">
@@ -281,17 +347,20 @@
                 {{ row.预计工时 || 0 }}小时
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="220" fixed="right">
+            <el-table-column label="操作" width="280" fixed="right">
               <template #default="{ row }">
                 <el-button type="primary" size="small" link @click="viewTask(row)">
                   查看
                 </el-button>
-                <el-button type="primary" link size="small" :disabled="!getNextStatus(row.状态 || row.status)"
+                <el-button v-if="(row.当前处理人 || row.current_handler) === userStore.username" type="primary" link
+                  size="small" :disabled="!getNextStatus(row.状态 || row.status)"
                   :loading="statusFlowButtonLoadingTaskId === (row._id || row.id)" @click="openStatusFlowDialog(row)">
                   流转
                 </el-button>
                 <el-button v-if="canRecordBug(row.状态 || row.status)" type="warning" link size="small"
                   @click="openBugDialog(row)">记录BUG</el-button>
+                <el-button type="success" link size="small" @click="openReportDialog(row)"
+                  v-perms="['task:report']">进度汇报</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -304,10 +373,10 @@
           <template #header>
             <div class="card-header">
               <span>需求列表</span>
-              <el-button type="primary" size="small" @click="goToRequirements">查看更多</el-button>
+              <!-- <el-button type="primary" size="small" @click="goToRequirements">查看更多</el-button> -->
             </div>
           </template>
-          <el-table :data="requirements" v-loading="requirementsLoading" style="width: 100%" :height="700">
+          <el-table :data="requirements" v-loading="requirementsLoading" :style="{ width: '100%' }" :height="700">
             <el-table-column prop="需求名" label="需求名称" min-width="200" />
             <el-table-column prop="状态" label="状态" width="140">
               <template #default="{ row }">
@@ -344,10 +413,10 @@
           <template #header>
             <div class="card-header">
               <span>项目列表</span>
-              <el-button type="primary" size="small" @click="goToProjects">查看更多</el-button>
+              <!-- <el-button type="primary" size="small" @click="goToProjects">查看更多</el-button> -->
             </div>
           </template>
-          <el-table :data="projects" v-loading="projectsLoading" style="width: 100%" :height="700">
+          <el-table :data="projects" v-loading="projectsLoading" :style="{ width: '100%' }" :height="700">
             <el-table-column prop="project_name" label="项目名称" min-width="200" />
             <el-table-column prop="state" label="状态" width="140">
               <template #default="{ row }">
@@ -358,7 +427,7 @@
             </el-table-column>
             <el-table-column prop="creator" label="创建人" width="100" />
             <el-table-column prop="plant_start_time" label="计划开始时间" width="160" />
-            <el-table-column prop="plant_end_time" label="计划结束时间" width="160" />
+            <el-table-column prop="plant_end_time" label="计划计划结束时间" width="160" />
             <el-table-column prop="create_time" label="创建时间" width="160" />
             <el-table-column label="操作" width="100" fixed="right">
               <template #default="{ row }">
@@ -397,15 +466,58 @@
         </span>
       </template>
     </el-dialog>
+
+    <!-- 进度汇报对话框 -->
+    <el-dialog v-model="reportDialogVisible" title="进度汇报" width="480px" append-to-body :close-on-click-modal="false">
+      <el-form ref="reportFormRef" :model="reportForm" :rules="reportRules" label-width="90px">
+        <el-form-item label="任务名称">
+          <span>{{ reportForm.task_name || "-" }}</span>
+        </el-form-item>
+        <el-form-item label="接收人" prop="recipient">
+          <el-select v-model="reportForm.recipient" placeholder="请选择接收人" filterable clearable
+            :loading="departmentUsersLoading">
+            <el-option v-for="user in departmentUsers" :key="user.username" :label="user.nickname
+              ? `${user.nickname} (${user.username})`
+              : user.username
+              " :value="user.username" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="当前进度" prop="progress">
+          <div style="display: flex; align-items: center; width: 100%;">
+            <el-input-number v-model="reportForm.progress" :min="0" :max="100" controls-position="right"
+              style="flex: 1;" />
+            <span style="margin-left: 8px; color: #606266;">%</span>
+          </div>
+        </el-form-item>
+        <el-form-item label="当前用时" prop="use_time">
+          <div style="display: flex; align-items: center; width: 100%;">
+            <el-input-number v-model="reportForm.use_time" :min="0" controls-position="right" style="flex: 1;"
+              placeholder="请输入当前用时" />
+            <span style="margin-left: 8px; color: #606266;">时</span>
+          </div>
+        </el-form-item>
+        <el-form-item label="汇报内容" prop="message">
+          <el-input v-model="reportForm.message" type="textarea" :rows="4" placeholder="请输入汇报内容" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="reportDialogVisible = false">取消</el-button>
+          <el-button type="primary" :loading="reportSubmitting" @click="handleReportSubmit">提交</el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, nextTick } from "vue";
+import { ref, computed, reactive, onMounted, onBeforeUnmount, nextTick } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useUserStoreHook } from "@/store/modules/user";
-import { selectMyTasks, selectRequirements, selectProjects, getTaskStatistics, selectPendingTasks, selectUserRequirements } from "@/api/project";
+import { selectMyTasks, selectRequirements, selectProjects, getTaskStatistics, selectPendingTasks, selectUserRequirements, flattenRequirementData, reportTaskProgress } from "@/api/project";
 import { createBug } from "@/api/bug";
+import { selectDepartmentUsers, type DepartmentUserItem } from "@/api/system";
+import { selectSelfReports, selectReports, type ReportRecord } from "@/api/report";
 import { ElMessage } from "element-plus";
 import { User, Clock, Document } from "@element-plus/icons-vue";
 import type { TaskListItem, RequirementListItem, ProjectListItem } from "@/api/project";
@@ -467,6 +579,19 @@ const todoTasksTotal = ref(0);
 const allTasks = ref<TaskListItem[]>([]);
 const allTasksLoading = ref(false);
 
+// 任务搜索表单
+const taskSearchForm = ref({
+  state: ""
+});
+
+// 过滤后的任务列表（根据状态筛选）
+const filteredAllTasks = computed(() => {
+  if (!taskSearchForm.value.state) {
+    return allTasks.value;
+  }
+  return allTasks.value.filter(task => task.状态 === taskSearchForm.value.state);
+});
+
 // 需求列表
 const requirements = ref<RequirementListItem[]>([]);
 const requirementsLoading = ref(false);
@@ -480,28 +605,50 @@ const activities = ref<Array<{ time: string; content: string; icon: string }>>([
 const taskActivities = ref<Array<{ time: string; content: string; icon: string }>>([]); // 任务动态
 const requirementActivities = ref<Array<{ time: string; content: string; icon: string }>>([]);
 const projectActivities = ref<Array<{ time: string; content: string; icon: string }>>([]);
+const activityTab = ref("activities"); // 动态tab切换
+const myReports = ref<Array<{ time: string; content: string; icon: string }>>([]); // 我汇报的
+const receivedReports = ref<Array<{ time: string; content: string; icon: string }>>([]); // 收到的汇报
 
-const convertDynamicToActivities = (dynamicList: string[]) => {
+// 检查是否可以查看收到的汇报（只有admin和部门主管可以查看）
+const canViewReceivedReports = computed(() => {
+  const roles = userStore.roles || [];
+  return roles.includes("Admin") || roles.includes("DepartmentManager");
+});
+
+const convertDynamicToActivities = (dynamicList: Array<{ task_name?: string; history?: string }>) => {
   if (!Array.isArray(dynamicList)) {
     return [];
   }
   return dynamicList.map(item => {
-    if (!item) {
+    if (!item || !item.history) {
       return { time: "", content: "", icon: "Document" };
     }
-    const potentialTime = item.slice(0, 19);
+
+    const history = item.history;
+    const taskName = item.task_name || "";
+
+    // 尝试从 history 中提取时间（格式：YYYY-MM-DD HH:mm:ss）
+    const potentialTime = history.slice(0, 19);
     const timeRegex = /^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}$/;
+
     if (timeRegex.test(potentialTime)) {
-      const content = item.slice(19);
+      // 提取时间后的内容
+      const content = history.slice(19).trim();
+      // 如果有任务名，可以增强显示内容
+      const displayContent = taskName ? `任务 "${taskName}" ${content}` : content;
+
       return {
         time: potentialTime,
-        content: content || item,
+        content: displayContent || history,
         icon: "Document"
       };
     }
+
+    // 如果没有匹配到时间格式，使用整个 history 作为内容
+    const displayContent = taskName ? `任务 "${taskName}" ${history}` : history;
     return {
       time: "",
-      content: item,
+      content: displayContent,
       icon: "Document"
     };
   });
@@ -582,7 +729,7 @@ const loadTodoTasks = async (page: number = todoTasksPage.value) => {
 
       // 生成最新动态（基于待办任务数据）
       if (Array.isArray(tasksResponse.dynamic) && tasksResponse.dynamic.length > 0) {
-        activities.value = convertDynamicToActivities(tasksResponse.dynamic);
+        activities.value = convertDynamicToActivities(tasksResponse.dynamic as Array<{ task_name?: string; history?: string }>);
       } else {
         generateActivities(tasksResponse.result);
       }
@@ -696,6 +843,81 @@ const viewTask = (task: TaskListItem) => {
   });
 };
 
+// 处理动态tab切换
+const handleActivityTabChange = (tabName: string) => {
+  if (tabName === "myReports" && myReports.value.length === 0) {
+    loadMyReports();
+  } else if (tabName === "receivedReports" && receivedReports.value.length === 0) {
+    loadReceivedReports();
+  }
+};
+
+// 将汇报记录转换为活动格式
+const convertReportsToActivities = (reports: ReportRecord[]): Array<{ time: string; content: string; icon: string }> => {
+  return reports.map(report => {
+    const time = report.create_time || report.createdAt || "";
+    const projectName = report.project_name || "";
+    const message = report.message || "";
+    const content = projectName
+      ? `项目 "${projectName}" 的汇报: ${message}`
+      : `汇报: ${message}`;
+
+    return {
+      time,
+      content,
+      icon: "Document"
+    };
+  });
+};
+
+// 加载我汇报的记录
+const loadMyReports = async () => {
+  try {
+    const response = await selectSelfReports({
+      page: 1,
+      page_size: 50
+    });
+
+    if (response.code === 200) {
+      const reports = response.result || response.data || [];
+      myReports.value = convertReportsToActivities(reports);
+    } else {
+      ElMessage.error(response.message || "加载我汇报的记录失败");
+      myReports.value = [];
+    }
+  } catch (error: any) {
+    console.error("加载我汇报的记录失败:", error);
+    ElMessage.error(
+      error?.response?.data?.message || error?.message || "加载我汇报的记录失败"
+    );
+    myReports.value = [];
+  }
+};
+
+// 加载收到的汇报记录
+const loadReceivedReports = async () => {
+  try {
+    const response = await selectReports({
+      page: 1,
+      page_size: 50
+    });
+
+    if (response.code === 200) {
+      const reports = response.result || response.data || [];
+      receivedReports.value = convertReportsToActivities(reports);
+    } else {
+      ElMessage.error(response.message || "加载收到的汇报记录失败");
+      receivedReports.value = [];
+    }
+  } catch (error: any) {
+    console.error("加载收到的汇报记录失败:", error);
+    ElMessage.error(
+      error?.response?.data?.message || error?.message || "加载收到的汇报记录失败"
+    );
+    receivedReports.value = [];
+  }
+};
+
 // Tab 切换处理
 const handleTabChange = (tabName: string) => {
   if (tabName === "workspace") {
@@ -724,10 +946,12 @@ const loadRequirements = async () => {
     const response = await selectUserRequirements({ page: 1, page_size: 20 });
 
     if (response.code === 200 && response.result) {
-      requirements.value = response.result;
+      // 扁平化嵌套对象结构为数组
+      const flattenedResult = flattenRequirementData(response.result);
+      requirements.value = flattenedResult;
 
       // 统计需求数据
-      requirementStats.value.total = response.total_count || 0;
+      requirementStats.value.total = response.total_count ?? flattenedResult.length;
       requirementStats.value.pending = requirements.value.filter(
         (req) => req.状态 === "进行中"
       ).length;
@@ -860,6 +1084,45 @@ const bugFormRules: FormRules = {
   describe: [
     { required: true, message: "请输入BUG描述", trigger: "blur" }
   ]
+};
+
+// 进度汇报对话框
+const reportDialogVisible = ref(false);
+const reportSubmitting = ref(false);
+const reportFormRef = ref<FormInstance>();
+const departmentUsers = ref<DepartmentUserItem[]>([]);
+const departmentUsersLoading = ref(false);
+const reportForm = reactive({
+  recipient: "",
+  cc_person: "",
+  task_id: "",
+  task_name: "",
+  progress: 0,
+  use_time: 0,
+  message: ""
+});
+const reportRules: FormRules = {
+  recipient: [{ required: true, message: "请输入接收人", trigger: "blur" }],
+  progress: [
+    { required: true, message: "请输入进度", trigger: "change" },
+    {
+      type: "number",
+      min: 0,
+      max: 100,
+      message: "进度需在 0-100 之间",
+      trigger: "change"
+    }
+  ],
+  use_time: [
+    { required: true, message: "请输入当前用时", trigger: "blur" },
+    {
+      type: "number",
+      min: 0,
+      message: "当前用时需大于 0",
+      trigger: "change"
+    }
+  ],
+  message: [{ required: true, message: "请输入汇报内容", trigger: "blur" }]
 };
 
 // 状态流转顺序
@@ -1014,6 +1277,88 @@ const submitBug = async () => {
   });
 };
 
+// 加载部门用户列表
+const loadDepartmentUsers = async () => {
+  departmentUsersLoading.value = true;
+  try {
+    const response = await selectDepartmentUsers();
+    if (response.code === 200 && Array.isArray(response.result)) {
+      departmentUsers.value =
+        response.result?.filter(user =>
+          Array.isArray(user.role)
+            ? user.role.includes("DepartmentManager")
+            : false
+        ) || [];
+    } else {
+      departmentUsers.value = [];
+      ElMessage.error("加载接收人列表失败");
+    }
+  } catch (error: any) {
+    console.error("加载接收人列表失败:", error);
+    ElMessage.error(
+      error?.response?.data?.message || error?.message || "加载接收人列表失败"
+    );
+    departmentUsers.value = [];
+  } finally {
+    departmentUsersLoading.value = false;
+  }
+};
+
+// 打开进度汇报对话框
+const openReportDialog = (task: any) => {
+  reportForm.task_id = task._id || task.id || "";
+  reportForm.task_name = task.任务名 || task.task_name || task.title || "";
+  reportForm.progress = Number(task.进度) || 0;
+  reportForm.use_time = Number(task.已用工时 || task.actualHours || 0);
+  reportForm.recipient = task.creator || "";
+  reportForm.cc_person = task.指派人 || task.assignee || "";
+  reportForm.message = "";
+  reportDialogVisible.value = true;
+  if (!departmentUsers.value.length) {
+    loadDepartmentUsers();
+  }
+  nextTick(() => {
+    reportFormRef.value?.clearValidate();
+  });
+};
+
+// 提交进度汇报
+const handleReportSubmit = () => {
+  reportFormRef.value?.validate(async valid => {
+    if (!valid) return;
+    if (!reportForm.task_id) {
+      ElMessage.error("任务信息缺失");
+      return;
+    }
+    reportSubmitting.value = true;
+    try {
+      const response = await reportTaskProgress({
+        recipient: reportForm.recipient,
+        cc_person: reportForm.cc_person,
+        task_id: reportForm.task_id,
+        task_name: reportForm.task_name,
+        progress: reportForm.progress,
+        message: reportForm.message,
+        use_time: reportForm.use_time
+      });
+      if (response.code === 200) {
+        ElMessage.success("汇报成功");
+        reportDialogVisible.value = false;
+        loadAllTasks();
+      } else {
+        ElMessage.error(response.message || "汇报失败");
+      }
+    } catch (error: any) {
+      console.error("进度汇报失败:", error);
+      ElMessage.error(
+        error?.response?.data?.message || error?.message || "汇报失败"
+      );
+    } finally {
+      reportSubmitting.value = false;
+    }
+  });
+};
+
 // 状态流转成功回调
 const handleStatusFlowSuccess = (nextState: string, personName: string) => {
   if (!statusFlowTask.value) return;
@@ -1065,6 +1410,21 @@ const loadAllTasks = async () => {
   } finally {
     allTasksLoading.value = false;
   }
+};
+
+// 处理任务状态变化
+const handleTaskStateChange = () => {
+  // 状态变化时自动应用筛选（计算属性会自动更新）
+};
+
+// 处理任务搜索
+const handleTaskSearch = () => {
+  // 搜索逻辑由计算属性filteredAllTasks自动处理
+};
+
+// 重置任务搜索
+const handleTaskSearchReset = () => {
+  taskSearchForm.value.state = "";
 };
 
 onMounted(() => {
@@ -1385,6 +1745,12 @@ onBeforeUnmount(() => {
           flex-shrink: 0;
         }
       }
+    }
+  }
+
+  :deep(.el-tabs) {
+    .el-tabs__content {
+      padding: 0;
     }
   }
 

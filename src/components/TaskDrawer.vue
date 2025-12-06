@@ -1,26 +1,10 @@
 <template>
-  <el-drawer
-    v-model="drawerVisible"
-    :title="isEdit ? '编辑任务' : '新建任务'"
-    size="600px"
-    direction="rtl"
-    @close="handleClose"
-  >
+  <el-drawer v-model="drawerVisible" :title="isEdit ? '编辑任务' : '新建任务'" size="600px" direction="rtl"
+    @close="handleClose">
     <div class="task-drawer">
-      <el-form
-        ref="formRef"
-        :model="taskForm"
-        :rules="rules"
-        label-width="100px"
-        label-position="left"
-      >
+      <el-form ref="formRef" :model="taskForm" :rules="rules" label-width="100px" label-position="left">
         <el-form-item label="任务名称" prop="task_name">
-          <el-input
-            v-model="taskForm.task_name"
-            placeholder="请输入任务名称"
-            maxlength="100"
-            show-word-limit
-          />
+          <el-input v-model="taskForm.task_name" placeholder="请输入任务名称" maxlength="100" show-word-limit />
         </el-form-item>
 
         <el-form-item label="任务描述" prop="describe">
@@ -28,48 +12,23 @@
         </el-form-item>
 
         <el-form-item label="所属项目" prop="project_id">
-          <el-select
-            v-model="taskForm.project_id"
-            placeholder="选择项目"
-            clearable
-            style="width: 100%"
-            @change="handleProjectChange"
-          >
-            <el-option
-              v-for="project in projectOptions"
-              :key="project.id"
-              :label="project.name"
-              :value="project.id"
-            />
+          <el-select v-model="taskForm.project_id" placeholder="选择项目" clearable style="width: 100%" :disabled="isEdit"
+            :loading="projectsLoading" @change="handleProjectChange">
+            <el-option v-for="project in projectOptions" :key="project.id" :label="project.name" :value="project.id" />
           </el-select>
         </el-form-item>
 
         <el-form-item label="所属需求" prop="requirement_id">
-          <el-select
-            v-model="taskForm.requirement_id"
-            placeholder="选择需求"
-            clearable
-            style="width: 100%"
-            :disabled="!taskForm.project_id || requirementsLoading"
-            :loading="requirementsLoading"
-            @change="handleRequirementChange"
-          >
-            <el-option
-              v-for="requirement in requirements"
-              :key="requirement.id"
-              :label="requirement.requirement_name"
-              :value="requirement.id"
-            />
+          <el-select v-model="taskForm.requirement_id" placeholder="选择需求" clearable style="width: 100%"
+            :disabled="isEdit || !taskForm.project_id || requirementsLoading" :loading="requirementsLoading"
+            @change="handleRequirementChange">
+            <el-option v-for="requirement in requirements" :key="requirement.id" :label="requirement.requirement_name"
+              :value="requirement.id" />
           </el-select>
         </el-form-item>
 
         <el-form-item label="优先级" prop="priority">
-          <el-select
-            v-model="taskForm.priority"
-            placeholder="选择优先级"
-            clearable
-            style="width: 100%"
-          >
+          <el-select v-model="taskForm.priority" placeholder="选择优先级" clearable style="width: 100%">
             <el-option label="低" value="低">
               <el-tag type="info" size="small">低</el-tag>
             </el-option>
@@ -83,25 +42,14 @@
         </el-form-item>
 
         <el-form-item label="预计工时" prop="estimated_time">
-          <el-input-number
-            v-model="taskForm.estimated_time"
-            :min="0"
-            :precision="0"
-            placeholder="请输入预计时间（小时）"
-            style="width: 100%"
-          />
+          <el-input-number v-model="taskForm.estimated_time" :min="0" :precision="0" placeholder="请输入预计时间（小时）"
+            style="width: 100%" />
         </el-form-item>
 
         <!-- 附件上传 -->
         <el-form-item label="任务附件">
-          <el-upload
-            v-model:file-list="fileList"
-            multiple
-            :auto-upload="false"
-            :on-remove="handleFileRemove"
-            :on-change="handleFileChange"
-            :before-upload="handleBeforeUpload"
-          >
+          <el-upload v-model:file-list="fileList" multiple :auto-upload="false" :on-remove="handleFileRemove"
+            :on-change="handleFileChange" :before-upload="handleBeforeUpload">
             <el-button type="primary">
               <el-icon>
                 <Upload />
@@ -143,7 +91,9 @@ import {
   createTask,
   updateTask,
   uploadFile,
+  selectProjects,
   selectRequirements,
+  flattenRequirementData,
   type CreateTaskParams,
   type UpdateTaskParams,
   type RequirementListItem
@@ -158,6 +108,7 @@ interface Props {
   projectId?: string;
   task?: any;
   projects?: any[]; // 项目列表（从搜索表单获取）
+  parentPath?: string; // 父路径，用于新建任务时自动拼接路径
 }
 
 interface Emits {
@@ -175,6 +126,8 @@ const submitting = ref(false);
 const deleting = ref(false);
 const requirements = ref<any[]>([]);
 const requirementsLoading = ref(false);
+const projects = ref<Array<{ id: string; name: string }>>([]);
+const projectsLoading = ref(false);
 
 // 将完整 URL 转换为相对路径（用于提交数据）
 const convertToRelativePath = (url: string): string => {
@@ -326,10 +279,39 @@ const drawerVisible = computed({
 
 const isEdit = computed(() => !!props.task);
 
-// 项目选项（从 props 获取）
+// 项目选项（从 API 获取）
 const projectOptions = computed(() => {
-  return props.projects || [];
+  return projects.value;
 });
+
+// 加载项目列表
+const loadProjects = async () => {
+  projectsLoading.value = true;
+  try {
+    const response = await selectProjects({
+      page: 1,
+      page_size: 1000 // 获取所有项目
+    });
+
+    if (response.code === 200 && response.result) {
+      projects.value = response.result.map((item: any) => ({
+        id: item._id,
+        name: item.project_name
+      }));
+    } else {
+      ElMessage.error(response.message || "加载项目列表失败");
+      projects.value = [];
+    }
+  } catch (error: any) {
+    console.error("加载项目列表失败:", error);
+    ElMessage.error(
+      error?.response?.data?.message || error?.message || "加载项目列表失败"
+    );
+    projects.value = [];
+  } finally {
+    projectsLoading.value = false;
+  }
+};
 
 // 加载需求列表
 const loadRequirements = async (projectId: string) => {
@@ -347,7 +329,9 @@ const loadRequirements = async (projectId: string) => {
     });
 
     if (response.code === 200 && response.result) {
-      requirements.value = response.result.map(
+      // 扁平化嵌套对象结构为数组
+      const flattenedResult = flattenRequirementData(response.result);
+      requirements.value = flattenedResult.map(
         (item: RequirementListItem): any => {
           return {
             id: item._id,
@@ -417,6 +401,10 @@ watch(
   () => props.visible,
   visible => {
     if (visible) {
+      // 加载项目列表
+      if (projects.value.length === 0) {
+        loadProjects();
+      }
       if (props.task) {
         // 编辑模式：填充表单
         // 处理 describe：可能是字符串数组或 DescribeContent[]
@@ -548,7 +536,7 @@ watch(
         }
 
         Object.assign(taskForm, {
-          task_name: props.task.task_name || props.task.title || "",
+          task_name: props.task.task_name || props.task.title || (props.task as any).任务名 || "",
           describe: describeContent,
           project_id:
             props.task.project_id ||
@@ -562,9 +550,12 @@ watch(
             "",
           requirement_name:
             props.task.requirement_name || props.requirementName || "",
-          priority: props.task.priority || "",
+          priority: props.task.priority || (props.task as any).优先级 || "",
           estimated_time:
-            props.task.estimated_time || props.task.estimatedHours || 0
+            props.task.estimated_time ||
+            props.task.estimatedHours ||
+            (props.task as any).预计工时 ||
+            0
         });
 
         // 填充附件列表
@@ -793,8 +784,13 @@ const handleSubmit = async () => {
           });
         } else {
           // 新建模式：调用创建接口
+          // 如果有父路径，自动拼接路径到任务名
+          let taskName = taskForm.task_name;
+          if (props.parentPath && !isEdit.value) {
+            taskName = `${props.parentPath}/${taskName}`;
+          }
           response = await createTask({
-            task_name: taskForm.task_name,
+            task_name: taskName,
             describe: describeUrls,
             requirement_id: taskForm.requirement_id,
             requirement_name: taskForm.requirement_name,
@@ -817,8 +813,8 @@ const handleSubmit = async () => {
         console.error(isEdit.value ? "更新任务失败:" : "创建任务失败:", error);
         ElMessage.error(
           error?.response?.data?.message ||
-            error?.message ||
-            (isEdit.value ? "任务更新失败" : "任务创建失败")
+          error?.message ||
+          (isEdit.value ? "任务更新失败" : "任务创建失败")
         );
       } finally {
         submitting.value = false;

@@ -46,12 +46,14 @@ const formData = reactive<{
   password: string;
   departmentName: string;
   role: string[];
+  workchat_name: string;
 }>({
   id: undefined,
   username: "",
   password: "",
   departmentName: "",
-  role: []
+  role: [],
+  workchat_name: ""
 });
 
 const formRules: FormRules = {
@@ -284,7 +286,8 @@ const handleSave = async () => {
             username: formData.username,
             password: formData.password,
             role: Array.isArray(formData.role) ? formData.role : [],
-            department: formData.departmentName || ""
+            department: formData.departmentName || "",
+            workchat_name: formData.workchat_name || ""
           };
           response = await addUser(submitData);
         }
@@ -309,6 +312,7 @@ const resetForm = () => {
   formData.password = "";
   formData.departmentName = "";
   formData.role = [];
+  formData.workchat_name = "";
   formRef.value?.resetFields();
 };
 
@@ -340,34 +344,14 @@ onMounted(() => {
   <div class="user-management">
     <!-- 查询表单 -->
     <el-card shadow="never">
-      <el-form
-        ref="queryFormRef"
-        :model="queryForm"
-        :inline="true"
-        class="query-form"
-      >
+      <el-form ref="queryFormRef" :model="queryForm" :inline="true" class="query-form">
         <el-form-item label="用户名" prop="username">
-          <el-input
-            v-model="queryForm.username"
-            placeholder="请输入用户名"
-            clearable
-            class="query-input"
-            @keyup.enter="handleQuery"
-          />
+          <el-input v-model="queryForm.username" placeholder="请输入用户名" clearable class="query-input"
+            @keyup.enter="handleQuery" />
         </el-form-item>
         <el-form-item label="部门" prop="department">
-          <el-select
-            v-model="queryForm.department"
-            placeholder="请选择部门"
-            clearable
-            class="query-select"
-          >
-            <el-option
-              v-for="dept in departmentList"
-              :key="dept"
-              :label="dept"
-              :value="dept"
-            />
+          <el-select v-model="queryForm.department" placeholder="请选择部门" clearable class="query-select">
+            <el-option v-for="dept in departmentList" :key="dept" :label="dept" :value="dept" />
           </el-select>
         </el-form-item>
         <!-- <el-form-item label="状态" prop="status">
@@ -390,12 +374,7 @@ onMounted(() => {
         <div class="card-header">
           <span class="font-medium">用户管理</span>
           <div>
-            <el-button
-              v-perms="'admin:add_user'"
-              type="primary"
-              :icon="Add"
-              @click="handleAdd"
-            >
+            <el-button v-perms="'admin:add_user'" type="primary" :icon="Add" @click="handleAdd">
               新增
             </el-button>
             <el-button :icon="Refresh" @click="handleRefresh">刷新</el-button>
@@ -403,34 +382,16 @@ onMounted(() => {
         </div>
       </template>
 
-      <pure-table
-        ref="tableRef"
-        :data="tableData"
-        :columns="columns"
-        :loading="loading"
-        height="600"
+      <pure-table ref="tableRef" :data="tableData" :columns="columns" :loading="loading" height="600"
         :header-cell-style="{
           background: 'var(--el-table-row-hover-bg-color)',
           color: 'var(--el-text-color-primary)'
-        }"
-      >
+        }">
         <template #operation="{ row }">
-          <el-button
-            v-perms="'admin:update_user'"
-            type="primary"
-            link
-            :icon="Edit"
-            @click="handleEdit(row)"
-          >
+          <el-button v-perms="'admin:update_user'" type="primary" link :icon="Edit" @click="handleEdit(row)">
             编辑
           </el-button>
-          <el-button
-            v-perms="'admin:delete_user'"
-            type="danger"
-            link
-            :icon="Delete"
-            @click="handleDelete(row)"
-          >
+          <el-button v-perms="'admin:delete_user'" type="danger" link :icon="Delete" @click="handleDelete(row)">
             删除
           </el-button>
         </template>
@@ -438,65 +399,27 @@ onMounted(() => {
     </el-card>
 
     <!-- 新增/编辑对话框 -->
-    <el-dialog
-      v-model="dialogVisible"
-      :title="dialogTitle"
-      width="600px"
-      :close-on-click-modal="false"
-    >
-      <el-form
-        ref="formRef"
-        :model="formData"
-        :rules="formRules"
-        label-width="100px"
-      >
+    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="600px" :close-on-click-modal="false">
+      <el-form ref="formRef" :model="formData" :rules="formRules" label-width="100px">
         <el-form-item label="用户名" prop="username">
-          <el-input
-            v-model="formData.username"
-            placeholder="请输入用户名"
-            clearable
-            :disabled="isEdit"
-          />
+          <el-input v-model="formData.username" placeholder="请输入用户名" clearable :disabled="isEdit" />
         </el-form-item>
         <el-form-item label="密码" prop="password">
-          <el-input
-            v-model="formData.password"
-            type="password"
-            :placeholder="isEdit ? '不修改请留空' : '请输入密码'"
-            clearable
-            show-password
-          />
+          <el-input v-model="formData.password" type="password" :placeholder="isEdit ? '不修改请留空' : '请输入密码'" clearable
+            show-password />
         </el-form-item>
         <el-form-item label="部门" prop="departmentName">
-          <el-select
-            v-model="formData.departmentName"
-            placeholder="请选择部门"
-            clearable
-            style="width: 100%"
-          >
-            <el-option
-              v-for="dept in departmentList"
-              :key="dept"
-              :label="dept"
-              :value="dept"
-            />
+          <el-select v-model="formData.departmentName" placeholder="请选择部门" clearable style="width: 100%">
+            <el-option v-for="dept in departmentList" :key="dept" :label="dept" :value="dept" />
           </el-select>
         </el-form-item>
         <el-form-item label="角色" prop="role">
-          <el-select
-            v-model="formData.role"
-            placeholder="请选择角色"
-            clearable
-            multiple
-            style="width: 100%"
-          >
-            <el-option
-              v-for="(label, value) in roleMap"
-              :key="value"
-              :label="label"
-              :value="value"
-            />
+          <el-select v-model="formData.role" placeholder="请选择角色" clearable multiple style="width: 100%">
+            <el-option v-for="(label, value) in roleMap" :key="value" :label="label" :value="value" />
           </el-select>
+        </el-form-item>
+        <el-form-item label="企业微信名" prop="workchat_name">
+          <el-input v-model="formData.workchat_name" placeholder="请输入企业微信名" clearable />
         </el-form-item>
       </el-form>
       <template #footer>

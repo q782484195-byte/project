@@ -1,5 +1,5 @@
 import { computed } from "vue";
-import { routerArrays } from "../types";
+import { getRouterArrays } from "../types";
 import { useGlobal } from "@pureadmin/utils";
 import { useMultiTagsStore } from "@/store/modules/multiTags";
 
@@ -12,7 +12,7 @@ export function useLayout() {
       useMultiTagsStore().multiTagsCache &&
       (!$storage.tags || $storage.tags.length === 0)
     ) {
-      $storage.tags = routerArrays;
+      $storage.tags = getRouterArrays();
     }
     /** 导航 */
     if (!$storage.layout) {

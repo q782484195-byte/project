@@ -108,13 +108,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineComponent, h, ref, watch, resolveComponent, type Ref } from "vue";
+import { computed, defineComponent, h, ref, watch, type Ref } from "vue";
 import { ElProgress } from "element-plus";
 
 export type StructureTreeNode = {
   id: string | number;
   name: string;
-  type: "project" | "requirement" | "task";
+  type: "project" | "requirement" | "task" | "category";
   status: string; // 使用原始状态字符串，不再限制为固定值
   assignee?: string;
   estimate?: string;
@@ -126,11 +126,13 @@ export type StructureTreeNode = {
 
 const props = withDefaults(
   defineProps<{
-    treeData: StructureTreeNode | null;
+    treeData: StructureTreeNode | Record<string, any> | null;
     loading?: boolean;
+    rootTitle?: string;
   }>(),
   {
-    loading: false
+    loading: false,
+    rootTitle: "项目结构"
   }
 );
 
@@ -141,6 +143,108 @@ const emit = defineEmits<{
 const selectedNode = ref<StructureTreeNode | null>(null);
 const nodeDetailVisible = ref(false);
 const internalTree = ref<StructureTreeNode | null>(null);
+
+const isStructureTreeNode = (data: unknown): data is StructureTreeNode =>
+  !!data && typeof data === "object" && "type" in (data as any) && "name" in (data as any);
+
+const isRequirementPayload = (obj: any) =>
+  obj && typeof obj === "object" && "_id" in obj && "需求名" in obj;
+
+const transformNestedData = (data: Record<string, any>): StructureTreeNode | null => {
+  if (!data || typeof data !== "object") return null;
+
+  const convertNode = (key: string, value: any, path: string[] = []): StructureTreeNode | null => {
+    const depth = path.length;
+
+    // 判断是否为需求：有 _id、需求名、且有进度或状态或负责人
+    const isRequirement = (obj: any): boolean => {
+      if (!obj || typeof obj !== "object") return false;
+      if (!("_id" in obj) || !("需求名" in obj)) return false;
+
+      // 如果有进度、状态或负责人，则认为是需求
+      const hasProgress = typeof obj.进度 === "number";
+      const hasStatus = obj.状态 && obj.状态.trim() !== "";
+      const hasAssignee = obj.creator && obj.creator.trim() !== "";
+
+      return hasProgress || hasStatus || hasAssignee;
+    };
+
+    // 如果是需求数据（有 _id 和 需求名）
+    if (isRequirementPayload(value)) {
+      const tasks = Array.isArray(value.task_list)
+        ? value.task_list.map((task: any, index: number) => ({
+          id: task._id || `${value._id}_task_${index}`,
+          name: task.任务名 || task.task_name || task.title || `任务${index + 1}`,
+          type: "task" as const,
+          status: task.状态 || task.status || "未知状态",
+          assignee: task.当前处理人 || task.指派人 || task.assignee || task.指派给,
+          progress: typeof task.进度 === "number" ? task.进度 : undefined,
+          estimate: task.预计工时 ? `${task.预计工时} 小时` : undefined,
+          rawData: task,
+          children: []
+        }))
+        : [];
+
+      // 根据数据特征判断是需求还是分类
+      const hasProgress = typeof value.进度 === "number";
+      const hasStatus = value.状态 && value.状态.trim() !== "";
+      const hasAssignee = value.creator && value.creator.trim() !== "";
+
+      // 如果有进度、状态或负责人，则是需求；否则是分类
+      const nodeType: StructureTreeNode["type"] =
+        (hasProgress || hasStatus || hasAssignee) ? "requirement" : "category";
+
+      return {
+        id: value._id,
+        name: key,
+        type: nodeType,
+        status: value.状态 || "未知状态",
+        assignee: value.creator,
+        progress: typeof value.进度 === "number" ? value.进度 : undefined,
+        rawData: value,
+        children: tasks,
+        expanded: depth === 0
+      };
+    }
+
+    // 如果是嵌套对象，递归处理
+    if (value && typeof value === "object") {
+      const children = Object.keys(value)
+        .map(childKey => convertNode(childKey, value[childKey], path.concat(key)))
+        .filter(Boolean) as StructureTreeNode[];
+
+      if (children.length === 0) {
+        return null;
+      }
+
+      // 嵌套对象都是分类节点
+      return {
+        id: path.concat(key).join("/") || key,
+        name: key,
+        type: "category" as const,
+        status: "",
+        children,
+        expanded: path.length === 0,
+        rawData: value
+      };
+    }
+
+    return null;
+  };
+
+  const rootChildren = Object.keys(data)
+    .map(key => convertNode(key, data[key], []))
+    .filter(Boolean) as StructureTreeNode[];
+
+  return {
+    id: "project_overview_root",
+    name: props.rootTitle || "项目结构",
+    type: "project",
+    status: "",
+    children: rootChildren,
+    expanded: true
+  };
+};
 
 const cloneNode = (node: StructureTreeNode, level: number = 0): StructureTreeNode => {
   // level 0: 项目节点 - 默认展开（显示需求）
@@ -160,7 +264,15 @@ const cloneNode = (node: StructureTreeNode, level: number = 0): StructureTreeNod
 watch(
   () => props.treeData,
   newVal => {
-    internalTree.value = newVal ? cloneNode(newVal, 0) : null;
+    if (!newVal) {
+      internalTree.value = null;
+      selectedNode.value = null;
+      nodeDetailVisible.value = false;
+      return;
+    }
+
+    const treeNode = isStructureTreeNode(newVal) ? newVal : transformNestedData(newVal as Record<string, any>);
+    internalTree.value = treeNode ? cloneNode(treeNode, 0) : null;
     selectedNode.value = null;
     nodeDetailVisible.value = false;
   },
@@ -176,7 +288,8 @@ const statusTextMap: Record<StructureTreeNode["status"], string> = {
 const typeTextMap: Record<StructureTreeNode["type"], string> = {
   project: "项目",
   requirement: "需求",
-  task: "任务"
+  task: "任务",
+  category: "分类"
 };
 
 const getStatusText = (status: StructureTreeNode["status"]) => {
@@ -264,18 +377,21 @@ const TreeNode = defineComponent({
         h(
           "div",
           {
-            class: ["node-content", { selected: isSelected.value }],
+            class: [
+              "node-content",
+              `node-type-${nodeProps.node.type}`,
+              { selected: isSelected.value }
+            ],
             "data-level": String(nodeProps.level), // 确保是字符串类型
             onClick
           },
           [
             h("div", { class: "node-title" }, [
-              nodeProps.node.name,
-              h("span", { class: "node-type" }, getTypeText(nodeProps.node.type))
+              nodeProps.node.name
             ]),
             h("div", { class: "node-details" }, [
-              // 项目节点不显示状态
-              nodeProps.node.type !== "project"
+              // 项目节点和分类节点不显示状态，只显示需求和任务的状态
+              nodeProps.node.type !== "project" && nodeProps.node.type !== "category"
                 ? h("span", {
                   class: ["status", `status-${encodeURIComponent(nodeProps.node.status).replace(/%/g, '')}`],
                   "data-status": nodeProps.node.status
@@ -294,7 +410,8 @@ const TreeNode = defineComponent({
                   })
                 ])
                 : null,
-              nodeProps.node.assignee
+              // 需求节点不显示负责人，只显示任务和分类的负责人
+              nodeProps.node.assignee && nodeProps.node.type !== "requirement"
                 ? h("span", { class: "assignee" }, `负责人: ${nodeProps.node.assignee}`)
                 : null
             ]),
@@ -348,11 +465,10 @@ const treeNodeComponent = TreeNode;
     background: #fff;
     border: 1px solid #e1e5e9;
     border-radius: 8px;
-    overflow-y: auto;
     overflow-x: auto;
     flex: 1; // 占据剩余空间
     min-height: 200px;
-    max-height: 800px; // 设置最大高度，超过时显示滚动条
+    // 移除 max-height，让容器自适应高度，不显示垂直滚动条
 
     &::-webkit-scrollbar {
       width: 6px;
@@ -489,7 +605,7 @@ const treeNodeComponent = TreeNode;
 
   .node-content {
     position: relative;
-    border: 1px solid #e1e5e9;
+    border: 2px solid #e1e5e9;
     border-radius: 6px;
     padding: 12px 18px;
     background: #fff;
@@ -498,32 +614,138 @@ const treeNodeComponent = TreeNode;
     box-sizing: border-box;
     flex-shrink: 0; // 防止被压缩
 
-    // 根据层级限制宽度 - 使用固定宽度确保各层级一致
-    &[data-level="0"] {
-      width: 400px !important; // 固定宽度
-      min-width: 200px;
-      max-width: 400px;
+    // 任务节点默认大小（维持现有大小）
+    width: 250px !important;
+    min-width: 250px;
+    max-width: 250px;
+
+    // 项目节点样式 - 蓝色系，更突出，放大
+    &.node-type-project {
+      width: 320px !important;
+      min-width: 320px;
+      max-width: 320px;
+      padding: 16px 22px;
+      border-color: #409eff;
+      background: linear-gradient(135deg, #ecf5ff 0%, #ffffff 100%);
+      border-width: 2px;
+      box-shadow: 0 2px 6px rgba(64, 158, 255, 0.15);
+
+      .node-title {
+        font-size: 16px;
+        font-weight: 700;
+      }
+
+      &:hover {
+        border-color: #66b1ff;
+        background: linear-gradient(135deg, #d9ecff 0%, #f0f7ff 100%);
+        box-shadow: 0 4px 12px rgba(64, 158, 255, 0.25);
+        transform: translateY(-2px);
+      }
+
+      &.selected {
+        border-color: #409eff;
+        background: linear-gradient(135deg, #d9ecff 0%, #ecf5ff 100%);
+        box-shadow: 0 4px 16px rgba(64, 158, 255, 0.3);
+      }
     }
 
-    &[data-level="1"] {
-      width: 400px !important; // 固定宽度
-      min-width: 200px;
-      max-width: 400px;
+    // 需求节点样式 - 绿色系，放大
+    &.node-type-requirement {
+      width: 300px !important;
+      min-width: 300px;
+      max-width: 300px;
+      padding: 14px 20px;
+      border-color: #67c23a;
+      background: linear-gradient(135deg, #f0f9ff 0%, #ffffff 100%);
+      border-width: 2px;
+      box-shadow: 0 2px 6px rgba(103, 194, 58, 0.12);
+
+      .node-title {
+        font-size: 15px;
+        font-weight: 600;
+      }
+
+      &:hover {
+        border-color: #85ce61;
+        background: linear-gradient(135deg, #e8f5e9 0%, #f0f9f0 100%);
+        box-shadow: 0 4px 12px rgba(103, 194, 58, 0.2);
+        transform: translateY(-2px);
+      }
+
+      &.selected {
+        border-color: #67c23a;
+        background: linear-gradient(135deg, #e8f5e9 0%, #f0f9ff 100%);
+        box-shadow: 0 4px 16px rgba(103, 194, 58, 0.25);
+      }
     }
 
-    &[data-level="2"] {
-      width: 400px !important; // 固定宽度
+    // 分类节点样式 - 灰色系，缩小
+    &.node-type-category {
+      width: 200px !important;
       min-width: 200px;
-      max-width: 400px;
+      max-width: 200px;
+      padding: 10px 14px;
+      border-color: #909399;
+      background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%);
+      border-width: 1.5px;
+      border-style: dashed;
+      box-shadow: 0 1px 4px rgba(144, 147, 153, 0.1);
+
+      .node-title {
+        font-size: 13px;
+        font-weight: 500;
+      }
+
+      .node-details {
+        font-size: 12px;
+      }
+
+      &:hover {
+        border-color: #b1b3b8;
+        background: linear-gradient(135deg, #ebeef5 0%, #f5f7fa 100%);
+        box-shadow: 0 2px 8px rgba(144, 147, 153, 0.15);
+        transform: translateY(-1px);
+      }
+
+      &.selected {
+        border-color: #909399;
+        background: linear-gradient(135deg, #ebeef5 0%, #f5f7fa 100%);
+        box-shadow: 0 2px 10px rgba(144, 147, 153, 0.2);
+      }
     }
 
-    &:hover {
+    // 任务节点样式 - 橙色/黄色系，维持现有大小
+    &.node-type-task {
+      width: 250px !important;
+      min-width: 250px;
+      max-width: 250px;
+      border-color: #e6a23c;
+      background: linear-gradient(135deg, #fdf6ec 0%, #ffffff 100%);
+      border-width: 2px;
+      box-shadow: 0 2px 6px rgba(230, 162, 60, 0.12);
+
+      &:hover {
+        border-color: #ebb563;
+        background: linear-gradient(135deg, #fef0e6 0%, #fdf6ec 100%);
+        box-shadow: 0 4px 12px rgba(230, 162, 60, 0.2);
+        transform: translateY(-2px);
+      }
+
+      &.selected {
+        border-color: #e6a23c;
+        background: linear-gradient(135deg, #fef0e6 0%, #fdf6ec 100%);
+        box-shadow: 0 4px 16px rgba(230, 162, 60, 0.25);
+      }
+    }
+
+    // 默认样式（如果没有匹配到类型）
+    &:hover:not(.node-type-project):not(.node-type-requirement):not(.node-type-category):not(.node-type-task) {
       border-color: #3498db;
       box-shadow: 0 2px 8px rgba(52, 152, 219, 0.1);
       transform: translateY(-1px);
     }
 
-    &.selected {
+    &.selected:not(.node-type-project):not(.node-type-requirement):not(.node-type-category):not(.node-type-task) {
       border-color: #3498db;
       background: #f8fbfe;
       box-shadow: 0 2px 12px rgba(52, 152, 219, 0.15);
@@ -672,7 +894,9 @@ const treeNodeComponent = TreeNode;
   }
 
   .node-content {
-    min-width: 160px;
+    width: 100% !important;
+    min-width: 100%;
+    max-width: 100%;
     padding: 10px 14px;
   }
 

@@ -2,7 +2,6 @@
 import { emitter } from "@/utils/mitt";
 import { useNav } from "@/layout/hooks/useNav";
 import LaySearch from "../lay-search/index.vue";
-import LayNotice from "../lay-notice/index.vue";
 import { responsiveStorageNameSpace } from "@/config";
 import { ref, nextTick, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
@@ -57,35 +56,21 @@ onMounted(() => {
 </script>
 
 <template>
-  <div
-    v-loading="usePermissionStoreHook().wholeMenus.length === 0"
-    class="horizontal-header"
-  >
+  <div v-loading="usePermissionStoreHook().wholeMenus.length === 0" class="horizontal-header">
     <div v-if="showLogo" class="horizontal-header-left" @click="backTopMenu">
       <img :src="getLogo()" alt="logo" />
       <span>{{ title }}</span>
     </div>
-    <el-menu
-      ref="menuRef"
-      mode="horizontal"
-      popper-class="pure-scrollbar"
-      class="horizontal-header-menu"
-      :default-active="defaultActive"
-    >
-      <LaySidebarItem
-        v-for="route in usePermissionStoreHook().wholeMenus"
-        :key="route.path"
-        :item="route"
-        :base-path="route.path"
-      />
+    <el-menu ref="menuRef" mode="horizontal" popper-class="pure-scrollbar" class="horizontal-header-menu"
+      :default-active="defaultActive">
+      <LaySidebarItem v-for="route in usePermissionStoreHook().wholeMenus" :key="route.path" :item="route"
+        :base-path="route.path" />
     </el-menu>
     <div class="horizontal-header-right">
       <!-- 菜单搜索 -->
       <LaySearch id="header-search" />
       <!-- 全屏 -->
       <LaySidebarFullScreen id="full-screen" />
-      <!-- 消息通知 -->
-      <LayNotice id="header-notice" />
       <!-- 退出登录 -->
       <el-dropdown trigger="click">
         <span class="el-dropdown-link navbar-bg-hover">
@@ -99,20 +84,13 @@ onMounted(() => {
               个人资料
             </el-dropdown-item>
             <el-dropdown-item divided @click="logout">
-              <IconifyIconOffline
-                :icon="LogoutCircleRLine"
-                style="margin: 5px"
-              />
+              <IconifyIconOffline :icon="LogoutCircleRLine" style="margin: 5px" />
               退出系统
             </el-dropdown-item>
           </el-dropdown-menu>
         </template>
       </el-dropdown>
-      <span
-        class="set-icon navbar-bg-hover"
-        title="打开系统配置"
-        @click="onPanel"
-      >
+      <span class="set-icon navbar-bg-hover" title="打开系统配置" @click="onPanel">
         <IconifyIconOffline :icon="Setting" />
       </span>
     </div>

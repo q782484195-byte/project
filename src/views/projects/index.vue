@@ -4,12 +4,13 @@
       <h2>项目管理</h2>
       <div class="header-actions">
         <el-input v-model="searchKeyword" placeholder="搜索项目..." prefix-icon="Search" clearable style="width: 200px" />
-        <el-select v-model="statusFilter" placeholder="状态筛选" clearable style="width: 120px">
+        <el-select v-model="statusFilter" placeholder="状态筛选" clearable style="width: 120px"
+          v-perms="['project:update_state']">
           <el-option label="未开始" value="未开始" />
           <el-option label="进行中" value="进行中" />
           <el-option label="已完成" value="已完成" />
         </el-select>
-        <el-button type="primary" @click="showProjectDialog = true">
+        <el-button type="primary" @click="showProjectDialog = true" v-perms="['project:add']">
           <el-icon>
             <Plus />
           </el-icon>
@@ -65,7 +66,7 @@
               {{ getStatusText(project.status) }}
             </el-tag>
           </div>
-          <el-dropdown @command="handleCommand($event, project)" @click.stop>
+          <el-dropdown trigger="hover" @command="handleCommand($event, project)" @click.stop>
             <el-button type="text" size="small">
               <el-icon>
                 <MoreFilled />
@@ -73,9 +74,9 @@
             </el-button>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item command="edit">编辑项目</el-dropdown-item>
-                <el-dropdown-item command="members">管理成员</el-dropdown-item>
-                <el-dropdown-item command="delete" divided>删除项目</el-dropdown-item>
+                <el-dropdown-item v-if="hasPerms(['project:update'])" command="edit">编辑项目</el-dropdown-item>
+                <!-- <el-dropdown-item command="members">管理成员</el-dropdown-item> -->
+                <el-dropdown-item v-if="hasPerms(['project:delete'])" command="delete" divided>删除项目</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -121,95 +122,7 @@
       </div>
     </div>
 
-    <!-- 表格视图 -->
-    <el-card v-else class="projects-table">
-      <el-table v-loading="loading" :data="filteredProjects" style="width: 100%">
-        <el-table-column prop="name" label="项目名称" min-width="200">
-          <template #default="{ row }">
-            <div class="project-name" @click="openProjectDetail(row)">
-              <h4>{{ row.name }}</h4>
-              <p>{{ row.description }}</p>
-            </div>
-          </template>
-        </el-table-column>
 
-        <el-table-column prop="status" label="状态" width="100">
-          <template #default="{ row }">
-            <el-tag :type="getStatusTagType(row.status)" size="small">
-              {{ getStatusText(row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-
-        <el-table-column prop="manager" label="项目经理" width="120">
-          <template #default="{ row }">
-            <div class="manager-info">
-              <el-avatar :size="24" :src="row.manager?.avatar">
-                {{ row.manager?.name?.charAt(0) || "-" }}
-              </el-avatar>
-              <span>{{ row.manager?.name || "-" }}</span>
-            </div>
-          </template>
-        </el-table-column>
-
-        <el-table-column prop="progress" label="进度" width="120">
-          <template #default="{ row }">
-            <el-progress :percentage="getProjectProgress(row)" :stroke-width="6" :show-text="false" />
-            <span class="progress-text">{{ getProjectProgress(row) }}%</span>
-          </template>
-        </el-table-column>
-
-        <!-- <el-table-column prop="members" label="团队成员" width="150">
-          <template #default="{ row }">
-            <div v-if="row.members && row.members.length > 0" class="table-avatar-group">
-              <el-avatar v-for="(member, index) in row.members.slice(0, 3)" :key="member.id" :src="member.avatar"
-                :title="member.name" size="small" :style="{ marginLeft: index > 0 ? '-6px' : '0' }">
-                {{ member.name.charAt(0) }}
-              </el-avatar>
-              <span class="member-count">{{ row.members.length }}人</span>
-            </div>
-            <span v-else>-</span>
-          </template>
-        </el-table-column> -->
-
-        <el-table-column prop="duration" label="项目周期" width="150">
-          <template #default="{ row }">
-            {{ formatDateRange(row.startDate, row.endDate) }}
-          </template>
-        </el-table-column>
-
-        <el-table-column prop="budget" label="预算" width="100">
-          <template #default="{ row }">
-            <span v-if="row.budget">¥{{ formatBudget(row.budget) }}</span>
-            <span v-else>-</span>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="操作" width="120" fixed="right">
-          <template #default="{ row }">
-            <el-dropdown @command="handleCommand($event, row)">
-              <el-button type="text" size="small">
-                操作<el-icon>
-                  <ArrowDown />
-                </el-icon>
-              </el-button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item command="edit">编辑</el-dropdown-item>
-                  <el-dropdown-item command="members">成员</el-dropdown-item>
-                  <el-dropdown-item command="delete" divided>删除</el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <div class="pagination">
-        <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" :page-sizes="[10, 20, 50, 100]"
-          :total="totalProjects" :loading="loading" layout="total, sizes, prev, pager, next, jumper" />
-      </div>
-    </el-card>
 
     <!-- 新建/编辑项目对话框 -->
     <ProjectFormDialog v-model:visible="showProjectDialog" :project="editingProject" @created="handleProjectCreated"
@@ -234,6 +147,7 @@ import {
   Money,
   ArrowDown
 } from "@element-plus/icons-vue";
+import { hasPerms } from "@/utils/auth";
 import { useProjectStoreHook } from "@/store/modules/project";
 import { type Project } from "@/types";
 import { mockProjects } from "@/mock/projects";
@@ -358,6 +272,7 @@ const loadProjects = async () => {
           progress: item.progress || 0,
           总进度: item.总进度 || item.progress || 0, // 优先使用后端返回的 总进度 字段
           attachment: item.attachment || [], // 保存附件数组
+          project_proposal: item.project_proposal || [], // 保存立项文件数组
           createdAt:
             item.create_time ||
             item.created_at ||

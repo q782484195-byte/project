@@ -2,7 +2,6 @@
 import { isAllEmpty } from "@pureadmin/utils";
 import { useNav } from "@/layout/hooks/useNav";
 import LaySearch from "../lay-search/index.vue";
-import LayNotice from "../lay-notice/index.vue";
 import { ref, toRaw, watch, onMounted, nextTick } from "vue";
 import { useRouter } from "vue-router";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
@@ -62,32 +61,15 @@ watch(
 </script>
 
 <template>
-  <div
-    v-if="device !== 'mobile'"
-    v-loading="usePermissionStoreHook().wholeMenus.length === 0"
-    class="horizontal-header"
-  >
-    <el-menu
-      ref="menuRef"
-      router
-      mode="horizontal"
-      popper-class="pure-scrollbar"
-      class="horizontal-header-menu"
-      :default-active="defaultActive"
-    >
-      <el-menu-item
-        v-for="route in usePermissionStoreHook().wholeMenus"
-        :key="route.path"
-        :index="resolvePath(route) || route.redirect"
-      >
+  <div v-if="device !== 'mobile'" v-loading="usePermissionStoreHook().wholeMenus.length === 0"
+    class="horizontal-header">
+    <el-menu ref="menuRef" router mode="horizontal" popper-class="pure-scrollbar" class="horizontal-header-menu"
+      :default-active="defaultActive">
+      <el-menu-item v-for="route in usePermissionStoreHook().wholeMenus" :key="route.path"
+        :index="resolvePath(route) || route.redirect">
         <template #title>
-          <div
-            v-if="toRaw(route.meta.icon)"
-            :class="['sub-menu-icon', route.meta.icon]"
-          >
-            <component
-              :is="useRenderIcon(route.meta && toRaw(route.meta.icon))"
-            />
+          <div v-if="toRaw(route.meta.icon)" :class="['sub-menu-icon', route.meta.icon]">
+            <component :is="useRenderIcon(route.meta && toRaw(route.meta.icon))" />
           </div>
           <div :style="getDivStyle">
             <span class="select-none">
@@ -103,8 +85,6 @@ watch(
       <LaySearch id="header-search" />
       <!-- 全屏 -->
       <LaySidebarFullScreen id="full-screen" />
-      <!-- 消息通知 -->
-      <LayNotice id="header-notice" />
       <!-- 退出登录 -->
       <el-dropdown trigger="click">
         <span class="el-dropdown-link navbar-bg-hover select-none">
@@ -118,20 +98,13 @@ watch(
               个人资料
             </el-dropdown-item>
             <el-dropdown-item divided @click="logout">
-              <IconifyIconOffline
-                :icon="LogoutCircleRLine"
-                style="margin: 5px"
-              />
+              <IconifyIconOffline :icon="LogoutCircleRLine" style="margin: 5px" />
               退出系统
             </el-dropdown-item>
           </el-dropdown-menu>
         </template>
       </el-dropdown>
-      <span
-        class="set-icon navbar-bg-hover"
-        title="打开系统配置"
-        @click="onPanel"
-      >
+      <span class="set-icon navbar-bg-hover" title="打开系统配置" @click="onPanel">
         <IconifyIconOffline :icon="Setting" />
       </span>
     </div>

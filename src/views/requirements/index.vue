@@ -18,7 +18,7 @@
           <el-option label="已完成" value="已完成" />
           <el-option label="已取消" value="已取消" />
         </el-select>
-        <el-button type="primary" @click="handleCreate">
+        <el-button type="primary" @click="handleCreate" v-perms="['requirement:add']">
           <el-icon>
             <Plus />
           </el-icon>
@@ -29,7 +29,7 @@
 
     <!-- 需求列表 -->
     <el-card v-loading="loading" class="requirements-table-card">
-      <el-table :data="filteredRequirements" style="width: 100%" height="680">
+      <el-table :data="filteredRequirements" :style="{ width: '100%' }" height="680">
         <el-table-column prop="requirement_name" label="需求名称" min-width="200" />
         <el-table-column prop="project_name" label="所属项目" width="150" />
         <el-table-column prop="priority" label="优先级" width="100">
@@ -64,7 +64,8 @@
         <el-table-column label="操作" width="150" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link size="small" @click="handleView(row)">查看</el-button>
-            <el-button type="primary" link size="small" @click="handleEdit(row)">编辑</el-button>
+            <el-button type="primary" link size="small" @click="handleEdit(row)"
+              v-perms="['requirement:update']">编辑</el-button>
             <!-- <el-button type="danger" link size="small" @click="handleDelete(row)">删除</el-button> -->
           </template>
         </el-table-column>
@@ -92,6 +93,7 @@ import {
   selectProjects,
   updateRequirementState,
   updateRequirement,
+  flattenRequirementData,
   type SelectRequirementParams,
   type RequirementListItem,
   type ProjectListItem
@@ -99,6 +101,7 @@ import {
 import type { Requirement, Project } from "@/types";
 import { RequirementStatus, type RequirementPriority } from "@/types";
 import RequirementDrawer from "@/components/RequirementDrawer.vue";
+import { storageLocal } from "@pureadmin/utils";
 
 const router = useRouter();
 const route = useRoute();
@@ -118,6 +121,39 @@ const showRequirementDrawer = ref(false);
 const currentRequirement = ref<Requirement | null>(null);
 const requirementOptions = ref<Array<{ label: string; value: string }>>([]);
 const hasOpenedCreateDrawer = ref(false); // 标志，用于避免重复打开新建抽屉
+
+// 缓存键名
+const CACHE_KEY = "requirements-list-params";
+
+// 保存参数到缓存
+const saveParamsToCache = () => {
+  const params = {
+    selectedProjectId: selectedProjectId.value,
+    searchRequirementId: searchRequirementId.value,
+    statusFilter: statusFilter.value,
+    currentPage: currentPage.value,
+    pageSize: pageSize.value
+  };
+  storageLocal().setItem(CACHE_KEY, params);
+};
+
+// 从缓存恢复参数
+const restoreParamsFromCache = () => {
+  const cached = storageLocal().getItem<{
+    selectedProjectId?: string;
+    searchRequirementId?: string;
+    statusFilter?: string;
+    currentPage?: number;
+    pageSize?: number;
+  }>(CACHE_KEY);
+  if (cached) {
+    if (cached.selectedProjectId) selectedProjectId.value = cached.selectedProjectId;
+    if (cached.searchRequirementId) searchRequirementId.value = cached.searchRequirementId;
+    if (cached.statusFilter) statusFilter.value = cached.statusFilter;
+    if (cached.currentPage) currentPage.value = cached.currentPage;
+    if (cached.pageSize) pageSize.value = cached.pageSize;
+  }
+};
 
 // 当前使用的项目ID（用于加载需求）
 const projectId = computed(() => selectedProjectId.value);
@@ -232,13 +268,15 @@ const loadProjects = async () => {
         };
       });
 
-      // 如果路由有项目ID，使用路由的；否则选择第一个项目
+      // 如果路由有项目ID，使用路由的；否则从缓存恢复或选择第一个项目
       const routeProjectId = route.query.project_id as string | undefined;
       if (routeProjectId && projects.value.some(p => p.id === routeProjectId)) {
         selectedProjectId.value = routeProjectId;
+        saveParamsToCache(); // 保存路由参数到缓存
       } else if (projects.value.length > 0 && !selectedProjectId.value) {
-        // 只有在还没有选择项目时才选择第一个
+        // 如果没有路由参数且没有缓存，选择第一个项目
         selectedProjectId.value = projects.value[0].id;
+        saveParamsToCache();
       }
 
       // 如果路由有 create 参数且项目已选择，尝试打开新建抽屉
@@ -283,8 +321,11 @@ const loadRequirements = async () => {
     const response = await selectRequirements(params);
 
     if (response.code === 200 && response.result) {
+      // 扁平化嵌套对象结构为数组
+      const flattenedResult = flattenRequirementData(response.result);
+
       // 将 API 返回的数据映射到前端需要的格式
-      requirements.value = response.result.map(
+      requirements.value = flattenedResult.map(
         (item: RequirementListItem): any => {
           // 从API返回的数据中获取项目名称，如果没有则从项目列表中查找
           let projectName = item.project_name || "";
@@ -309,8 +350,8 @@ const loadRequirements = async () => {
         }
       );
 
-      // 更新总数（使用 total_count）
-      totalRequirements.value = response.total_count || 0;
+      // 更新总数（使用 total_count，如果没有则使用扁平化后的数组长度）
+      totalRequirements.value = response.total_count ?? flattenedResult.length;
     } else {
       ElMessage.error(response.message || "加载需求列表失败");
       requirements.value = [];
@@ -337,7 +378,9 @@ const loadRequirementOptions = async () => {
       page_size: 100
     });
     if (response.code === 200 && response.result) {
-      requirementOptions.value = response.result.map(item => ({
+      // 扁平化嵌套对象结构为数组
+      const flattenedResult = flattenRequirementData(response.result);
+      requirementOptions.value = flattenedResult.map(item => ({
         label: item.需求名 || item._id,
         value: item._id
       }));
@@ -353,6 +396,7 @@ const loadRequirementOptions = async () => {
 // 处理项目选择变化
 const handleProjectChange = () => {
   currentPage.value = 1; // 重置到第一页
+  saveParamsToCache(); // 保存到缓存
   loadRequirementOptions();
   loadRequirements();
 };
@@ -375,6 +419,7 @@ const handleRequirementRefresh = () => {
 
 const handleRequirementSelectChange = () => {
   currentPage.value = 1;
+  saveParamsToCache(); // 保存到缓存
   loadRequirements();
 };
 
@@ -495,15 +540,25 @@ const handleDelete = async (requirement: any) => {
 
 // 监听分页变化
 watch([() => currentPage.value, () => pageSize.value], () => {
+  saveParamsToCache(); // 保存到缓存
   if (projectId.value) {
     loadRequirements();
   }
 });
 
+// 监听状态筛选变化
+watch(
+  () => statusFilter.value,
+  () => {
+    saveParamsToCache(); // 保存到缓存
+  }
+);
+
 // 监听项目ID变化，自动加载需求列表
 watch(
   () => selectedProjectId.value,
   () => {
+    saveParamsToCache(); // 保存到缓存
     if (selectedProjectId.value) {
       currentPage.value = 1; // 重置到第一页
       loadRequirementOptions();
@@ -525,6 +580,7 @@ watch(
       projects.value.some(p => p.id === newProjectId)
     ) {
       selectedProjectId.value = newProjectId as string;
+      saveParamsToCache(); // 保存到缓存
     }
   }
 );
@@ -536,6 +592,7 @@ watch(
     if (typeof newRequirementId === "string" && newRequirementId) {
       searchRequirementId.value = newRequirementId;
       currentPage.value = 1;
+      saveParamsToCache(); // 保存到缓存
       loadRequirements();
     }
   }
@@ -562,10 +619,28 @@ watch(
 onMounted(async () => {
   // 先加载项目列表
   await loadProjects();
+
+  // 优先使用路由参数，如果没有则从缓存恢复
+  const routeProjectId = route.query.project_id as string | undefined;
   const routeRequirementId = route.query.requirement_id as string | undefined;
+
+  if (routeProjectId) {
+    // 如果有路由参数，使用路由参数
+    if (projects.value.some(p => p.id === routeProjectId)) {
+      selectedProjectId.value = routeProjectId;
+    }
+  } else {
+    // 如果没有路由参数，从缓存恢复
+    restoreParamsFromCache();
+  }
+
   if (routeRequirementId) {
     searchRequirementId.value = routeRequirementId;
   }
+
+  // 保存当前参数到缓存（包括路由参数）
+  saveParamsToCache();
+
   await loadRequirementOptions();
   // 项目列表加载完成后，会自动设置selectedProjectId，然后加载需求列表
   if (projectId.value) {

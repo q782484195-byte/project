@@ -1,60 +1,77 @@
 <template>
   <div class="dashboard">
-    <!-- 统计卡片 -->
-    <el-row :gutter="20" class="mb-24">
-      <el-col :span="6" :xs="12">
-        <div class="stat-card">
-          <div class="stat-number" style="color: #409eff">
-            {{ stats.totalProjects }}
-          </div>
-          <div class="stat-label">总项目数</div>
-        </div>
-      </el-col>
-      <el-col :span="6" :xs="12">
-        <div class="stat-card">
-          <div class="stat-number" style="color: #67c23a">
-            {{ stats.activeProjects }}
-          </div>
-          <div class="stat-label">进行中项目</div>
-        </div>
-      </el-col>
-      <el-col :span="6" :xs="12">
-        <div class="stat-card">
-          <div class="stat-number" style="color: #e6a23c">
-            {{ stats.totalTasks }}
-          </div>
-          <div class="stat-label">总任务数</div>
-        </div>
-      </el-col>
-      <el-col :span="6" :xs="12">
-        <div class="stat-card">
-          <div class="stat-number" style="color: #f56c6c">
-            {{ stats.completedTasks }}
-          </div>
-          <div class="stat-label">已完成任务</div>
-        </div>
-      </el-col>
-    </el-row>
-
-    <el-row :gutter="20" class="mb-24">
-      <!-- 项目进度图表 -->
+    <el-row :gutter="20">
+      <!-- 左侧：汇报列表 -->
       <el-col :span="12" :xs="24">
+        <el-card class="report-card">
+          <template #header>
+            <div class="card-header-title">
+              <span>汇报列表</span>
+            </div>
+          </template>
+          <div v-loading="reportsLoading" class="report-container">
+            <div v-if="reports.length > 0" class="report-list">
+              <div v-for="(report, index) in reports" :key="report._id || index" class="report-item">
+                <div class="report-header">
+                  <div class="report-title-section">
+                    <el-icon class="report-icon">
+                      <Document />
+                    </el-icon>
+                    <div class="report-title-info">
+                      <div class="report-title-row">
+                        <span class="report-project">{{ report.project_name || "-" }}</span>
+                        <span v-if="report.requirement_name" class="report-divider">|</span>
+                        <span v-if="report.requirement_name" class="report-requirement">{{ report.requirement_name
+                        }}</span>
+                        <span v-if="report.task_name" class="report-divider">|</span>
+                        <span v-if="report.task_name" class="report-task">{{ report.task_name }}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="report-time">{{ report.create_time || "-" }}</div>
+                </div>
+                <div class="report-content">
+                  <div class="report-message">{{ report.message || "-" }}</div>
+                  <div class="report-meta">
+                    <div class="report-meta-left">
+                      <el-tag v-if="report.recipient" type="info" size="small">接收人: {{ report.recipient }}</el-tag>
+                      <el-tag v-if="report.creator" type="success" size="small">创建人: {{ report.creator }}</el-tag>
+                    </div>
+                    <div v-if="report.任务进度 !== undefined && report.任务进度 !== null" class="report-progress">
+                      <span class="progress-label">任务进度:</span>
+                      <el-progress :percentage="Number(report.任务进度) || 0" :stroke-width="8" :show-text="true" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <el-empty v-else description="暂无汇报记录" :image-size="100" />
+            <div v-if="reports.length > 0" class="report-pagination">
+              <el-pagination v-model:current-page="reportsPage" v-model:page-size="reportsPageSize"
+                :total="reportsTotal" :page-sizes="[10, 20, 50, 100]" layout="total, sizes, prev, pager, next"
+                @size-change="handleReportsPageSizeChange" @current-change="handleReportsPageChange" />
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+
+      <!-- 右侧：图表 -->
+      <el-col :span="12" :xs="24">
+        <!-- 项目进度图表 -->
         <el-card class="mb-20">
           <template #header>
             <div class="card-header-title">
-              <span>项目进度</span>
+              <span>进行中项目进度</span>
             </div>
           </template>
           <div ref="projectProgressChart" class="chart" />
         </el-card>
-      </el-col>
 
-      <!-- 任务状态分布 -->
-      <el-col :span="12" :xs="24">
+        <!-- 任务状态分布 -->
         <el-card class="mb-20">
           <template #header>
             <div class="card-header-title">
-              <span>任务状态分布</span>
+              <span>进行中任务状态分布</span>
             </div>
           </template>
           <div ref="taskStatusChart" class="chart" />
@@ -82,8 +99,10 @@ import { TaskStatus, type Statistics, type Project } from "@/types";
 import { mockProjects } from "@/mock/projects";
 import { mockTasks } from "@/mock/tasks";
 import { mockUsers } from "@/mock/users";
-import { selectProjects, type SelectProjectParams } from "@/api/project";
+import { selectProjects, selectStatisticsTaskState, type SelectProjectParams } from "@/api/project";
+import { selectReports, type ReportRecord } from "@/api/report";
 import { ElMessage } from "element-plus";
+import { Document } from "@element-plus/icons-vue";
 
 // 注册 echarts 组件
 use([
@@ -116,6 +135,15 @@ let projectProgressChartInstance: echarts.ECharts | null = null;
 let taskStatusChartInstance: echarts.ECharts | null = null;
 const projects = ref<Project[]>([]);
 const loadingProjects = ref(false);
+const taskStatusData = ref<any>(null);
+const loadingTaskStatus = ref(false);
+
+// 汇报列表
+const reports = ref<ReportRecord[]>([]);
+const reportsLoading = ref(false);
+const reportsPage = ref(1);
+const reportsPageSize = ref(20);
+const reportsTotal = ref(0);
 
 const recentTasks = computed(() => {
   // 如果没有当前用户，显示所有任务
@@ -162,8 +190,16 @@ const loadProjects = async () => {
     if (response.code === 200) {
       const projectList = response.result || response.data || [];
 
+      // 过滤掉 state === "未开始" 的项目
+      const filteredProjectList = projectList.filter((item: any) => {
+        const state = item.state || "";
+        // 如果 state 包含逗号，取第一个值
+        const actualState = state.includes(",") ? state.split(",")[0].trim() : state;
+        return actualState !== "未开始";
+      });
+
       // 将 API 返回的数据转换为前端 Project 类型
-      projects.value = projectList.map((item: any) => {
+      projects.value = filteredProjectList.map((item: any) => {
         // 处理 describe 数组，转换为描述文本
         let description = "";
         if (item.describe && Array.isArray(item.describe)) {
@@ -339,36 +375,62 @@ const updateProjectProgressChart = () => {
   projectProgressChartInstance.setOption(option);
 };
 
+// 加载任务状态统计数据
+const loadTaskStatusData = async () => {
+  loadingTaskStatus.value = true;
+  try {
+    const response = await selectStatisticsTaskState();
+    if (response.code === 200) {
+      // 接口数据直接在响应对象上，提取除了 code 之外的所有字段
+      const { code, ...statusData } = response;
+      taskStatusData.value = statusData || {};
+      // 如果图表已初始化，则更新图表
+      if (taskStatusChartInstance) {
+        updateTaskStatusChart();
+      }
+    } else {
+      ElMessage.error(response.message || "加载任务状态数据失败");
+      // 如果接口失败，使用空数据
+      taskStatusData.value = {};
+      if (taskStatusChartInstance) {
+        updateTaskStatusChart();
+      }
+    }
+  } catch (error: any) {
+    console.error("加载任务状态数据失败:", error);
+    ElMessage.error(
+      error?.response?.data?.message || error?.message || "加载任务状态数据失败"
+    );
+    taskStatusData.value = {};
+    if (taskStatusChartInstance) {
+      updateTaskStatusChart();
+    }
+  } finally {
+    loadingTaskStatus.value = false;
+  }
+};
+
 // 初始化任务状态分布图表
 const initTaskStatusChart = () => {
   if (!taskStatusChart.value) return;
-
   taskStatusChartInstance = echarts.init(taskStatusChart.value);
+  updateTaskStatusChart();
+};
 
+// 更新任务状态分布图表
+const updateTaskStatusChart = () => {
+  if (!taskStatusChartInstance) return;
+
+  // 从接口数据中获取各状态的计数，如果接口没有返回某个状态，则默认为0
+  const data = taskStatusData.value || {};
   const statusCount = {
-    pendingAssign: mockTasks.filter(
-      t =>
-        t.status === TaskStatus.PENDING_ASSIGN_TO_DEPT_LEADER ||
-        t.status === TaskStatus.PENDING_ASSIGN_TO_MEMBER
-    ).length,
-    notStarted: mockTasks.filter(t => t.status === TaskStatus.NOT_STARTED)
-      .length,
-    inProgress: mockTasks.filter(t => t.status === TaskStatus.IN_PROGRESS)
-      .length,
-    testing: mockTasks.filter(
-      t =>
-        t.status === TaskStatus.TESTING ||
-        t.status === TaskStatus.PENDING_TEST ||
-        t.status === TaskStatus.TEST_COMPLETED
-    ).length,
-    reviewing: mockTasks.filter(
-      t =>
-        t.status === TaskStatus.PENDING_REVIEW ||
-        t.status === TaskStatus.REVIEWING ||
-        t.status === TaskStatus.REVIEW_COMPLETED
-    ).length,
-    completed: mockTasks.filter(t => t.status === TaskStatus.COMPLETED).length,
-    cancelled: mockTasks.filter(t => t.status === TaskStatus.CANCELLED).length
+    pendingAssign: (data["待分配"] || 0) + (data["待指派"] || 0),
+    notStarted: data["未开始"] || 0,
+    inProgress: data["进行中"] || 0,
+    testing: data["测试中"] || 0,
+    reviewing: data["审阅中"] || 0,
+    completed: data["已完成"] || 0,
+    cancelled: data["已取消"] || 0
   };
 
   const option = {
@@ -421,7 +483,7 @@ const initTaskStatusChart = () => {
             name: "已取消",
             itemStyle: { color: "#f56c6c" }
           }
-        ],
+        ].filter(item => item.value > 0), // 只显示有数据的项
         emphasis: {
           itemStyle: {
             shadowBlur: 10,
@@ -524,13 +586,56 @@ const handleResize = () => {
   }
 };
 
+// 加载汇报列表
+const loadReports = async (page: number = reportsPage.value) => {
+  reportsLoading.value = true;
+  try {
+    const response = await selectReports({
+      page: page,
+      page_size: reportsPageSize.value
+    });
+
+    if (response.code === 200) {
+      reports.value = response.result || response.data || [];
+      reportsTotal.value = response.total_count || response.total || 0;
+      reportsPage.value = page;
+    } else {
+      ElMessage.error(response.message || "加载汇报列表失败");
+      reports.value = [];
+      reportsTotal.value = 0;
+    }
+  } catch (error: any) {
+    console.error("加载汇报列表失败:", error);
+    ElMessage.error(
+      error?.response?.data?.message || error?.message || "加载汇报列表失败"
+    );
+    reports.value = [];
+    reportsTotal.value = 0;
+  } finally {
+    reportsLoading.value = false;
+  }
+};
+
+// 处理汇报分页改变
+const handleReportsPageChange = (page: number) => {
+  loadReports(page);
+};
+
+// 处理汇报每页数量改变
+const handleReportsPageSizeChange = () => {
+  loadReports(1);
+};
+
 onMounted(async () => {
   loadDashboardData();
   await loadProjects(); // 加载项目数据
+  await loadReports(); // 加载汇报列表
   nextTick(() => {
     initProjectProgressChart();
-    initTaskStatusChart();
+    initTaskStatusChart(); // 先初始化图表
   });
+  // 在图表初始化后再加载数据
+  await loadTaskStatusData(); // 加载任务状态统计数据
 
   // 监听窗口大小变化，重新调整图表
   window.addEventListener("resize", handleResize);
@@ -652,6 +757,218 @@ onBeforeUnmount(() => {
   height: 320px;
   width: 100%;
   transition: all 0.3s;
+}
+
+.report-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+
+  :deep(.el-card__body) {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    overflow: hidden;
+  }
+}
+
+.report-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 600px;
+  max-height: calc(100vh - 200px);
+}
+
+.report-list {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+  margin-bottom: 16px;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+
+    &:hover {
+      background: #a8a8a8;
+    }
+  }
+}
+
+.report-pagination {
+  flex-shrink: 0;
+  padding-top: 16px;
+  border-top: 1px solid #e4e7ed;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.report-item {
+  padding: 16px;
+  margin-bottom: 16px;
+  background: #fafbfc;
+  border-radius: 8px;
+  border: 1px solid #e4e7ed;
+  transition: all 0.3s ease;
+
+  &:hover {
+    background: #f0f2f5;
+    border-color: #c0c4cc;
+    transform: translateX(4px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  }
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  .report-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+    min-width: 0;
+    gap: 12px;
+
+    .report-title-section {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      flex: 1;
+      min-width: 0;
+
+      .report-icon {
+        color: #409eff;
+        font-size: 20px;
+        flex-shrink: 0;
+        margin-top: 2px;
+      }
+
+      .report-title-info {
+        flex: 1;
+        min-width: 0;
+
+        .report-title-row {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex-wrap: wrap;
+          line-height: 1.5;
+
+          .report-project {
+            color: #303133;
+            font-weight: 600;
+            font-size: 15px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 200px;
+          }
+
+          .report-divider {
+            color: #dcdfe6;
+            font-size: 12px;
+            flex-shrink: 0;
+          }
+
+          .report-requirement {
+            font-size: 13px;
+            color: #606266;
+            font-weight: 500;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 180px;
+          }
+
+          .report-task {
+            font-size: 13px;
+            color: #909399;
+            font-weight: 400;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 180px;
+          }
+        }
+      }
+    }
+
+    .report-time {
+      font-size: 12px;
+      color: #909399;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+  }
+
+  .report-content {
+    .report-message {
+      color: #606266;
+      font-size: 14px;
+      line-height: 1.6;
+      margin-bottom: 12px;
+      word-wrap: break-word;
+      word-break: break-word;
+      overflow-wrap: break-word;
+      white-space: pre-wrap;
+      max-width: 100%;
+    }
+
+    .report-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 8px;
+
+      .report-meta-left {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        flex: 1;
+      }
+
+      .report-progress {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+        min-width: 200px;
+
+        .progress-label {
+          font-size: 12px;
+          color: #606266;
+          white-space: nowrap;
+          font-weight: 500;
+        }
+
+        :deep(.el-progress) {
+          flex: 1;
+          min-width: 120px;
+          max-width: 200px;
+
+          .el-progress__text {
+            font-size: 11px;
+          }
+        }
+      }
+    }
+  }
 }
 
 .card-header-title {

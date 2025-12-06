@@ -16,6 +16,7 @@ export interface User {
   departmentId?: number;
   departmentName?: string;
   role?: string;
+  workchat_name?: string;
   status?: number;
   createTime?: string;
   updateTime?: string;
@@ -143,6 +144,7 @@ export interface AddUserParams {
   password: string;
   role: string[];
   department: string;
+  workchat_name?: string;
 }
 
 /** 新增用户 */

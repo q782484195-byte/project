@@ -134,6 +134,7 @@ interface Props {
   projectId?: string;
   projectName?: string;
   requirement?: Requirement | null;
+  parentPath?: string; // 父路径，用于新建需求时自动拼接路径
 }
 
 interface Emits {
@@ -254,6 +255,7 @@ watch(
       Object.assign(requirementForm, {
         title: requirement.title || "",
         describe: describeContent, // 使用从 requirement 中获取的 describe 数据
+        status: requirement.status || RequirementStatus.DRAFT,
         priority: priorityValue,
         category: requirement.category || "",
         assigneeId: requirement.assigneeId || ""
@@ -508,8 +510,14 @@ const handleSubmit = async () => {
             return;
           }
 
+          // 如果有父路径，自动拼接路径
+          let requirementName = requirementForm.title || "";
+          if (props.parentPath && !isEdit.value) {
+            requirementName = `${props.parentPath}/${requirementName}`;
+          }
+
           response = await createRequirement({
-            requirement_name: requirementForm.title || "",
+            requirement_name: requirementName,
             priority: priorityValue as string,
             project_name: props.projectName || "",
             project_id: props.projectId || "",

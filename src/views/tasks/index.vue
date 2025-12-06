@@ -21,8 +21,8 @@
               :value="requirement.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="任务关键词">
-          <el-input v-model="searchForm.taskName" placeholder="支持任务名、描述等关键词模糊搜索" clearable style="width: 220px"
+        <el-form-item label="任务名称">
+          <el-input v-model="searchForm.taskName" placeholder="请输入任务名称" clearable style="width: 220px"
             @keyup.enter="handleSearch" @clear="handleSearch" />
         </el-form-item>
         <!-- <el-form-item label="状态">
@@ -52,7 +52,7 @@
       <template #header>
         <div class="card-header">
           <span>任务列表</span>
-          <el-button type="primary" @click="handleCreate">
+          <el-button type="primary" @click="handleCreate" v-perms="['task:add']">
             <el-icon>
               <Plus />
             </el-icon>
@@ -60,17 +60,17 @@
           </el-button>
         </div>
       </template>
-      <el-table :data="filteredTasks" style="width: 100%" height="525">
+      <el-table :data="filteredTasks" :style="{ width: '100%' }" height="525">
         <el-table-column prop="任务名" label="任务名称" width="140">
           <template #default="{ row }">
             {{ row.任务名 || row.task_name || row.title || "-" }}
           </template>
         </el-table-column>
         <el-table-column prop="requirement_name" label="关联需求" width="140" />
-        <el-table-column prop="指派人" label="负责人" width="140">
+        <el-table-column prop="当前处理人" label="当前处理人" width="140">
           <template #default="{ row }">
             <el-tag type="info">
-              <span class="assignee-text">{{ row.指派人 || row.assignee || "-" }}</span>
+              <span class="assignee-text">{{ row.当前处理人 || row.assignee || "-" }}</span>
             </el-tag>
           </template>
         </el-table-column>
@@ -99,13 +99,17 @@
         <el-table-column label="操作" width="260" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link size="small" @click="handleView(row)">查看</el-button>
-            <el-button type="primary" link size="small" @click="handleEdit(row)">编辑</el-button>
-            <el-button type="danger" link size="small" @click="handleCloseTask(row)">关闭</el-button>
-            <el-button type="primary" link size="small" :disabled="!getNextStatus(row.状态 || row.status)"
+            <el-button type="primary" link size="small" @click="handleEdit(row)"
+              v-perms="['task:update']">编辑</el-button>
+            <el-button type="danger" link size="small" @click="handleCloseTask(row)"
+              v-perms="['task:close']">关闭</el-button>
+            <el-button v-if="(row.当前处理人 || row.current_handler) === userStore.username" type="primary" link size="small"
+              :disabled="!getNextStatus(row.状态 || row.status)"
               :loading="statusFlowButtonLoadingTaskId === (row._id || row.id)" @click="openStatusFlowDialog(row)">
               流转
             </el-button>
-            <el-button type="success" link size="small" @click="openReportDialog(row)">进度汇报</el-button>
+            <el-button type="success" link size="small" @click="openReportDialog(row)"
+              v-perms="['task:report']">进度汇报</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -139,8 +143,18 @@
           </el-select>
         </el-form-item>
         <el-form-item label="当前进度" prop="progress">
-          <el-input-number v-model="reportForm.progress" :min="0" :max="100" controls-position="right"
-            style="width: 100%" />
+          <div style="display: flex; align-items: center; width: 100%;">
+            <el-input-number v-model="reportForm.progress" :min="0" :max="100" controls-position="right"
+              style="flex: 1;" />
+            <span style="margin-left: 8px; color: #606266;">%</span>
+          </div>
+        </el-form-item>
+        <el-form-item label="当前用时" prop="use_time">
+          <div style="display: flex; align-items: center; width: 100%;">
+            <el-input-number v-model="reportForm.use_time" :min="0" controls-position="right" style="flex: 1;"
+              placeholder="请输入当前用时" />
+            <span style="margin-left: 8px; color: #606266;">时</span>
+          </div>
         </el-form-item>
         <el-form-item label="汇报内容" prop="message">
           <el-input v-model="reportForm.message" type="textarea" :rows="4" placeholder="请输入汇报内容" />
@@ -168,6 +182,7 @@ import {
   selectTasks,
   reportTaskProgress,
   updateTaskState,
+  flattenRequirementData,
   type ProjectListItem,
   type RequirementListItem,
   type SelectTasksParams
@@ -177,9 +192,12 @@ import type { Project } from "@/types";
 import { TaskStatus } from "@/types";
 import TaskStatusFlowDialog from "@/components/TaskStatusFlowDialog.vue";
 import TaskDrawer from "@/components/TaskDrawer.vue";
+import { useUserStoreHook } from "@/store/modules/user";
+import { storageLocal } from "@pureadmin/utils";
 
 const router = useRouter();
 const route = useRoute();
+const userStore = useUserStoreHook();
 // 搜索表单
 const searchForm = ref({
   projectId: "",
@@ -229,6 +247,39 @@ const showTaskDrawer = ref(false);
 const currentTask = ref<any>(null);
 const currentProjectId = ref<string>("");
 const hasOpenedCreateDrawer = ref(false); // 标志，用于避免重复打开新建抽屉
+
+// 缓存键名
+const CACHE_KEY = "tasks-list-params";
+
+// 保存参数到缓存
+const saveParamsToCache = () => {
+  const params = {
+    projectId: searchForm.value.projectId,
+    requirementId: searchForm.value.requirementId,
+    taskName: searchForm.value.taskName,
+    currentPage: currentPage.value,
+    pageSize: pageSize.value
+  };
+  storageLocal().setItem(CACHE_KEY, params);
+};
+
+// 从缓存恢复参数
+const restoreParamsFromCache = () => {
+  const cached = storageLocal().getItem<{
+    projectId?: string;
+    requirementId?: string;
+    taskName?: string;
+    currentPage?: number;
+    pageSize?: number;
+  }>(CACHE_KEY);
+  if (cached) {
+    if (cached.projectId) searchForm.value.projectId = cached.projectId;
+    if (cached.requirementId) searchForm.value.requirementId = cached.requirementId;
+    if (cached.taskName) searchForm.value.taskName = cached.taskName;
+    if (cached.currentPage) currentPage.value = cached.currentPage;
+    if (cached.pageSize) pageSize.value = cached.pageSize;
+  }
+};
 
 // 过滤后的任务列表（前端过滤：关键词搜索和状态筛选）
 const filteredTasks = computed(() => {
@@ -397,7 +448,9 @@ const loadRequirements = async () => {
     });
 
     if (response.code === 200 && response.result) {
-      requirements.value = response.result.map(
+      // 扁平化嵌套对象结构为数组
+      const flattenedResult = flattenRequirementData(response.result);
+      requirements.value = flattenedResult.map(
         (item: RequirementListItem): any => {
           return {
             id: item._id,
@@ -427,6 +480,7 @@ const handleProjectChange = () => {
   searchForm.value.requirementId = "";
   currentProjectId.value = searchForm.value.projectId;
   currentPage.value = 1;
+  saveParamsToCache(); // 保存到缓存
   loadRequirements();
   // 清空任务列表，因为还没有选择需求
   tasks.value = [];
@@ -436,6 +490,7 @@ const handleProjectChange = () => {
 // 处理需求变化
 const handleRequirementChange = () => {
   currentPage.value = 1;
+  saveParamsToCache(); // 保存到缓存
   if (searchForm.value.requirementId) {
     loadTasks();
   } else {
@@ -447,6 +502,7 @@ const handleRequirementChange = () => {
 // 搜索
 const handleSearch = () => {
   currentPage.value = 1;
+  saveParamsToCache(); // 保存到缓存
   if (!searchForm.value.requirementId) {
     ElMessage.warning("请先选择所属需求");
     tasks.value = [];
@@ -597,9 +653,11 @@ const departmentUsers = ref<DepartmentUserItem[]>([]);
 const departmentUsersLoading = ref(false);
 const reportForm = reactive({
   recipient: "",
+  cc_person: "",
   task_id: "",
   task_name: "",
   progress: 0,
+  use_time: 0,
   message: ""
 });
 const reportRules: FormRules = {
@@ -611,6 +669,15 @@ const reportRules: FormRules = {
       min: 0,
       max: 100,
       message: "进度需在 0-100 之间",
+      trigger: "change"
+    }
+  ],
+  use_time: [
+    { required: true, message: "请输入当前用时", trigger: "blur" },
+    {
+      type: "number",
+      min: 0,
+      message: "当前用时需大于 0",
       trigger: "change"
     }
   ],
@@ -677,7 +744,9 @@ const openReportDialog = (task: any) => {
   reportForm.task_id = task._id || task.id || "";
   reportForm.task_name = task.任务名 || task.task_name || task.title || "";
   reportForm.progress = Number(task.进度) || 0;
-  reportForm.recipient = task.指派人 || task.assignee || "";
+  reportForm.use_time = Number(task.已用工时 || task.actualHours || 0);
+  reportForm.recipient = task.creator || "";
+  reportForm.cc_person = task.指派人 || task.assignee || "";
   reportForm.message = "";
   reportDialogVisible.value = true;
   if (!departmentUsers.value.length) {
@@ -699,10 +768,12 @@ const handleReportSubmit = () => {
     try {
       const response = await reportTaskProgress({
         recipient: reportForm.recipient,
+        cc_person: reportForm.cc_person,
         task_id: reportForm.task_id,
         task_name: reportForm.task_name,
         progress: reportForm.progress,
-        message: reportForm.message
+        message: reportForm.message,
+        use_time: reportForm.use_time
       });
       if (response.code === 200) {
         ElMessage.success("汇报成功");
@@ -757,6 +828,7 @@ const handleCloseTask = async (task: any) => {
 watch(
   () => searchForm.value.projectId,
   () => {
+    saveParamsToCache(); // 保存到缓存
     if (searchForm.value.projectId) {
       loadRequirements();
     } else {
@@ -768,6 +840,7 @@ watch(
 
 // 监听分页变化
 watch([currentPage, pageSize], () => {
+  saveParamsToCache(); // 保存到缓存
   if (searchForm.value.requirementId) {
     loadTasks();
   }
@@ -792,19 +865,37 @@ watch(
 
 // 从路由参数中恢复搜索条件
 const restoreSearchFromQuery = async () => {
-  if (route.query.project_id) {
-    searchForm.value.projectId = route.query.project_id as string;
-    // 如果项目ID存在，加载需求列表
+  // 优先使用路由参数，如果没有则从缓存恢复
+  const routeProjectId = route.query.project_id as string | undefined;
+  const routeRequirementId = route.query.requirement_id as string | undefined;
+  const routeTaskName = route.query.task_name as string | undefined;
+
+  if (routeProjectId || routeRequirementId || routeTaskName) {
+    // 如果有路由参数，使用路由参数
+    if (routeProjectId) {
+      searchForm.value.projectId = routeProjectId;
+      // 如果项目ID存在，加载需求列表
+      if (searchForm.value.projectId) {
+        await loadRequirements();
+      }
+    }
+    if (routeRequirementId) {
+      searchForm.value.requirementId = routeRequirementId;
+    }
+    if (routeTaskName) {
+      searchForm.value.taskName = routeTaskName;
+    }
+    // 保存路由参数到缓存
+    saveParamsToCache();
+  } else {
+    // 如果没有路由参数，从缓存恢复
+    restoreParamsFromCache();
+    // 如果缓存中有项目ID，加载需求列表
     if (searchForm.value.projectId) {
       await loadRequirements();
     }
   }
-  if (route.query.requirement_id) {
-    searchForm.value.requirementId = route.query.requirement_id as string;
-  }
-  if (route.query.task_name) {
-    searchForm.value.taskName = route.query.task_name as string;
-  }
+
   if (searchForm.value.requirementId) {
     loadTasks();
   }

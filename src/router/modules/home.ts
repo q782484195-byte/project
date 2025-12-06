@@ -18,7 +18,8 @@ export default {
       component: () => import("@/views/workspace/index.vue"),
       meta: {
         title: "工作台",
-        showLink: VITE_HIDE_HOME === "true" ? false : true
+        showLink: VITE_HIDE_HOME === "true" ? false : true,
+        roles: ["Admin", "DepartmentManager", "Member"]
       }
     }
   ]

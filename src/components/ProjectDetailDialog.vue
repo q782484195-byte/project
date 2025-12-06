@@ -29,10 +29,10 @@
                 <span v-else>-</span>
               </el-descriptions-item>
               <el-descriptions-item label="进度">{{ project.progress || 0 }}%</el-descriptions-item>
-              <el-descriptions-item label="开始日期">{{
+              <el-descriptions-item label="计划开始时间">{{
                 formatDate(project.startDate)
               }}</el-descriptions-item>
-              <el-descriptions-item label="结束日期">{{
+              <el-descriptions-item label="计划结束时间">{{
                 formatDate(project.endDate)
               }}</el-descriptions-item>
               <el-descriptions-item v-if="project.budget" label="预算">¥{{ formatBudget(project.budget)

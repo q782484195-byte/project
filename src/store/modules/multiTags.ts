@@ -8,10 +8,10 @@ import {
   isNumber,
   isBoolean,
   getConfig,
-  routerArrays,
   storageLocal,
   responsiveStorageNameSpace
 } from "../utils";
+import { getRouterArrays } from "@/layout/types";
 import { usePermissionStoreHook } from "./permission";
 
 export const useMultiTagsStore = defineStore("pure-multiTags", {
@@ -21,14 +21,14 @@ export const useMultiTagsStore = defineStore("pure-multiTags", {
       `${responsiveStorageNameSpace()}configure`
     )?.multiTagsCache
       ? storageLocal().getItem<StorageConfigs>(
-          `${responsiveStorageNameSpace()}tags`
-        )
+        `${responsiveStorageNameSpace()}tags`
+      )
       : ([
-          ...routerArrays,
-          ...usePermissionStoreHook().flatteningRoutes.filter(
-            v => v?.meta?.fixedTag
-          )
-        ] as any),
+        ...getRouterArrays(),
+        ...usePermissionStoreHook().flatteningRoutes.filter(
+          v => v?.meta?.fixedTag
+        )
+      ] as any),
     multiTagsCache: storageLocal().getItem<StorageConfigs>(
       `${responsiveStorageNameSpace()}configure`
     )?.multiTagsCache

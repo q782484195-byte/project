@@ -18,7 +18,7 @@ import {
 } from "@pureadmin/utils";
 import { buildHierarchyTree } from "@/utils/tree";
 import { userKey, type DataInfo } from "@/utils/auth";
-import { type menuType, routerArrays } from "@/layout/types";
+import { type menuType, getRouterArrays } from "@/layout/types";
 import { useMultiTagsStoreHook } from "@/store/modules/multiTags";
 import { usePermissionStoreHook } from "@/store/modules/permission";
 const IFrame = () => import("@/layout/frame.vue");
@@ -192,7 +192,7 @@ function handleAsyncRoutes(routeList) {
   }
   if (!useMultiTagsStoreHook().getMultiTagsCache) {
     useMultiTagsStoreHook().handleTags("equal", [
-      ...routerArrays,
+      ...getRouterArrays(),
       ...usePermissionStoreHook().flatteningRoutes.filter(
         v => v?.meta?.fixedTag
       )

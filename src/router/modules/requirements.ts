@@ -18,7 +18,8 @@ export default {
       meta: {
         title: "需求列表",
         showLink: true,
-        showParent: true
+        showParent: true,
+        roles: ["Admin", "ProjectManager", "DepartmentManager", "Member"]
       }
     },
     {
@@ -27,7 +28,8 @@ export default {
       component: () => import("@/views/requirements/detail.vue"),
       meta: {
         title: "需求详情",
-        showLink: false
+        showLink: false,
+        roles: ["Admin", "ProjectManager", "Member", "DepartmentManager"]
       }
     }
   ]

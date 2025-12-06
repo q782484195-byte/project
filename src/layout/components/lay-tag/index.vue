@@ -3,14 +3,14 @@ import { emitter } from "@/utils/mitt";
 import NProgress from "@/utils/progress";
 import { RouteConfigs } from "../../types";
 import { useTags } from "../../hooks/useTag";
-import { routerArrays } from "@/layout/types";
+import { getRouterArrays } from "@/layout/types";
 import { onClickOutside } from "@vueuse/core";
 import TagChrome from "./components/TagChrome.vue";
 import { handleAliveRoute, getTopMenu } from "@/router/utils";
 import { useSettingStoreHook } from "@/store/modules/settings";
 import { useMultiTagsStoreHook } from "@/store/modules/multiTags";
 import { usePermissionStoreHook } from "@/store/modules/permission";
-import { ref, watch, unref, toRaw, nextTick, onBeforeUnmount } from "vue";
+import { ref, computed, watch, unref, toRaw, nextTick, onBeforeUnmount } from "vue";
 import {
   delay,
   isEqual,
@@ -61,10 +61,11 @@ const contextmenuRef = ref();
 const isShowArrow = ref(false);
 const topPath = getTopMenu()?.path;
 const { VITE_HIDE_HOME } = import.meta.env;
-const fixedTags = [
-  ...routerArrays,
+// 使用计算属性动态获取有权限的固定标签
+const fixedTags = computed(() => [
+  ...getRouterArrays(),
   ...usePermissionStoreHook().flatteningRoutes.filter(v => v?.meta?.fixedTag)
-];
+]);
 
 const dynamicTagView = async () => {
   await nextTick();
@@ -106,15 +107,15 @@ const moveToView = async (index: number): Promise<void> => {
   } else if (
     tabItemElOffsetLeft > -translateX.value &&
     tabItemElOffsetLeft + tabItemOffsetWidth <
-      -translateX.value + scrollbarDomWidth
+    -translateX.value + scrollbarDomWidth
   ) {
     // 标签在可视区域
     translateX.value = Math.min(
       0,
       scrollbarDomWidth -
-        tabItemOffsetWidth -
-        tabItemElOffsetLeft -
-        tabNavPadding
+      tabItemOffsetWidth -
+      tabItemElOffsetLeft -
+      tabNavPadding
     );
   } else {
     // 标签在可视区域右侧
@@ -239,7 +240,7 @@ function deleteDynamicTag(obj: any, current: any, tag?: string) {
       useMultiTagsStoreHook().handleTags(
         "equal",
         [
-          VITE_HIDE_HOME === "false" ? fixedTags : toRaw(getTopMenu()),
+          VITE_HIDE_HOME === "false" ? fixedTags.value : toRaw(getTopMenu()),
           obj
         ].flat()
       );
@@ -255,7 +256,7 @@ function deleteDynamicTag(obj: any, current: any, tag?: string) {
   if (tag === "other") {
     spliceRoute(1, 1, true);
   } else if (tag === "left") {
-    spliceRoute(fixedTags.length, valueIndex - fixedTags.length);
+    spliceRoute(fixedTags.value.length, valueIndex - fixedTags.value.length);
   } else if (tag === "right") {
     spliceRoute(valueIndex + 1, multiTags.value.length);
   } else {
@@ -332,7 +333,7 @@ function onClickDrop(key, item, selectRoute?: RouteConfigs) {
     case 5:
       // 关闭全部标签页
       useMultiTagsStoreHook().handleTags("splice", "", {
-        startIndex: fixedTags.length,
+        startIndex: fixedTags.value.length,
         length: multiTags.value.length
       });
       router.push(topPath);
@@ -569,51 +570,29 @@ onBeforeUnmount(() => {
     <span v-show="isShowArrow" class="arrow-left">
       <IconifyIconOffline :icon="ArrowLeftSLine" @click="handleScroll(200)" />
     </span>
-    <div
-      ref="scrollbarDom"
-      class="scroll-container"
-      :class="showModel === 'chrome' && 'chrome-scroll-container'"
-      @wheel.prevent="handleWheel"
-    >
+    <div ref="scrollbarDom" class="scroll-container" :class="showModel === 'chrome' && 'chrome-scroll-container'"
+      @wheel.prevent="handleWheel">
       <div ref="tabDom" class="tab select-none" :style="getTabStyle">
-        <div
-          v-for="(item, index) in multiTags"
-          :ref="'dynamic' + index"
-          :key="index"
-          :class="[
-            'scroll-item is-closable',
-            linkIsActive(item),
-            showModel === 'chrome' && 'chrome-item',
-            isFixedTag(item) && 'fixed-tag'
-          ]"
-          @contextmenu.prevent="openMenu(item, $event)"
-          @mouseenter.prevent="onMouseenter(index)"
-          @mouseleave.prevent="onMouseleave(index)"
-          @click="tagOnClick(item)"
-        >
+        <div v-for="(item, index) in multiTags" :ref="'dynamic' + index" :key="index" :class="[
+          'scroll-item is-closable',
+          linkIsActive(item),
+          showModel === 'chrome' && 'chrome-item',
+          isFixedTag(item) && 'fixed-tag'
+        ]" @contextmenu.prevent="openMenu(item, $event)" @mouseenter.prevent="onMouseenter(index)"
+          @mouseleave.prevent="onMouseleave(index)" @click="tagOnClick(item)">
           <template v-if="showModel !== 'chrome'">
-            <span
-              class="tag-title dark:text-text_color_primary! dark:hover:text-primary!"
-            >
+            <span class="tag-title dark:text-text_color_primary! dark:hover:text-primary!">
               {{ item.meta.title }}
             </span>
-            <span
-              v-if="
-                isFixedTag(item)
-                  ? false
-                  : iconIsActive(item, index) ||
-                    (index === activeIndex && index !== 0)
-              "
-              class="el-icon-close"
-              @click.stop="deleteMenu(item)"
-            >
+            <span v-if="
+              isFixedTag(item)
+                ? false
+                : iconIsActive(item, index) ||
+                (index === activeIndex && index !== 0)
+            " class="el-icon-close" @click.stop="deleteMenu(item)">
               <IconifyIconOffline :icon="Close" />
             </span>
-            <span
-              v-if="showModel !== 'card'"
-              :ref="'schedule' + index"
-              :class="[scheduleIsActive(item)]"
-            />
+            <span v-if="showModel !== 'card'" :ref="'schedule' + index" :class="[scheduleIsActive(item)]" />
           </template>
           <div v-else class="chrome-tab">
             <div class="chrome-tab__bg">
@@ -622,11 +601,7 @@ onBeforeUnmount(() => {
             <span class="tag-title">
               {{ item.meta.title }}
             </span>
-            <span
-              v-if="isFixedTag(item) ? false : index !== 0"
-              class="chrome-close-btn"
-              @click.stop="deleteMenu(item)"
-            >
+            <span v-if="isFixedTag(item) ? false : index !== 0" class="chrome-close-btn" @click.stop="deleteMenu(item)">
               <IconifyIconOffline :icon="Close" />
             </span>
             <span class="chrome-tab-divider" />
@@ -639,18 +614,8 @@ onBeforeUnmount(() => {
     </span>
     <!-- 右键菜单按钮 -->
     <transition name="el-zoom-in-top">
-      <ul
-        v-show="visible"
-        ref="contextmenuRef"
-        :key="Math.random()"
-        :style="getContextMenuStyle"
-        class="contextmenu"
-      >
-        <div
-          v-for="(item, key) in tagsViews.slice(0, 6)"
-          :key="key"
-          style="display: flex; align-items: center"
-        >
+      <ul v-show="visible" ref="contextmenuRef" :key="Math.random()" :style="getContextMenuStyle" class="contextmenu">
+        <div v-for="(item, key) in tagsViews.slice(0, 6)" :key="key" style="display: flex; align-items: center">
           <li v-if="item.show" @click="selectTag(key, item)">
             <IconifyIconOffline :icon="item.icon" />
             {{ item.text }}
@@ -659,23 +624,14 @@ onBeforeUnmount(() => {
       </ul>
     </transition>
     <!-- 右侧功能按钮 -->
-    <el-dropdown
-      trigger="click"
-      placement="bottom-end"
-      @command="handleCommand"
-    >
+    <el-dropdown trigger="click" placement="bottom-end" @command="handleCommand">
       <span class="arrow-down">
         <IconifyIconOffline :icon="ArrowDown" class="dark:text-white" />
       </span>
       <template #dropdown>
         <el-dropdown-menu>
-          <el-dropdown-item
-            v-for="(item, key) in tagsViews"
-            :key="key"
-            :command="{ key, item }"
-            :divided="item.divided"
-            :disabled="item.disabled"
-          >
+          <el-dropdown-item v-for="(item, key) in tagsViews" :key="key" :command="{ key, item }" :divided="item.divided"
+            :disabled="item.disabled">
             <IconifyIconOffline :icon="item.icon" />
             {{ item.text }}
           </el-dropdown-item>

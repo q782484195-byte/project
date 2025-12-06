@@ -37,6 +37,7 @@ export interface CreateProjectParams {
   plant_end_time: string;
   describe: string[]; // URL 字符串数组
   attachment: string[]; // URL 字符串数组
+  project_proposal?: string[]; // 立项文件 URL 字符串数组
 }
 
 /** 编辑项目参数 */
@@ -86,7 +87,8 @@ export const createProject = (params: CreateProjectParams) => {
       plant_start_time: params.plant_start_time,
       plant_end_time: params.plant_end_time,
       describe: params.describe,
-      attachment: params.attachment
+      attachment: params.attachment,
+      project_proposal: params.project_proposal || []
     }
   });
 };
@@ -101,7 +103,8 @@ export const updateProject = (params: UpdateProjectParams) => {
       plant_start_time: params.plant_start_time,
       plant_end_time: params.plant_end_time,
       describe: params.describe,
-      attachment: params.attachment
+      attachment: params.attachment,
+      project_proposal: params.project_proposal || []
     }
   });
 };
@@ -249,13 +252,51 @@ export interface RequirementListItem {
   create_time: string;
 }
 
-/** 需求列表响应 */
+/** 需求项数据（可能是嵌套对象或需求项） */
+export type RequirementItemData = RequirementListItem | { [key: string]: RequirementItemData };
+
+/** 需求列表响应（支持嵌套对象结构） */
 export interface RequirementListResponse {
   code: number;
-  result: RequirementListItem[];
-  total_count: number;
+  result: RequirementListItem[] | { [key: string]: RequirementItemData };
+  total_count?: number;
   message?: string;
 }
+
+/** 判断是否为需求项（包含 _id 字段） */
+export const isRequirementItem = (obj: any): obj is RequirementListItem => {
+  return obj && typeof obj === "object" && "_id" in obj && "需求名" in obj;
+};
+
+/** 将嵌套对象结构扁平化为需求项数组 */
+export const flattenRequirementData = (
+  data: RequirementListItem[] | { [key: string]: RequirementItemData }
+): RequirementListItem[] => {
+  // 如果已经是数组，直接返回
+  if (Array.isArray(data)) {
+    return data;
+  }
+
+  // 如果是嵌套对象，递归扁平化
+  const result: RequirementListItem[] = [];
+
+  const flatten = (obj: RequirementItemData) => {
+    if (isRequirementItem(obj)) {
+      // 如果是需求项，直接添加到结果中
+      result.push(obj);
+    } else if (obj && typeof obj === "object" && !Array.isArray(obj)) {
+      // 如果是嵌套对象，遍历其属性
+      for (const key in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+          flatten(obj[key]);
+        }
+      }
+    }
+  };
+
+  flatten(data);
+  return result;
+};
 
 /** 查询项目需求 */
 export const selectRequirements = (params: SelectRequirementParams) => {
@@ -395,6 +436,7 @@ export const getProjectStatistics = (params: GetProjectStatisticsParams) => {
 /** 根据需求ID查询任务参数 */
 export interface SelectTasksByRequirementParams {
   requirement_id: string;
+  task_name?: string;
   page?: number;
   page_size?: number;
 }
@@ -424,7 +466,7 @@ export interface TaskListResponse {
   result: TaskListItem[];
   total_count: number;
   message?: string;
-  dynamic?: string[];
+  dynamic?: Array<{ task_name?: string; history?: string }>;
 }
 
 /** 根据需求ID查询任务列表 */
@@ -551,10 +593,12 @@ export const selectMyTasks = (params: SelectMyTasksParams) => {
 /** 汇报任务进度参数 */
 export interface ReportTaskProgressParams {
   recipient: string;
+  cc_person: string;
   task_id: string;
   task_name: string;
   progress: number;
   message: string;
+  use_time: number;
 }
 
 /** 汇报任务进度 */
@@ -562,10 +606,12 @@ export const reportTaskProgress = (params: ReportTaskProgressParams) => {
   return http.request<ApiResponse<any>>("post", "/task/report", {
     data: {
       recipient: params.recipient,
+      cc_person: params.cc_person,
       task_id: params.task_id,
       task_name: params.task_name,
       progress: params.progress,
-      message: params.message
+      message: params.message,
+      use_time: params.use_time
     }
   });
 };
@@ -598,3 +644,22 @@ export const selectPendingTasks = (params: SelectPendingTasksParams) => {
     }
   });
 };
+
+/** 查询待办任务列表 */
+export const selectStatisticsTaskState = () => {
+  return http.request<ApiResponse<any>>("get", "/project/statistics_task_state");
+};
+
+
+/** 查询待办任务列表 */
+export const selectProjectSelectAll = (params: any) => {
+  return http.request<ApiResponse<any>>("post", "bug/project_select_all", {
+    data: {
+      project_id: params.project_id
+    }
+  });
+};
+
+
+
+

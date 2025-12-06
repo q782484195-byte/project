@@ -8,7 +8,7 @@ export default {
   redirect: "/dashboard/index",
   meta: {
     icon: "ri:bar-chart-line",
-    title: "数据统计",
+    title: "项目汇总",
     rank: 1
   },
   children: [
@@ -17,8 +17,9 @@ export default {
       name: "DashboardIndex",
       component: () => import("@/views/dashboard/index.vue"),
       meta: {
-        title: "数据统计",
-        showLink: VITE_HIDE_HOME === "true" ? false : true
+        title: "项目汇总",
+        showLink: VITE_HIDE_HOME === "true" ? false : true,
+        roles: ["Admin", "ProjectManager"]
       }
     }
   ]

@@ -4,9 +4,9 @@ import {
   store,
   router,
   resetRouter,
-  routerArrays,
   storageLocal
 } from "../utils";
+import { getRouterArrays } from "@/layout/types";
 import { type UserResult, getLogin } from "@/api/user";
 import { useMultiTagsStoreHook } from "./multiTags";
 import {
@@ -139,7 +139,7 @@ export const useUserStore = defineStore("pure-user", {
       this.roles = [];
       this.permissions = [];
       removeToken();
-      useMultiTagsStoreHook().handleTags("equal", [...routerArrays]);
+      useMultiTagsStoreHook().handleTags("equal", [...getRouterArrays()]);
       resetRouter();
       router.push("/login");
     }

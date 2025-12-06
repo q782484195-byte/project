@@ -147,6 +147,7 @@ export interface Project {
   templateId?: string;
   template?: ProjectTemplate;
   attachment?: string[]; // 项目附件链接数组
+  project_proposal?: string[]; // 立项文件链接数组
   createdAt?: string;
   updatedAt?: string;
   总进度?: number; // 项目总进度（来自后端API）

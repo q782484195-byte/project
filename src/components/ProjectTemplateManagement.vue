@@ -11,7 +11,7 @@
     </div>
 
     <div class="content">
-      <el-table :data="templates" style="width: 100%">
+      <el-table :data="templates" :style="{ width: '100%' }">
         <el-table-column prop="name" label="模板名称" width="200" />
         <el-table-column prop="type.name" label="项目类型" width="150">
           <template #default="{ row }">
@@ -31,12 +31,8 @@
           <template #default="{ row }">
             <el-button size="small" @click="viewTemplate(row)">查看</el-button>
             <el-button size="small" @click="editTemplate(row)">编辑</el-button>
-            <el-button size="small" type="primary" @click="copyTemplate(row)"
-              >复制</el-button
-            >
-            <el-button size="small" type="danger" @click="deleteTemplate(row)"
-              >删除</el-button
-            >
+            <el-button size="small" type="primary" @click="copyTemplate(row)">复制</el-button>
+            <el-button size="small" type="danger" @click="deleteTemplate(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -55,24 +51,15 @@
           </div>
         </div>
 
-        <div
-          v-if="currentTemplate.nodes && currentTemplate.nodes.length > 0"
-          class="template-tree"
-        >
+        <div v-if="currentTemplate.nodes && currentTemplate.nodes.length > 0" class="template-tree">
           <h4>模板结构</h4>
-          <el-tree
-            :data="templateTreeData"
-            node-key="id"
-            :props="{ label: 'name', children: 'children' }"
-            :expand-on-click-node="false"
-          >
+          <el-tree :data="templateTreeData" node-key="id" :props="{ label: 'name', children: 'children' }"
+            :expand-on-click-node="false">
             <template #default="{ data }">
               <div class="tree-node">
                 <span class="node-label">{{ data.name }}</span>
                 <span class="node-type">{{ getNodeTypeLabel(data.type) }}</span>
-                <span v-if="data.estimatedDays" class="node-days"
-                  >{{ data.estimatedDays }}天</span
-                >
+                <span v-if="data.estimatedDays" class="node-days">{{ data.estimatedDays }}天</span>
                 <span v-if="data.assigneeRole" class="node-role">{{
                   data.assigneeRole
                 }}</span>
@@ -88,36 +75,18 @@
     </el-dialog>
 
     <!-- 新增/编辑模板对话框 -->
-    <el-dialog
-      v-model="showAddDialog"
-      :title="isEdit ? '编辑模板' : '新增模板'"
-      width="600px"
-    >
-      <el-form
-        ref="formRef"
-        :model="formData"
-        :rules="formRules"
-        label-width="100px"
-      >
+    <el-dialog v-model="showAddDialog" :title="isEdit ? '编辑模板' : '新增模板'" width="600px">
+      <el-form ref="formRef" :model="formData" :rules="formRules" label-width="100px">
         <el-form-item label="模板名称" prop="name">
           <el-input v-model="formData.name" placeholder="请输入模板名称" />
         </el-form-item>
         <el-form-item label="项目类型" prop="typeId">
           <el-select v-model="formData.typeId" placeholder="请选择项目类型">
-            <el-option
-              v-for="type in projectTypes"
-              :key="type.id"
-              :label="type.name"
-              :value="type.id"
-            />
+            <el-option v-for="type in projectTypes" :key="type.id" :label="type.name" :value="type.id" />
           </el-select>
         </el-form-item>
         <el-form-item label="描述" prop="description">
-          <el-input
-            v-model="formData.description"
-            type="textarea"
-            placeholder="请输入描述"
-          />
+          <el-input v-model="formData.description" type="textarea" placeholder="请输入描述" />
         </el-form-item>
       </el-form>
 

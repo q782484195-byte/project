@@ -18,7 +18,7 @@ export default {
       meta: {
         title: "部门",
         showParent: true,
-        roles: ["Admin"] // 只有 Admin 角色可以访
+        roles: ["Admin", "ProjectManager"] // 只有 Admin 角色可以访
       }
     },
     {
@@ -28,7 +28,7 @@ export default {
       meta: {
         title: "用户",
         showParent: true,
-        roles: ["Admin", "DepartmentManager"] // Admin 和 DepartmentManager 角色可以访问
+        roles: ["Admin", "ProjectManager"] // Admin 和 DepartmentManager 角色可以访问
       }
     }
   ]
