@@ -87,3 +87,26 @@ export const createProjectReport = (params: CreateProjectReportParams) => {
   });
 };
 
+/** 发送工作聊天消息参数 */
+export interface SendWorkchatMessageParams {
+  workchat_username: string;
+  message?: string;
+  current_state?: string;
+  next_state?: string;
+  task_id?: string;
+  task_name?: string;
+}
+
+/** 发送工作聊天消息 */
+export const sendWorkchatMessage = (params: SendWorkchatMessageParams) => {
+  return http.request<ApiResponse<any>>("post", "/workchat/sand_message", {
+    data: {
+      workchat_username: params.workchat_username,
+      message: params.message,
+      current_state: params.current_state,
+      next_state: params.next_state,
+      task_id: params.task_id,
+      task_name: params.task_name
+    }
+  });
+};

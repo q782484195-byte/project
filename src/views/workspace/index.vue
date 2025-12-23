@@ -31,7 +31,7 @@
                   </div>
                 </div>
                 <!-- 统计卡片 -->
-                <div class="stats-container">
+                <!-- <div class="stats-container">
                   <div class="stat-item">
                     <div class="stat-icon" style="background: linear-gradient(135deg, #67c23a 0%, #85ce61 100%);">
                       <el-icon>
@@ -65,7 +65,7 @@
                       <div class="stat-label">取消的任务</div>
                     </div>
                   </div>
-                </div>
+                </div> -->
               </div>
             </el-card>
 
@@ -76,25 +76,38 @@
                   <span>待办事项</span>
                 </div>
               </template>
-              <el-table :data="todoTasks" v-loading="tasksLoading" :style="{ width: '100%' }" :height="400">
-                <el-table-column prop="任务名" label="任务名称" width="150">
+              <el-table :data="todoTasks" v-loading="tasksLoading" :style="{ width: '100%' }" :height="480">
+                <el-table-column prop="项目名称" label="项目名称">
                   <template #default="{ row }">
-                    {{ row.任务名 || row.task_name || row.title || "-" }}
+                    <el-tooltip :content="row.项目名称 || row.project_name || '-'" placement="top"
+                      :disabled="!row.项目名称 && !row.project_name">
+                      <div class="text-ellipsis">{{ row.项目名称 || row.project_name || "-" }}</div>
+                    </el-tooltip>
                   </template>
                 </el-table-column>
-                <el-table-column prop="requirement_name" label="关联需求" width="150" />
-                <el-table-column prop="指派人" label="负责人" width="140">
+                <el-table-column prop="任务名" label="任务名称" width="80">
                   <template #default="{ row }">
-                    <el-tag type="info">
-                      <span class="assignee-text">{{ row.指派人 || row.assignee || "-" }}</span>
-                    </el-tag>
+                    <el-tooltip :content="row.任务名 || row.task_name || row.title || '-'" placement="top"
+                      :disabled="!row.任务名 && !row.task_name && !row.title">
+                      <div class="text-ellipsis">{{ row.任务名 || row.task_name || row.title || "-" }}</div>
+                    </el-tooltip>
                   </template>
                 </el-table-column>
-                <el-table-column prop="状态" label="状态" width="140">
+                <el-table-column prop="requirement_name" label="关联层级" show-overflow-tooltip width="150" />
+                <el-table-column prop="指派人" label="负责人" width="150">
                   <template #default="{ row }">
-                    <el-tag :type="getStatusType(row.状态 || row.status) || undefined" size="small" effect="light">
-                      {{ row.状态 || row.status || "-" }}
-                    </el-tag>
+                    <el-tooltip :content="row.指派人 || row.assignee || '-'" placement="top"
+                      :disabled="!row.指派人 && !row.assignee">
+                      <div class="assignee-text text-ellipsis">{{ row.指派人 || row.assignee || "-" }}</div>
+                    </el-tooltip>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="状态" label="状态" width="150">
+                  <template #default="{ row }">
+                    <el-tooltip :content="row.状态 || row.status || '-'" placement="top"
+                      :disabled="!row.状态 && !row.status">
+                      <div class="status-text text-ellipsis">{{ row.状态 || row.status || "-" }}</div>
+                    </el-tooltip>
                   </template>
                 </el-table-column>
                 <el-table-column prop="优先级" label="优先级">
@@ -109,22 +122,26 @@
                     <el-progress :percentage="row.进度 || 0" :status="row.进度 === 100 ? 'success' : undefined" />
                   </template>
                 </el-table-column>
-                <el-table-column prop="预计工时" label="预计工时" width="100" />
-                <el-table-column prop="已用工时" label="已用工时" width="100" />
-                <el-table-column prop="create_time" label="创建时间" width="180" />
-                <el-table-column label="操作" width="220" fixed="right">
+                <el-table-column prop="预计工时" label="计划工时" show-overflow-tooltip />
+                <el-table-column prop="已用工时" label="已用工时" show-overflow-tooltip />
+                <el-table-column prop="assignment_time" label="任务分配时间" show-overflow-tooltip width="180" />
+                <el-table-column label="操作" width="150" fixed="right">
                   <template #default="{ row }">
                     <el-button type="primary" link size="small" @click="viewTask(row)">查看</el-button>
                     <el-button v-if="(row.当前处理人 || row.current_handler) === userStore.username" type="primary" link
-                      size="small" :disabled="!getNextStatus(row.状态 || row.status)"
+                      size="small"
+                      :disabled="!row.next_state || !Array.isArray(row.next_state) || row.next_state.length === 0"
                       :loading="statusFlowButtonLoadingTaskId === (row._id || row.id)"
                       @click="openStatusFlowDialog(row)">
-                      流转
+                      分配
                     </el-button>
                     <el-button type="success" link size="small" @click="openReportDialog(row)"
+                      v-if="(row.当前处理人 || row.current_handler) === userStore.username && canRecordBug(row.状态 || row.status, 'report')"
                       v-perms="['task:report']">进度汇报</el-button>
-                    <el-button v-perms="['bug:record']" v-if="canRecordBug(row.状态 || row.status)" type="warning" link
-                      size="small" @click="openBugDialog(row)">记录BUG</el-button>
+                    <el-button v-perms="['bug:record']"
+                      v-if="(row.当前处理人 || row.current_handler) === userStore.username && canRecordBug(row.状态 || row.status, 'bug')"
+                      type="warning" link size="small" :loading="bugButtonLoadingTaskId === (row._id || row.id)"
+                      @click="openBugDialog(row)">记录BUG</el-button>
                   </template>
                 </el-table-column>
               </el-table>
@@ -167,7 +184,7 @@
                   <div class="role-tasks">
                     <div class="task-item">创建项目</div>
                     <div class="task-arrow">→</div>
-                    <div class="task-item">创建需求</div>
+                    <div class="task-item">创建层级</div>
                     <div class="task-arrow">→</div>
                     <div class="task-item">分解任务</div>
                     <div class="task-arrow">→</div>
@@ -233,7 +250,7 @@
                   <span>动态</span>
                 </div>
               </template>
-              <el-tabs v-model="activityTab" @tab-change="handleActivityTabChange">
+              <el-tabs v-model="activityTab" @tab-change="handleActivityTabChange" class="activity-tabs">
                 <el-tab-pane label="任务动态" name="activities">
                   <div class="activity-list">
                     <div v-for="(activity, index) in activities" :key="index" class="activity-item">
@@ -341,10 +358,10 @@
                 <span v-else>-</span>
               </template>
             </el-table-column>
-            <el-table-column prop="requirement_name" label="所属需求" min-width="150" />
+            <el-table-column prop="requirement_name" label="所属层级" min-width="150" />
             <el-table-column prop="预计工时" label="预计工时" width="100">
               <template #default="{ row }">
-                {{ row.预计工时 || 0 }}小时
+                {{ row.预计工时 || 0 }}天
               </template>
             </el-table-column>
             <el-table-column label="操作" width="280" fixed="right">
@@ -355,29 +372,31 @@
                 <el-button v-if="(row.当前处理人 || row.current_handler) === userStore.username" type="primary" link
                   size="small" :disabled="!getNextStatus(row.状态 || row.status)"
                   :loading="statusFlowButtonLoadingTaskId === (row._id || row.id)" @click="openStatusFlowDialog(row)">
-                  流转
+                  分配
                 </el-button>
-                <el-button v-if="canRecordBug(row.状态 || row.status)" type="warning" link size="small"
+                <el-button
+                  v-if="(row.当前处理人 || row.current_handler) === userStore.username && canRecordBug(row.状态 || row.status, 'bug')"
+                  type="warning" link size="small" :loading="bugButtonLoadingTaskId === (row._id || row.id)"
                   @click="openBugDialog(row)">记录BUG</el-button>
                 <el-button type="success" link size="small" @click="openReportDialog(row)"
+                  v-if="(row.当前处理人 || row.current_handler) === userStore.username && canRecordBug(row.状态 || row.status, 'report')"
                   v-perms="['task:report']">进度汇报</el-button>
               </template>
             </el-table-column>
           </el-table>
         </el-card>
       </el-tab-pane>
-
       <!-- 需求 Tab -->
-      <el-tab-pane label="需求" name="requirements">
+
+      <!-- <el-tab-pane label="层级" name="requirements">
         <el-card>
           <template #header>
             <div class="card-header">
-              <span>需求列表</span>
-              <!-- <el-button type="primary" size="small" @click="goToRequirements">查看更多</el-button> -->
+              <span>层级列表</span>
             </div>
           </template>
           <el-table :data="requirements" v-loading="requirementsLoading" :style="{ width: '100%' }" :height="700">
-            <el-table-column prop="需求名" label="需求名称" min-width="200" />
+            <el-table-column prop="需求名" label="层级名称" min-width="200" />
             <el-table-column prop="状态" label="状态" width="140">
               <template #default="{ row }">
                 <el-tag :type="getRequirementStatusType(row.状态)" size="small">
@@ -393,7 +412,7 @@
                 <span v-else>-</span>
               </template>
             </el-table-column>
-            <el-table-column prop="project_name" label="所属项目" min-width="150" />
+            <el-table-column prop="project_name" label="选择项目" min-width="150" />
             <el-table-column prop="creator" label="创建人" width="100" />
             <el-table-column prop="create_time" label="创建时间" width="160" />
             <el-table-column label="操作" width="100" fixed="right">
@@ -405,7 +424,7 @@
             </el-table-column>
           </el-table>
         </el-card>
-      </el-tab-pane>
+      </el-tab-pane> -->
 
       <!-- 项目 Tab -->
       <el-tab-pane label="项目" name="projects">
@@ -441,7 +460,7 @@
       </el-tab-pane>
     </el-tabs>
 
-    <!-- 任务状态流转对话框 -->
+    <!-- 任务状态分配对话框 -->
     <TaskStatusFlowDialog v-model:visible="statusFlowDialogVisible" :task="statusFlowTask"
       @success="handleStatusFlowSuccess" @flow-start="handleStatusFlowStart" @flow-end="handleStatusFlowEnd" />
 
@@ -474,28 +493,22 @@
           <span>{{ reportForm.task_name || "-" }}</span>
         </el-form-item>
         <el-form-item label="接收人" prop="recipient">
-          <el-select v-model="reportForm.recipient" placeholder="请选择接收人" filterable clearable
-            :loading="departmentUsersLoading">
-            <el-option v-for="user in departmentUsers" :key="user.username" :label="user.nickname
-              ? `${user.nickname} (${user.username})`
-              : user.username
-              " :value="user.username" />
-          </el-select>
+          <span>{{ reportForm.recipient || "-" }}</span>
         </el-form-item>
         <el-form-item label="当前进度" prop="progress">
           <div style="display: flex; align-items: center; width: 100%;">
-            <el-input-number v-model="reportForm.progress" :min="0" :max="100" controls-position="right"
-              style="flex: 1;" />
+            <el-input-number v-model="reportForm.progress" :min="0" :max="100" :step="1" :precision="0"
+              controls-position="right" style="flex: 1;" />
             <span style="margin-left: 8px; color: #606266;">%</span>
           </div>
         </el-form-item>
-        <el-form-item label="当前用时" prop="use_time">
+        <!-- <el-form-item label="今日用时" prop="use_time">
           <div style="display: flex; align-items: center; width: 100%;">
             <el-input-number v-model="reportForm.use_time" :min="0" controls-position="right" style="flex: 1;"
               placeholder="请输入当前用时" />
             <span style="margin-left: 8px; color: #606266;">时</span>
           </div>
-        </el-form-item>
+        </el-form-item> -->
         <el-form-item label="汇报内容" prop="message">
           <el-input v-model="reportForm.message" type="textarea" :rows="4" placeholder="请输入汇报内容" />
         </el-form-item>
@@ -592,7 +605,7 @@ const filteredAllTasks = computed(() => {
   return allTasks.value.filter(task => task.状态 === taskSearchForm.value.state);
 });
 
-// 需求列表
+// 层级列表
 const requirements = ref<RequirementListItem[]>([]);
 const requirementsLoading = ref(false);
 
@@ -939,7 +952,7 @@ const handleTabChange = (tabName: string) => {
   }
 };
 
-// 加载需求列表
+// 加载层级列表
 const loadRequirements = async () => {
   try {
     requirementsLoading.value = true;
@@ -963,7 +976,7 @@ const loadRequirements = async () => {
       generateRequirementActivities(requirements.value);
     }
   } catch (error) {
-    ElMessage.error("加载需求列表失败");
+    ElMessage.error("加载层级列表失败");
     console.error(error);
   } finally {
     requirementsLoading.value = false;
@@ -1049,7 +1062,7 @@ const goToMyTasks = () => {
   router.push({ name: "MyTasks" });
 };
 
-// 跳转到需求列表
+// 跳转到层级列表
 const goToRequirements = () => {
   router.push({ name: "RequirementsList" });
 };
@@ -1059,7 +1072,7 @@ const goToProjects = () => {
   router.push({ name: "ProjectsIndex" });
 };
 
-// 任务状态流转相关
+// 任务状态分配相关
 const statusFlowDialogVisible = ref(false);
 const statusFlowTask = ref<any>(null);
 const statusFlowButtonLoadingTaskId = ref<string>("");
@@ -1068,6 +1081,7 @@ const statusFlowButtonLoadingTaskId = ref<string>("");
 const bugDialogVisible = ref(false);
 const bugFormRef = ref<FormInstance>();
 const bugSubmitting = ref(false);
+const bugButtonLoadingTaskId = ref<string>("");
 const bugForm = ref({
   bug_name: "",
   describe: "",
@@ -1125,7 +1139,7 @@ const reportRules: FormRules = {
   message: [{ required: true, message: "请输入汇报内容", trigger: "blur" }]
 };
 
-// 状态流转顺序
+// 状态分配顺序
 const statusFlowOrder: TaskStatus[] = [
   TaskStatus.PENDING_ASSIGN_TO_DEPT_LEADER,
   TaskStatus.PENDING_ASSIGN_TO_MEMBER,
@@ -1138,7 +1152,9 @@ const statusFlowOrder: TaskStatus[] = [
   TaskStatus.REVIEWING,
   TaskStatus.REVIEW_COMPLETED,
   TaskStatus.CANCELLED,
-  TaskStatus.COMPLETED
+  TaskStatus.COMPLETED,
+  TaskStatus.PENDING_ASSIGN_TO_DEPT_LEADER,
+  TaskStatus.PENDING_ASSIGN_TO_MEMBER
 ];
 
 const statusAliasMap: Record<string, TaskStatus> = {
@@ -1179,40 +1195,26 @@ const getNextStatus = (currentStatus: string): TaskStatus | "" => {
   return statusFlowOrder[index + 1];
 };
 
-// 判断是否可以记录BUG（测试或审阅状态）
-const canRecordBug = (status: string): boolean => {
+// 判断是否可以记录BUG或进度汇报（测试或审阅状态，report时包含进行中状态）
+const canRecordBug = (status: string, type?: 'bug' | 'report'): boolean => {
   if (!status) return false;
-  const normalizedStatus = normalizeStatus(status);
-  if (!normalizedStatus) {
-    // 如果无法标准化，检查中文状态
-    const testReviewStatuses = [
-      "待测试", "测试中", "测试完毕",
-      "待审阅", "审阅中", "审阅完毕",
-      "测试审阅中"
-    ];
-    return testReviewStatuses.includes(status);
+  // 如果无法标准化，检查中文状态
+  const testReviewStatuses = [
+    "测试中"
+  ];
+  // 如果是进度汇报，添加进行中状态
+  if (type === 'report') {
+    testReviewStatuses.push("任务进行中", "测试未通过", "审阅未通过", '任务未开始');
   }
-  // 测试相关状态
-  const testStatuses = [
-    TaskStatus.PENDING_TEST,
-    TaskStatus.TESTING,
-    TaskStatus.TEST_COMPLETED
-  ];
-  // 审阅相关状态
-  const reviewStatuses = [
-    TaskStatus.PENDING_REVIEW,
-    TaskStatus.REVIEWING,
-    TaskStatus.REVIEW_COMPLETED
-  ];
-  return testStatuses.includes(normalizedStatus) || reviewStatuses.includes(normalizedStatus);
+  return testReviewStatuses.includes(status);
+
 };
 
-// 打开状态流转对话框
+// 打开状态分配对话框
 const openStatusFlowDialog = (task: any) => {
-  const normalizedStatus = normalizeStatus(task.状态 || task.status);
-  const nextState = getNextStatus(normalizedStatus);
-  if (!nextState) {
-    ElMessage.warning("当前状态无法继续流转");
+  // 检查 next_state 是否存在且有值
+  if (!task.next_state || !Array.isArray(task.next_state) || task.next_state.length === 0) {
+    ElMessage.warning("当前状态无法继续分配");
     return;
   }
   statusFlowTask.value = task;
@@ -1221,17 +1223,20 @@ const openStatusFlowDialog = (task: any) => {
 
 // 打开BUG记录对话框
 const openBugDialog = (task: any) => {
+  const taskId = task._id || task.id || "";
+  bugButtonLoadingTaskId.value = taskId;
   bugForm.value = {
     bug_name: "",
     describe: "",
     project_id: task.project_id || "",
-    task_id: task._id || task.id || "",
+    task_id: taskId,
     task_name: task.任务名 || task.task_name || task.title || "",
     project_name: task.project_name || ""
   };
   bugDialogVisible.value = true;
   nextTick(() => {
     bugFormRef.value?.clearValidate();
+    bugButtonLoadingTaskId.value = "";
   });
 };
 
@@ -1242,6 +1247,8 @@ const submitBug = async () => {
   await bugFormRef.value.validate(async (valid) => {
     if (!valid) return;
 
+    const taskId = bugForm.value.task_id;
+    bugButtonLoadingTaskId.value = taskId;
     bugSubmitting.value = true;
     try {
       const response = await createBug({
@@ -1263,6 +1270,8 @@ const submitBug = async () => {
           task_name: "",
           project_name: ""
         };
+        // 刷新任务列表
+        loadTodoTasks();
       } else {
         ElMessage.error(response.message || "BUG记录失败");
       }
@@ -1273,6 +1282,7 @@ const submitBug = async () => {
       );
     } finally {
       bugSubmitting.value = false;
+      bugButtonLoadingTaskId.value = "";
     }
   });
 };
@@ -1339,11 +1349,14 @@ const handleReportSubmit = () => {
         task_name: reportForm.task_name,
         progress: reportForm.progress,
         message: reportForm.message,
-        use_time: reportForm.use_time
+        use_time: 1
       });
       if (response.code === 200) {
         ElMessage.success("汇报成功");
         reportDialogVisible.value = false;
+        // 刷新工作台的待办事项列表
+        loadTodoTasks(todoTasksPage.value);
+        // 刷新任务tab的列表
         loadAllTasks();
       } else {
         ElMessage.error(response.message || "汇报失败");
@@ -1359,21 +1372,23 @@ const handleReportSubmit = () => {
   });
 };
 
-// 状态流转成功回调
+// 状态分配成功回调
 const handleStatusFlowSuccess = (nextState: string, personName: string) => {
   if (!statusFlowTask.value) return;
   statusFlowTask.value.状态 = nextState;
   statusFlowTask.value.status = nextState;
-  // 刷新待办任务列表
+  // 刷新工作台的待办任务列表
   loadTodoTasks(todoTasksPage.value);
+  // 刷新任务tab的列表
+  loadAllTasks();
 };
 
-// 状态流转开始
+// 状态分配开始
 const handleStatusFlowStart = (taskId: string) => {
   statusFlowButtonLoadingTaskId.value = taskId;
 };
 
-// 状态流转结束
+// 状态分配结束
 const handleStatusFlowEnd = () => {
   statusFlowButtonLoadingTaskId.value = "";
 };
@@ -1590,6 +1605,7 @@ onBeforeUnmount(() => {
     .tab-footer {
       margin-top: 16px;
       text-align: right;
+
     }
   }
 
@@ -1754,9 +1770,16 @@ onBeforeUnmount(() => {
     }
   }
 
+  .activity-tabs {
+    :deep(.el-tabs__content) {
+      max-height: 250px;
+      min-height: 200px;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+  }
+
   .activity-list {
-    max-height: 326px;
-    overflow-y: auto;
     overflow-x: hidden;
 
     .activity-item {
@@ -1792,6 +1815,13 @@ onBeforeUnmount(() => {
 
   .assignee-text {
     color: #409eff;
+  }
+
+  .text-ellipsis {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    width: 100%;
   }
 }
 </style>

@@ -1,13 +1,8 @@
-export { store } from "@/store";
+export { store } from "./index";
 export { routerArrays } from "@/layout/types";
-export { router, resetRouter, constantMenus } from "@/router";
 export { getConfig, responsiveStorageNameSpace } from "@/config";
-export {
-  ascending,
-  filterTree,
-  filterNoPermissionTree,
-  formatFlatteningRoutes
-} from "@/router/utils";
+// 不再从 router/utils 导入，避免循环依赖
+// 这些函数将在使用时动态导入
 export {
   isUrl,
   isEqual,

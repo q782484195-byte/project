@@ -10,8 +10,7 @@ import {
   type DepartmentListItem,
   type DepartmentUserMap
 } from "@/api/system";
-import Add from "~icons/ep/plus";
-import Refresh from "~icons/ep/refresh";
+import { Plus as Add, Refresh, Search } from "@element-plus/icons-vue";
 
 defineOptions({
   name: "SystemDepartment"
@@ -142,20 +141,20 @@ const loadData = async () => {
         // 将数组转换为对象，方便查找
         const departmentUsersMap: Record<string, string[]> = {};
         departmentUserMaps.forEach(map => {
-          Object.keys(map).forEach(departmentName => {
-            departmentUsersMap[departmentName] = map[departmentName].map(
+          Object.keys(map).forEach(department => {
+            departmentUsersMap[department] = map[department].map(
               user => user.username
             );
           });
         });
 
         list = list.map(item => {
-          const departmentName = item["部门名"];
-          const users = departmentUsersMap[departmentName] || [];
+          const department = item["部门名"];
+          const users = departmentUsersMap[department] || [];
 
           // 构建树形结构：每个部门作为父节点，部门人员作为子节点
           const children = users.map((username, index) => ({
-            id: `${departmentName}-${index}`,
+            id: `${department}-${index}`,
             username: username,
             部门名: "",
             负责人: [],
@@ -165,7 +164,7 @@ const loadData = async () => {
 
           return {
             ...item,
-            id: departmentName, // 使用部门名作为唯一标识
+            id: department, // 使用部门名作为唯一标识
             部门人员: users,
             children: children.length > 0 ? children : undefined // 只有有人员时才添加children
           };
@@ -284,12 +283,7 @@ onMounted(() => {
         <div class="card-header">
           <span class="font-medium">部门管理</span>
           <div>
-            <el-button
-              v-perms="'department:add'"
-              type="primary"
-              :icon="Add"
-              @click="handleAdd"
-            >
+            <el-button v-perms="'department:add'" type="primary" :icon="Add" @click="handleAdd">
               新增
             </el-button>
             <el-button :icon="Refresh" @click="handleRefresh">刷新</el-button>
@@ -297,52 +291,24 @@ onMounted(() => {
         </div>
       </template>
 
-      <pure-table
-        ref="tableRef"
-        :data="tableData"
-        :columns="columns"
-        :loading="loading"
-        :pagination="pagination"
-        :paginationSmall="false"
-        :paginationBackground="true"
-        height="600"
-        :tree-props="{
+      <pure-table ref="tableRef" :data="tableData" :columns="columns" :loading="loading" :pagination="pagination"
+        :paginationSmall="false" :paginationBackground="true" height="600" :tree-props="{
           children: 'children',
           hasChildren: 'hasChildren',
           checkStrictly: false
-        }"
-        row-key="id"
-        preserve-expanded-content
-        :header-cell-style="{
+        }" row-key="id" preserve-expanded-content :header-cell-style="{
           background: 'var(--el-table-row-hover-bg-color)',
           color: 'var(--el-text-color-primary)'
-        }"
-        @page-size-change="handleSizeChange"
-        @page-current-change="handlePageChange"
-      >
+        }" @page-size-change="handleSizeChange" @page-current-change="handlePageChange">
         <template #operation />
       </pure-table>
     </el-card>
 
     <!-- 新增/编辑对话框 -->
-    <el-dialog
-      v-model="dialogVisible"
-      :title="dialogTitle"
-      width="600px"
-      :close-on-click-modal="false"
-    >
-      <el-form
-        ref="formRef"
-        :model="formData"
-        :rules="formRules"
-        label-width="100px"
-      >
+    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="600px" :close-on-click-modal="false">
+      <el-form ref="formRef" :model="formData" :rules="formRules" label-width="100px">
         <el-form-item label="部门名称" prop="department">
-          <el-input
-            v-model="formData.department"
-            placeholder="请输入部门名称"
-            clearable
-          />
+          <el-input v-model="formData.department" placeholder="请输入部门名称" clearable />
         </el-form-item>
       </el-form>
       <template #footer>

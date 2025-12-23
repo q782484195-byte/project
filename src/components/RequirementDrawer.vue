@@ -1,9 +1,9 @@
 <template>
-  <el-drawer v-model="drawerVisible" :title="isEdit ? '编辑需求' : '新建需求'" size="600px" direction="rtl"
+  <el-drawer v-model="drawerVisible" :title="isEdit ? '编辑层级' : '新建层级'" size="600px" direction="rtl"
     @close="handleClose">
     <div class="requirement-drawer">
       <!-- 创建模式选择（仅新建时显示） -->
-      <div v-if="!isEdit" class="create-mode-selector">
+      <div v-if="!isEdit && userStore.username === projectCreator" class="create-mode-selector">
         <el-radio-group v-model="createMode" size="default">
           <el-radio-button label="manual">手动创建</el-radio-button>
           <el-radio-button label="import">导入JSON</el-radio-button>
@@ -13,11 +13,29 @@
       <!-- 手动创建表单 -->
       <el-form v-if="isEdit || createMode === 'manual'" ref="formRef" :model="requirementForm" :rules="rules"
         label-width="100px" label-position="left">
-        <el-form-item label="需求标题" prop="title">
-          <el-input v-model="requirementForm.title" placeholder="请输入需求标题" maxlength="100" show-word-limit />
+        <el-form-item label="层级类型" prop="requirementType">
+          <el-select v-model="requirementForm.requirementType" placeholder="请选择层级类型" clearable style="width: 100%">
+            <el-option label="软件任务" value="软件任务" />
+            <el-option label="硬件任务" value="硬件任务" />
+            <el-option label="结构任务" value="结构任务" />
+          </el-select>
+        </el-form-item>
+        <el-form-item v-if="!isEdit" label="层级标题" prop="title">
+          <el-input v-model="requirementForm.title" placeholder="请输入层级标题" maxlength="200" show-word-limit />
         </el-form-item>
 
-        <el-form-item label="需求描述" prop="describe">
+        <!-- 编辑模式：多个层级标题输入 -->
+        <template v-if="isEdit">
+          <el-form-item v-for="(titleItem, index) in levelTitles" :key="index" :label="`层级标题${index + 1}`">
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <el-input v-model="titleItem.title" :placeholder="`请输入层级标题${index + 1}`" maxlength="100" show-word-limit
+                style="flex: 1" />
+            </div>
+          </el-form-item>
+
+        </template>
+
+        <el-form-item label="层级描述" prop="describe">
           <RichTextEditor ref="richTextEditorRef" v-model="requirementForm.describe" />
         </el-form-item>
 
@@ -36,7 +54,7 @@
         </el-form-item>
 
         <!-- 合同附件上传 -->
-        <el-form-item label="需求附件">
+        <el-form-item label="层级附件">
           <el-upload v-model:file-list="fileList" multiple :auto-upload="false" :on-remove="handleFileRemove"
             :on-change="handleFileChange" :before-upload="handleBeforeUpload">
             <el-button type="primary">
@@ -53,7 +71,8 @@
       </el-form>
 
       <!-- 导入JSON区域 -->
-      <div v-if="!isEdit && createMode === 'import'" class="import-json-section">
+      <div v-if="!isEdit && createMode === 'import' && userStore.username === projectCreator"
+        class="import-json-section">
         <el-alert type="info" :closable="false" style="margin-bottom: 20px">
           <template #title>
             <span>请选择JSON文件导入生成需求</span>
@@ -88,7 +107,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, reactive } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { Upload } from "@element-plus/icons-vue";
+import { Upload, Delete, Plus } from "@element-plus/icons-vue";
 import type {
   FormInstance,
   FormRules,
@@ -108,6 +127,9 @@ import {
   type UpdateRequirementParams
 } from "@/api/project";
 import RichTextEditor from "./RichTextEditor.vue";
+import { useUserStoreHook } from "@/store/modules/user";
+
+const userStore = useUserStoreHook();
 
 // 将完整 URL 转换为相对路径（用于提交数据）
 const convertToRelativePath = (url: string): string => {
@@ -133,8 +155,9 @@ interface Props {
   visible: boolean;
   projectId?: string;
   projectName?: string;
+  projectCreator?: string;
   requirement?: Requirement | null;
-  parentPath?: string; // 父路径，用于新建需求时自动拼接路径
+  parentPath?: string; // 父路径，用于新建层级时自动拼接路径
 }
 
 interface Emits {
@@ -152,9 +175,13 @@ const submitting = ref(false);
 const importing = ref(false);
 const createMode = ref<"manual" | "import">("manual"); // 创建模式：manual-手动创建，import-导入JSON
 
+// 编辑模式下的多个层级标题
+const levelTitles = ref<Array<{ title: string }>>([{ title: "" }]);
+
 const requirementForm = reactive<
   Partial<Requirement> & {
     describe: DescribeContent[];
+    requirementType: string;
   }
 >({
   title: "",
@@ -168,16 +195,20 @@ const requirementForm = reactive<
   estimatedHours: 0,
   actualHours: 0,
   startDate: "",
-  endDate: ""
+  endDate: "",
+  requirementType: ""
 });
 
 const rules: FormRules = {
+  requirementType: [
+    { required: true, message: "请选择层级类型", trigger: "change" }
+  ],
   title: [
-    { required: true, message: "请输入需求标题", trigger: "blur" },
+    { required: true, message: "请输入层级标题", trigger: "blur" },
     { min: 2, max: 100, message: "标题长度在 2 到 100 个字符", trigger: "blur" }
   ],
   priority: [{ required: true, message: "请选择优先级", trigger: "change" }],
-  describe: [{ required: true, message: "请输入需求描述", trigger: "change" }]
+  describe: [{ required: true, message: "请输入层级描述", trigger: "change" }]
 };
 
 const drawerVisible = computed({
@@ -201,10 +232,24 @@ const resetForm = () => {
     estimatedHours: 0,
     actualHours: 0,
     startDate: "",
-    endDate: ""
+    endDate: "",
+    requirementType: ""
   });
+  levelTitles.value = [{ title: "" }];
   formRef.value?.clearValidate();
   createMode.value = "manual"; // 重置为手动创建模式
+};
+
+// 添加层级标题
+const addLevelTitle = () => {
+  levelTitles.value.push({ title: "" });
+};
+
+// 删除层级标题
+const removeLevelTitle = (index: number) => {
+  if (levelTitles.value.length > 1) {
+    levelTitles.value.splice(index, 1);
+  }
 };
 
 // 监听需求变化，填充表单
@@ -252,8 +297,39 @@ watch(
           ? ""
           : requirement.priority || "";
 
+      // 解析需求名，提取层级类型和标题
+      // 需求名格式：层级类型/标题，例如：软件任务/测试12312
+      let requirementType = "";
+      let title = requirement.title || "";
+
+      // 如果需求名包含 "/"，则提取层级类型和标题
+      const requirementName = (requirement as any).需求名 || requirement.title || "";
+      if (requirementName && typeof requirementName === "string" && requirementName.includes("/")) {
+        const parts = requirementName.split("/");
+        if (parts.length >= 2) {
+          requirementType = parts[0];
+          // 编辑模式下，如果标题包含 "/"，拆分为多个层级标题
+          const titleParts = parts.slice(1).filter(p => p.trim());
+          if (titleParts.length > 0) {
+            levelTitles.value = titleParts.map(part => ({ title: part.trim() }));
+            title = titleParts[0]; // 保留第一个作为 title（用于兼容）
+          } else {
+            levelTitles.value = [{ title: "" }];
+            title = "";
+          }
+        } else {
+          levelTitles.value = [{ title: "" }];
+          title = requirementName;
+        }
+      } else {
+        // 如果没有 "/"，尝试从标题中提取（兼容旧数据）
+        title = requirementName;
+        levelTitles.value = [{ title: title || "" }];
+      }
+
       Object.assign(requirementForm, {
-        title: requirement.title || "",
+        title: title,
+        requirementType: requirementType,
         describe: describeContent, // 使用从 requirement 中获取的 describe 数据
         status: requirement.status || RequirementStatus.DRAFT,
         priority: priorityValue,
@@ -362,7 +438,7 @@ const handleSubmit = async () => {
       }
 
       if (!requirementForm.describe || requirementForm.describe.length === 0) {
-        ElMessage.error("请输入需求描述");
+        ElMessage.error("请输入层级描述");
         return;
       }
 
@@ -486,10 +562,72 @@ const handleSubmit = async () => {
 
         let response;
         if (isEdit.value && props.requirement?.id) {
-          // 编辑模式：调用更新接口
+          // 编辑模式：使用 levelTitles 数组
+          // 验证所有层级标题
+          const emptyIndex = levelTitles.value.findIndex(item => !item.title || !item.title.trim());
+          if (emptyIndex !== -1) {
+            ElMessage.error(`请输入层级标题${emptyIndex + 1}`);
+            submitting.value = false;
+            return;
+          }
+
+          const titleParts = levelTitles.value
+            .map(item => item.title.trim())
+            .filter(part => part.length > 0);
+
+          if (titleParts.length === 0) {
+            ElMessage.error("至少需要输入一个层级标题");
+            submitting.value = false;
+            return;
+          }
+
+          // 获取原始需求名，用于确定父路径
+          const originalRequirementName = (props.requirement as any).需求名 || props.requirement.title || "";
+          let basePath = "";
+
+          // 解析原始路径，确定父路径
+          if (originalRequirementName && originalRequirementName.includes("/")) {
+            const parts = originalRequirementName.split("/");
+            // 如果第一部分是层级类型，则父路径为空（当前层级是根层级）
+            if (parts.length >= 2 && ["软件任务", "硬件任务", "结构任务"].includes(parts[0])) {
+              // 当前层级是根层级，没有父路径
+              basePath = "";
+            } else {
+              // 保留原有路径结构，去掉最后一部分作为父路径
+              basePath = parts.slice(0, -1).join("/");
+            }
+          }
+
+          // 编辑模式：将所有层级标题组合成完整的路径
+          // 第一个层级包含层级类型，后续层级直接追加
+          let requirementName = "";
+
+          if (titleParts.length > 0) {
+            // 构建第一个层级（包含层级类型）
+            if (requirementForm.requirementType && titleParts[0]) {
+              if (basePath) {
+                requirementName = `${basePath}/${requirementForm.requirementType}/${titleParts[0]}`;
+              } else {
+                requirementName = `${requirementForm.requirementType}/${titleParts[0]}`;
+              }
+            } else if (titleParts[0]) {
+              if (basePath) {
+                requirementName = `${basePath}/${titleParts[0]}`;
+              } else {
+                requirementName = titleParts[0];
+              }
+            }
+
+            // 追加后续层级标题
+            for (let i = 1; i < titleParts.length; i++) {
+              requirementName = `${requirementName}/${titleParts[i]}`;
+            }
+          }
+
+          // 编辑模式：只调用更新接口，不创建新的层级
           response = await updateRequirement({
             requirement_id: props.requirement.id,
-            requirement_name: requirementForm.title || "",
+            requirement_name: requirementName,
             priority: priorityValue as string,
             describe: describeUrls,
             attachment: allAttachmentUrls
@@ -510,8 +648,15 @@ const handleSubmit = async () => {
             return;
           }
 
+          // 拼接层级名称：层级类型/标题
+          let requirementName = "";
+          if (requirementForm.requirementType && requirementForm.title) {
+            requirementName = `${requirementForm.requirementType}/${requirementForm.title}`;
+          } else if (requirementForm.title) {
+            requirementName = requirementForm.title;
+          }
+
           // 如果有父路径，自动拼接路径
-          let requirementName = requirementForm.title || "";
           if (props.parentPath && !isEdit.value) {
             requirementName = `${props.parentPath}/${requirementName}`;
           }

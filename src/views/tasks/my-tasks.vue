@@ -4,7 +4,7 @@
     <el-card class="search-card mb-20">
       <el-form :model="searchForm" :inline="true" class="search-form">
         <el-form-item label="关键词">
-          <el-input v-model="searchForm.keyword" placeholder="搜索任务名称、需求名称..." clearable style="width: 250px"
+          <el-input v-model="searchForm.keyword" placeholder="搜索任务名称、层级名称..." clearable style="width: 250px"
             prefix-icon="Search" />
         </el-form-item>
         <el-form-item label="状态">
@@ -52,7 +52,7 @@
             </el-link>
           </template>
         </el-table-column>
-        <el-table-column prop="requirement_name" label="关联需求" width="200" />
+        <el-table-column prop="requirement_name" label="关联层级" width="200" />
         <el-table-column prop="优先级" label="优先级" width="100">
           <template #default="{ row }">
             <el-tag :type="getPriorityType(row.优先级 || row.priority) || undefined" size="small">
@@ -67,14 +67,14 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="预计工时" label="预计工时" width="100">
+        <el-table-column prop="预计工时" label="计划工时" width="100">
           <template #default="{ row }">
-            {{ row.预计工时 || row.estimated_time || "-" }} 小时
+            {{ row.预计工时 || row.estimated_time || "-" }} 天
           </template>
         </el-table-column>
         <el-table-column prop="已用工时" label="已用工时" width="100">
           <template #default="{ row }">
-            {{ row.已用工时 || row.actual_hours || "-" }} 小时
+            {{ row.已用工时 || row.actual_hours || "-" }} 天
           </template>
         </el-table-column>
         <el-table-column prop="进度" label="进度" width="120">

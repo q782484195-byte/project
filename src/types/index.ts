@@ -11,7 +11,9 @@ export enum TaskStatus {
   REVIEWING = "审阅中",
   REVIEW_COMPLETED = "审阅完毕",
   CANCELLED = "已取消",
-  COMPLETED = "已完成"
+  COMPLETED = "已完成",
+  TEST_FAILED = "测试未通过",
+  REVIEW_FAILED = "审阅未通过"
 }
 
 // 用户接口

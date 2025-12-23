@@ -52,7 +52,7 @@
             <el-descriptions-item label="任务名">{{ selectedNode.rawData.任务名 }}</el-descriptions-item>
             <el-descriptions-item label="状态">{{ selectedNode.rawData.状态 }}</el-descriptions-item>
             <el-descriptions-item label="优先级">{{ selectedNode.rawData.优先级 }}</el-descriptions-item>
-            <el-descriptions-item label="需求名称">{{ selectedNode.rawData.requirement_name }}</el-descriptions-item>
+            <el-descriptions-item label="层级名称">{{ selectedNode.rawData.requirement_name }}</el-descriptions-item>
             <el-descriptions-item label="需求ID">{{ selectedNode.rawData.requirement_id }}</el-descriptions-item>
             <el-descriptions-item label="创建人">{{ selectedNode.rawData.creator }}</el-descriptions-item>
             <el-descriptions-item label="创建时间">{{ selectedNode.rawData.create_time }}</el-descriptions-item>
@@ -64,8 +64,8 @@
             <el-descriptions-item label="进度">
               <el-progress :percentage="selectedNode.rawData.进度 || 0" :stroke-width="8" />
             </el-descriptions-item>
-            <el-descriptions-item label="预计工时">{{ selectedNode.rawData.预计工时 || 0 }} 小时</el-descriptions-item>
-            <el-descriptions-item label="已用工时">{{ selectedNode.rawData.已用工时 || 0 }} 小时</el-descriptions-item>
+            <el-descriptions-item label="计划工时">{{ selectedNode.rawData.计划工时 || 0 }} 天</el-descriptions-item>
+            <el-descriptions-item label="已用工时">{{ selectedNode.rawData.已用工时 || 0 }} 天</el-descriptions-item>
             <el-descriptions-item v-if="selectedNode.rawData.备注" label="备注">{{ selectedNode.rawData.备注
             }}</el-descriptions-item>
             <el-descriptions-item v-if="selectedNode.rawData.describe && selectedNode.rawData.describe.length > 0"
@@ -179,7 +179,7 @@ const transformNestedData = (data: Record<string, any>): StructureTreeNode | nul
           status: task.状态 || task.status || "未知状态",
           assignee: task.当前处理人 || task.指派人 || task.assignee || task.指派给,
           progress: typeof task.进度 === "number" ? task.进度 : undefined,
-          estimate: task.预计工时 ? `${task.预计工时} 小时` : undefined,
+          estimate: task.预计工时 ? `${task.预计工时} 天` : undefined,
           rawData: task,
           children: []
         }))

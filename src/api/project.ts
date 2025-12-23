@@ -255,7 +255,7 @@ export interface RequirementListItem {
 /** 需求项数据（可能是嵌套对象或需求项） */
 export type RequirementItemData = RequirementListItem | { [key: string]: RequirementItemData };
 
-/** 需求列表响应（支持嵌套对象结构） */
+/** 层级列表响应（支持嵌套对象结构） */
 export interface RequirementListResponse {
   code: number;
   result: RequirementListItem[] | { [key: string]: RequirementItemData };
@@ -502,14 +502,31 @@ export const selectTasks = (params: SelectTasksParams) => {
   });
 };
 
+/** 查询项目任务参数 */
+export interface SelectProjectTasksParams {
+  project_id: string;
+  requirement_name?: string;
+}
+
+/** 查询项目所有任务 */
+export const selectProjectTasks = (params: SelectProjectTasksParams) => {
+  return http.request<TaskListResponse>("post", "/project/select_task", {
+    data: {
+      project_id: params.project_id,
+      requirement_name: params.requirement_name || ""
+    }
+  });
+};
+
 /** 创建任务参数 */
 export interface CreateTaskParams {
   task_name: string;
-  describe: string[];
+  describe: DescribeContent[];
   requirement_id: string;
   requirement_name: string;
   priority: string;
   estimated_time: number;
+  default_person?: string;
   attachment?: string[];
 }
 
@@ -523,6 +540,7 @@ export const createTask = (params: CreateTaskParams) => {
       requirement_name: params.requirement_name,
       priority: params.priority,
       estimated_time: params.estimated_time,
+      default_person: params.default_person,
       attachment: params.attachment || []
     }
   });
@@ -532,9 +550,10 @@ export const createTask = (params: CreateTaskParams) => {
 export interface UpdateTaskParams {
   task_id: string;
   task_name: string;
-  describe: string[];
+  describe: DescribeContent[];
   priority: string;
   estimated_time: number;
+  default_person?: string;
   attachment?: string[];
 }
 
@@ -547,6 +566,7 @@ export const updateTask = (params: UpdateTaskParams) => {
       describe: params.describe,
       priority: params.priority,
       estimated_time: params.estimated_time,
+      default_person: params.default_person,
       attachment: params.attachment || []
     }
   });
@@ -568,6 +588,54 @@ export const updateTaskState = (params: UpdateTaskStateParams) => {
       current_state: params.current_state,
       next_state: params.next_state,
       person_name: params.person_name
+    }
+  });
+};
+
+/** 批量分配任务参数 */
+export interface BulkAssignmentParams {
+  task_json: Record<string, {
+    task_name: string;
+    state: string;
+    current_assignee: string;
+  }>;
+}
+
+/** 批量分配任务 */
+export const bulkAssignment = (params: BulkAssignmentParams) => {
+  return http.request<ApiResponse<any>>("post", "/task/bulk_assignment", {
+    data: {
+      task_json: params.task_json
+    }
+  });
+};
+
+/** 更新任务当前负责人参数 */
+export interface UpdateCurrentAssigneeParams {
+  task_id: string;
+  current_assignee: string;
+}
+
+/** 更新任务当前负责人 */
+export const updateCurrentAssignee = (params: UpdateCurrentAssigneeParams) => {
+  return http.request<ApiResponse<any>>("post", "/task/update_current_assignee", {
+    data: {
+      task_id: params.task_id,
+      current_assignee: params.current_assignee
+    }
+  });
+};
+
+/** 通过JSON更新任务参数 */
+export interface UpdateTaskByJsonParams {
+  json_data: any; // JSON对象
+}
+
+/** 通过JSON更新任务 */
+export const updateTaskByJson = (params: UpdateTaskByJsonParams) => {
+  return http.request<ApiResponse<any>>("post", "/project/update_task_by_json", {
+    data: {
+      json_data: params.json_data
     }
   });
 };
@@ -656,6 +724,22 @@ export const selectProjectSelectAll = (params: any) => {
   return http.request<ApiResponse<any>>("post", "bug/project_select_all", {
     data: {
       project_id: params.project_id
+    }
+  });
+};
+
+/** 项目时间追踪参数 */
+export interface TimeTrackingParams {
+  project_id: string;
+  day: number;
+}
+
+/** 项目时间追踪 */
+export const timeTracking = (params: TimeTrackingParams) => {
+  return http.request<ApiResponse<any>>("post", "/project/time_tracking", {
+    data: {
+      project_id: params.project_id,
+      day: params.day
     }
   });
 };

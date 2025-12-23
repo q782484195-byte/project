@@ -13,7 +13,7 @@
             <el-descriptions :column="2" border>
               <el-descriptions-item label="项目名称">{{
                 project.name
-              }}</el-descriptions-item>
+                }}</el-descriptions-item>
               <el-descriptions-item label="状态">
                 <el-select v-model="currentStatus" :loading="statusUpdating" size="small" style="width: 120px"
                   @change="handleStatusChange">
@@ -31,15 +31,15 @@
               <el-descriptions-item label="进度">{{ project.progress || 0 }}%</el-descriptions-item>
               <el-descriptions-item label="计划开始时间">{{
                 formatDate(project.startDate)
-              }}</el-descriptions-item>
+                }}</el-descriptions-item>
               <el-descriptions-item label="计划结束时间">{{
                 formatDate(project.endDate)
-              }}</el-descriptions-item>
+                }}</el-descriptions-item>
               <el-descriptions-item v-if="project.budget" label="预算">¥{{ formatBudget(project.budget)
-              }}</el-descriptions-item>
+                }}</el-descriptions-item>
               <el-descriptions-item v-if="project.createdAt" label="创建时间">{{
                 formatDate(project.createdAt)
-              }}</el-descriptions-item>
+                }}</el-descriptions-item>
             </el-descriptions>
           </el-card>
 
@@ -106,7 +106,7 @@
               <div v-for="member in project.members" :key="member.id" class="member-item">
                 <el-avatar :src="member.avatar">{{
                   member.name.charAt(0)
-                }}</el-avatar>
+                  }}</el-avatar>
                 <div class="member-info">
                   <div class="member-name">{{ member.name }}</div>
                   <div v-if="member.role" class="member-role">
@@ -123,12 +123,12 @@
           <el-card class="mb-20">
             <template #header>
               <div class="requirement-header">
-                <span>需求列表</span>
+                <span>层级列表</span>
                 <el-button type="primary" size="small" @click="showRequirementDrawer = true">
                   <el-icon>
                     <Plus />
                   </el-icon>
-                  新建需求
+                  新建层级
                 </el-button>
               </div>
             </template>
@@ -145,7 +145,7 @@
                     <div class="requirement-title-row">
                       <span class="requirement-title">{{
                         requirement.title
-                      }}</span>
+                        }}</span>
                       <div class="requirement-badges">
                         <el-tag :type="getRequirementStatusTagType(requirement.status)
                           " size="small">
@@ -249,7 +249,7 @@
                         </el-icon>
                         <span>{{
                           formatDateRange(task.startDate, task.endDate)
-                        }}</span>
+                          }}</span>
                       </div>
                       <div v-if="task.estimatedHours || task.actualHours" class="task-hours">
                         <el-icon>
@@ -257,7 +257,7 @@
                         </el-icon>
                         <span>{{ task.actualHours || 0 }}/{{
                           task.estimatedHours || 0
-                          }}h</span>
+                        }}h</span>
                       </div>
                     </div>
                   </div>
@@ -329,7 +329,7 @@ const activeTab = ref<string>("info");
 const projectTasks = ref<Task[]>([]);
 // 任务加载中
 const tasksLoading = ref(false);
-// 需求列表
+// 层级列表
 const projectRequirements = ref<Requirement[]>([]);
 // 需求加载中
 const requirementsLoading = ref(false);

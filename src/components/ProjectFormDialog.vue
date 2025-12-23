@@ -333,19 +333,65 @@ watch(
         ];
       }
 
+      // 获取计划开始时间（支持多种字段名）
+      // 注意：日期格式需要标准化为 YYYY-MM-DD
+      let startDate =
+        project.startDate ||
+        (project as any).plant_start_time ||
+        (project as any).start_time ||
+        (project as any).start_date ||
+        "";
+
+      // 标准化日期格式：将 "2025-11-6" 转换为 "2025-11-06"
+      if (startDate) {
+        const dateParts = startDate.split("-");
+        if (dateParts.length === 3) {
+          const year = dateParts[0];
+          const month = dateParts[1].padStart(2, "0");
+          const day = dateParts[2].padStart(2, "0");
+          startDate = `${year}-${month}-${day}`;
+        }
+      }
+
+      // 获取计划结束时间（支持多种字段名）
+      // 注意：日期格式需要标准化为 YYYY-MM-DD
+      let endDate =
+        project.endDate ||
+        (project as any).plant_end_time ||
+        (project as any).completion_time ||
+        (project as any).end_date ||
+        "";
+
+      // 标准化日期格式：将 "2025-12-6" 转换为 "2025-12-06"
+      if (endDate) {
+        const dateParts = endDate.split("-");
+        if (dateParts.length === 3) {
+          const year = dateParts[0];
+          const month = dateParts[1].padStart(2, "0");
+          const day = dateParts[2].padStart(2, "0");
+          endDate = `${year}-${month}-${day}`;
+        }
+      }
+
       Object.assign(projectForm, {
         name: project.name,
         describe: describeContent,
         typeId: project.typeId || "",
         templateId: project.templateId || "",
-        startDate: project.startDate || "",
-        endDate: project.endDate || "",
+        startDate: startDate,
+        endDate: endDate,
         memberIds: project.members?.map(member => member.id) || []
       });
 
       // 填充附件列表（编辑模式下）
-      if (project.attachment && project.attachment.length > 0) {
-        fileList.value = project.attachment.map((attachmentPath, index) => {
+      // 支持多种字段名：attachment
+      const attachmentList =
+        project.attachment ||
+        (project as any).attachment ||
+        [];
+
+      if (attachmentList && attachmentList.length > 0) {
+        fileList.value = attachmentList.map((attachmentPath: string, index: number) => {
           const fileName = getFileNameFromPath(attachmentPath);
           const fileUrl = getAttachmentUrl(attachmentPath);
           return {
@@ -361,8 +407,14 @@ watch(
       }
 
       // 填充立项文件列表（编辑模式下）
-      if ((project as any).project_proposal && (project as any).project_proposal.length > 0) {
-        proposalFileList.value = (project as any).project_proposal.map((proposalPath: string, index: number) => {
+      // 支持多种字段名：project_proposal
+      const proposalList =
+        project.project_proposal ||
+        (project as any).project_proposal ||
+        [];
+
+      if (proposalList && proposalList.length > 0) {
+        proposalFileList.value = proposalList.map((proposalPath: string, index: number) => {
           const fileName = getFileNameFromPath(proposalPath);
           const fileUrl = getAttachmentUrl(proposalPath);
           return {
@@ -623,17 +675,7 @@ const handleSubmit = async () => {
         project_proposal: allProposalUrls
       };
 
-      // 先打印表单数据，不调用接口
-      console.log("=== 新建项目表单数据 ===");
-      console.log("提交数据:", JSON.stringify(submitData, null, 2));
-      console.log("项目名称:", submitData.project_name);
-      console.log("开始时间:", submitData.plant_start_time);
-      console.log("计划结束时间:", submitData.plant_end_time);
-      console.log("描述内容 (describe):", submitData.describe);
-      console.log("附件列表 (attachment):", submitData.attachment);
-      console.log("==================");
-
-      // 调用真实 API（暂时注释，用于调试）
+      // 调用真实 API
 
       try {
         const response = await createProject(submitData);

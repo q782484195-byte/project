@@ -4,22 +4,28 @@
     <div class="task-drawer">
       <el-form ref="formRef" :model="taskForm" :rules="rules" label-width="100px" label-position="left">
         <el-form-item label="任务名称" prop="task_name">
-          <el-input v-model="taskForm.task_name" placeholder="请输入任务名称" maxlength="100" show-word-limit />
+          <el-input v-model="taskForm.task_name" placeholder="请输入任务名称" maxlength="100" show-word-limit
+            :disabled="isEdit && !canEditAllFields" />
         </el-form-item>
-
+        <el-form-item v-if="showDefaultPersonField" label="默认部门负责人" prop="default_person" ">
+          <el-tree-select v-model="taskForm.default_person" placeholder="请选择默认部门负责人"
+          :loading="departmentLeadersLoading" filterable check-strictly default-expand-all :data="departmentLeadersTree"
+          :props="treeSelectProps" node-key="value" :render-after-expand="false" style="width: 100%" clearable />
+        </el-form-item>
         <el-form-item label="任务描述" prop="describe">
-          <RichTextEditor ref="richTextEditorRef" v-model="taskForm.describe" />
+          <RichTextEditor ref="richTextEditorRef" v-model="taskForm.describe" :disable-image-upload="true"
+            :readonly="!canEditDescribeAndAttachment" />
         </el-form-item>
 
-        <el-form-item label="所属项目" prop="project_id">
+        <el-form-item label="选择项目" prop="project_id">
           <el-select v-model="taskForm.project_id" placeholder="选择项目" clearable style="width: 100%" :disabled="isEdit"
             :loading="projectsLoading" @change="handleProjectChange">
             <el-option v-for="project in projectOptions" :key="project.id" :label="project.name" :value="project.id" />
           </el-select>
         </el-form-item>
 
-        <el-form-item label="所属需求" prop="requirement_id">
-          <el-select v-model="taskForm.requirement_id" placeholder="选择需求" clearable style="width: 100%"
+        <el-form-item label="所属层级" prop="requirement_id">
+          <el-select v-model="taskForm.requirement_id" placeholder="选择层级" clearable style="width: 100%"
             :disabled="isEdit || !taskForm.project_id || requirementsLoading" :loading="requirementsLoading"
             @change="handleRequirementChange">
             <el-option v-for="requirement in requirements" :key="requirement.id" :label="requirement.requirement_name"
@@ -28,7 +34,8 @@
         </el-form-item>
 
         <el-form-item label="优先级" prop="priority">
-          <el-select v-model="taskForm.priority" placeholder="选择优先级" clearable style="width: 100%">
+          <el-select v-model="taskForm.priority" placeholder="选择优先级" clearable style="width: 30%"
+            :disabled="isEdit && !canEditAllFields">
             <el-option label="低" value="低">
               <el-tag type="info" size="small">低</el-tag>
             </el-option>
@@ -41,15 +48,17 @@
           </el-select>
         </el-form-item>
 
-        <el-form-item label="预计工时" prop="estimated_time">
-          <el-input-number v-model="taskForm.estimated_time" :min="0" :precision="0" placeholder="请输入预计时间（小时）"
-            style="width: 100%" />
+        <el-form-item label="计划工时" prop="estimated_time">
+          <el-input-number v-model="taskForm.estimated_time" :min="0" :precision="0"
+            :disabled="isEdit && !canEditAllFields" placeholder="请输入计划工时（天）" style="width: 30%" />
+          <span style="margin-left: 8px; color: #606266;">天</span>
         </el-form-item>
 
         <!-- 附件上传 -->
         <el-form-item label="任务附件">
-          <el-upload v-model:file-list="fileList" multiple :auto-upload="false" :on-remove="handleFileRemove"
-            :on-change="handleFileChange" :before-upload="handleBeforeUpload">
+          <el-upload v-model:file-list="fileList" multiple :auto-upload="false"
+            :disabled="!canEditDescribeAndAttachment" :on-remove="handleFileRemove" :on-change="handleFileChange"
+            :before-upload="handleBeforeUpload">
             <el-button type="primary">
               <el-icon>
                 <Upload />
@@ -98,8 +107,10 @@ import {
   type UpdateTaskParams,
   type RequirementListItem
 } from "@/api/project";
+import { getDepartmentNameList, type DepartmentListItem } from "@/api/system";
 import RichTextEditor from "@/components/RichTextEditor.vue";
 import type { DescribeContent } from "@/types";
+import { useUserStoreHook } from "@/store/modules/user";
 
 interface Props {
   visible: boolean;
@@ -128,6 +139,13 @@ const requirements = ref<any[]>([]);
 const requirementsLoading = ref(false);
 const projects = ref<Array<{ id: string; name: string }>>([]);
 const projectsLoading = ref(false);
+const departmentLeadersTree = ref<any[]>([]);
+const departmentLeadersLoading = ref(false);
+const treeSelectProps = {
+  label: "label",
+  children: "children",
+  disabled: "disabled"
+} as const;
 
 // 将完整 URL 转换为相对路径（用于提交数据）
 const convertToRelativePath = (url: string): string => {
@@ -219,6 +237,7 @@ const taskForm = reactive<{
   requirement_name: string;
   priority: string;
   estimated_time: number;
+  default_person?: string;
   file_name?: string;
   files?: string[];
 }>({
@@ -227,8 +246,9 @@ const taskForm = reactive<{
   project_id: "",
   requirement_id: "",
   requirement_name: "",
-  priority: "",
-  estimated_time: 0
+  priority: "低",
+  estimated_time: 1,
+  default_person: ""
 });
 
 const rules: FormRules = {
@@ -255,11 +275,12 @@ const rules: FormRules = {
     }
   ],
   project_id: [
-    { required: true, message: "请选择所属项目", trigger: "change" }
+    { required: true, message: "请选择项目", trigger: "change" }
   ],
   requirement_id: [
-    { required: true, message: "请选择所属需求", trigger: "change" }
+    { required: true, message: "请选择所属层级", trigger: "change" }
   ],
+  
   priority: [{ required: true, message: "请选择优先级", trigger: "change" }],
   estimated_time: [
     { required: true, message: "请输入预计时间", trigger: "blur" },
@@ -278,6 +299,24 @@ const drawerVisible = computed({
 });
 
 const isEdit = computed(() => !!props.task);
+
+const userStore = useUserStoreHook();
+const userRoles = computed(() => userStore.roles || []);
+const username = computed(() => userStore.username || "");
+const isAdmin = computed(() => userRoles.value.includes("Admin"));
+const isProjectManager = computed(() => userRoles.value.includes("ProjectManager"));
+const canEditAllFields = computed(() => isAdmin.value || isProjectManager.value);
+const currentHandler = computed(() => {
+  const task = props.task || {};
+  return task.current_handler || task.当前处理人 || task.assignee || "";
+});
+const canEditDescribeAndAttachment = computed(() => {
+  if (canEditAllFields.value) return true;
+  if (!isEdit.value) return true;
+  const handler = currentHandler.value;
+  return handler && username.value && handler === username.value;
+});
+const showDefaultPersonField = computed(() => canEditAllFields.value);
 
 // 项目选项（从 API 获取）
 const projectOptions = computed(() => {
@@ -313,7 +352,7 @@ const loadProjects = async () => {
   }
 };
 
-// 加载需求列表
+// 加载层级列表
 const loadRequirements = async (projectId: string) => {
   if (!projectId) {
     requirements.value = [];
@@ -341,17 +380,66 @@ const loadRequirements = async (projectId: string) => {
         }
       );
     } else {
-      ElMessage.error(response.message || "加载需求列表失败");
+      ElMessage.error(response.message || "加载层级列表失败");
       requirements.value = [];
     }
   } catch (error: any) {
-    console.error("加载需求列表失败:", error);
+    console.error("加载层级列表失败:", error);
     ElMessage.error(
-      error?.response?.data?.message || error?.message || "加载需求列表失败"
+      error?.response?.data?.message || error?.message || "加载层级列表失败"
     );
     requirements.value = [];
   } finally {
     requirementsLoading.value = false;
+  }
+};
+
+// 构建部门负责人树数据
+const buildDepartmentLeadersTree = (data: DepartmentListItem[]): any[] => {
+  if (!Array.isArray(data)) return [];
+  return data.map((item, index) => {
+    const departmentName = String(item.部门名 || "未分配部门");
+    const managers = item.负责人 || [];
+    const children: any[] = managers
+      .filter(manager => manager && String(manager).trim())
+      .map(manager => ({
+        label: String(manager),
+        value: String(manager)
+      }));
+    // 使用索引确保 value 的唯一性和有效性
+    return {
+      label: departmentName,
+      value: `dept_${index}_${departmentName.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_')}`,
+      disabled: true,
+      children
+    };
+  });
+};
+
+// 加载部门负责人列表
+const loadDepartmentLeaders = async () => {
+  if (!canEditAllFields.value) {
+    // 非管理员/项目负责人不拉取部门负责人列表
+    departmentLeadersTree.value = [];
+    return;
+  }
+  departmentLeadersLoading.value = true;
+  try {
+    const response = await getDepartmentNameList();
+    if (response.code === 200 && Array.isArray(response.result)) {
+      departmentLeadersTree.value = buildDepartmentLeadersTree(response.result);
+    } else {
+      ElMessage.error("加载部门负责人列表失败");
+      departmentLeadersTree.value = [];
+    }
+  } catch (error: any) {
+    console.error("加载部门负责人列表失败:", error);
+    ElMessage.error(
+      error?.response?.data?.message || error?.message || "加载部门负责人列表失败"
+    );
+    departmentLeadersTree.value = [];
+  } finally {
+    departmentLeadersLoading.value = false;
   }
 };
 
@@ -361,7 +449,7 @@ const handleProjectChange = async (projectId: string) => {
   taskForm.requirement_id = "";
   taskForm.requirement_name = "";
 
-  // 加载新项目的需求列表
+  // 加载新项目的层级列表
   if (projectId) {
     await loadRequirements(projectId);
   } else {
@@ -389,8 +477,9 @@ const resetForm = () => {
     project_id: props.projectId || "",
     requirement_id: props.requirementId || "",
     requirement_name: props.requirementName || "",
-    priority: "",
-    estimated_time: 0
+    priority: "低",
+    estimated_time: 1,
+    default_person: ""
   });
   formRef.value?.clearValidate();
   fileList.value = [];
@@ -404,6 +493,10 @@ watch(
       // 加载项目列表
       if (projects.value.length === 0) {
         loadProjects();
+      }
+      // 加载部门负责人列表
+      if (departmentLeadersTree.value.length === 0) {
+        loadDepartmentLeaders();
       }
       if (props.task) {
         // 编辑模式：填充表单
@@ -555,7 +648,8 @@ watch(
             props.task.estimated_time ||
             props.task.estimatedHours ||
             (props.task as any).预计工时 ||
-            0
+            0,
+          default_person: props.task.default_person || (props.task as any).默认部门负责人 || ""
         });
 
         // 填充附件列表
@@ -576,7 +670,7 @@ watch(
           fileList.value = [];
         }
 
-        // 编辑模式：如果任务有项目ID，加载该项目的需求列表
+        // 编辑模式：如果任务有项目ID，加载该项目的层级列表
         if (taskForm.project_id) {
           loadRequirements(taskForm.project_id);
         }
@@ -585,9 +679,9 @@ watch(
         resetForm();
         if (props.projectId) {
           taskForm.project_id = props.projectId;
-          // 加载该项目的需求列表
+          // 加载该项目的层级列表
           loadRequirements(props.projectId).then(() => {
-            // 需求列表加载完成后再设置需求ID
+            // 层级列表加载完成后再设置需求ID
             if (props.requirementId) {
               taskForm.requirement_id = props.requirementId;
               taskForm.requirement_name = props.requirementName || "";
@@ -649,7 +743,7 @@ const handleSubmit = async () => {
     if (valid) {
       // 验证必填字段
       if (!taskForm.requirement_id || !taskForm.requirement_name) {
-        ElMessage.error("请选择所属需求");
+        ElMessage.error("请选择所属层级");
         return;
       }
 
@@ -686,8 +780,8 @@ const handleSubmit = async () => {
           new Set([...existingImageUrls, ...imageUrls])
         );
 
-        // 将 describe 转换为 URL 字符串数组（用于提交）
-        const describeUrls: string[] = [];
+        // 将 describe 转换为 DescribeContent[] 格式（用于提交）
+        const describeContents: DescribeContent[] = [];
         const seenUrls = new Set<string>(); // 用于去重（基于相对路径）
 
         taskForm.describe.forEach(item => {
@@ -695,7 +789,10 @@ const handleSubmit = async () => {
             // 文本内容直接添加
             const text = item.content.trim();
             if (text) {
-              describeUrls.push(text);
+              describeContents.push({
+                type: "text",
+                content: text
+              });
             }
           } else if (item.type === "url") {
             // 图片 URL，只添加有效的 URL（不是 base64 或 blob），并去重
@@ -710,8 +807,11 @@ const handleSubmit = async () => {
               // 如果还没有添加过这个 URL（基于相对路径去重）
               if (!seenUrls.has(relativePath)) {
                 seenUrls.add(relativePath);
-                // 提交时使用相对路径
-                describeUrls.push(relativePath);
+                // 提交时使用相对路径，保持对象格式
+                describeContents.push({
+                  type: "url",
+                  content: relativePath
+                });
               }
             }
           }
@@ -722,7 +822,10 @@ const handleSubmit = async () => {
           const relativePath = convertToRelativePath(url);
           if (!seenUrls.has(relativePath)) {
             seenUrls.add(relativePath);
-            describeUrls.push(relativePath);
+            describeContents.push({
+              type: "url",
+              content: relativePath
+            });
           }
         });
 
@@ -777,25 +880,24 @@ const handleSubmit = async () => {
           response = await updateTask({
             task_id: taskId,
             task_name: taskForm.task_name,
-            describe: describeUrls,
+            describe: describeContents,
             priority: taskForm.priority,
             estimated_time: taskForm.estimated_time,
+            default_person: taskForm.default_person,
             attachment: allFiles.length > 0 ? allFiles : undefined
           });
         } else {
           // 新建模式：调用创建接口
           // 如果有父路径，自动拼接路径到任务名
           let taskName = taskForm.task_name;
-          if (props.parentPath && !isEdit.value) {
-            taskName = `${props.parentPath}/${taskName}`;
-          }
           response = await createTask({
             task_name: taskName,
-            describe: describeUrls,
+            describe: describeContents,
             requirement_id: taskForm.requirement_id,
             requirement_name: taskForm.requirement_name,
             priority: taskForm.priority,
             estimated_time: taskForm.estimated_time,
+            default_person: taskForm.default_person,
             attachment: allFiles.length > 0 ? allFiles : undefined
           });
         }

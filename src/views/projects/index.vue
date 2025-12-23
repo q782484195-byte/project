@@ -62,12 +62,12 @@
         <div class="card-header">
           <div class="project-info">
             <h3>{{ project.name }}</h3>
-            <el-tag :type="getStatusTagType(project.status)" size="small">
+            <el-tag :type="getStatusTagType(project.status)">
               {{ getStatusText(project.status) }}
             </el-tag>
           </div>
           <el-dropdown trigger="hover" @command="handleCommand($event, project)" @click.stop>
-            <el-button type="text" size="small">
+            <el-button type="text">
               <el-icon>
                 <MoreFilled />
               </el-icon>
@@ -75,8 +75,8 @@
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item v-if="hasPerms(['project:update'])" command="edit">编辑项目</el-dropdown-item>
-                <!-- <el-dropdown-item command="members">管理成员</el-dropdown-item> -->
-                <el-dropdown-item v-if="hasPerms(['project:delete'])" command="delete" divided>删除项目</el-dropdown-item>
+                <el-dropdown-item v-if="hasPerms(['project:delete_project'])" command="delete"
+                  divided>删除项目</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -212,10 +212,28 @@ const loadProjects = async () => {
         // 处理 describe 数组，转换为描述文本（用于列表显示）
         let description = "";
         if (item.describe && Array.isArray(item.describe)) {
-          description = item.describe
-            .filter((d: any) => d.type === "text")
-            .map((d: any) => d.content)
-            .join("\n");
+          if (item.describe.length > 0) {
+            if (typeof item.describe[0] === "string") {
+              // 字符串数组，直接提取文本（过滤掉图片URL）
+              description = item.describe
+                .filter((str: string) => {
+                  // 过滤掉图片URL
+                  const isImageUrl =
+                    (str.startsWith("http://") ||
+                      str.startsWith("https://") ||
+                      str.startsWith("/")) &&
+                    /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?|$)/i.test(str);
+                  return !isImageUrl;
+                })
+                .join("\n");
+            } else {
+              // 对象数组，提取文本类型的内容
+              description = item.describe
+                .filter((d: any) => d.type === "text")
+                .map((d: any) => d.content)
+                .join("\n");
+            }
+          }
         }
 
         // 处理状态：如果 state 包含多个状态（用逗号分隔），取第一个
@@ -224,29 +242,66 @@ const loadProjects = async () => {
           state = state.split(",")[0].trim();
         }
 
-        // 处理 describe 数组，适配 API 返回格式（可能包含 type: "image" 和 url 字段）
-        let processedDescribe = item.describe || [];
-        if (Array.isArray(processedDescribe)) {
-          processedDescribe = processedDescribe.map((d: any) => {
-            // 如果 type 是 "image" 且有 url 字段，转换为 "url" 类型
-            if (d.type === "image" && d.url) {
-              return {
-                type: "url" as const,
-                content: d.url
-              };
+        // 处理 describe 数组，适配 API 返回格式
+        // 可能是字符串数组（如 ["vvgv"]）或对象数组（如 [{type: "text", content: "..."}, {type: "image", url: "..."}]）
+        let processedDescribe: any[] = [];
+        if (item.describe && Array.isArray(item.describe)) {
+          if (item.describe.length > 0) {
+            // 判断第一个元素是字符串还是对象
+            if (typeof item.describe[0] === "string") {
+              // 字符串数组，转换为 DescribeContent[] 格式
+              processedDescribe = item.describe.map((str: string) => {
+                // 判断是否是图片 URL（以 http://、https:// 或 / 开头，且包含图片扩展名）
+                const isImageUrl =
+                  (str.startsWith("http://") ||
+                    str.startsWith("https://") ||
+                    str.startsWith("/")) &&
+                  /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?|$)/i.test(str);
+
+                if (isImageUrl) {
+                  return {
+                    type: "url" as const,
+                    content: str
+                  };
+                } else {
+                  return {
+                    type: "text" as const,
+                    content: str
+                  };
+                }
+              });
+            } else {
+              // 对象数组，处理 type: "image" 和 type: "url" 的情况
+              processedDescribe = item.describe.map((d: any) => {
+                // 如果 type 是 "image" 且有 url 字段，转换为 "url" 类型
+                if (d.type === "image" && d.url) {
+                  return {
+                    type: "url" as const,
+                    content: d.url
+                  };
+                }
+                // 如果 type 是 "url" 且有 url 字段，使用 url 作为 content
+                if (d.type === "url" && d.url && !d.content) {
+                  return {
+                    type: "url" as const,
+                    content: d.url
+                  };
+                }
+                // 如果已经是正确的格式（有 type 和 content），直接返回
+                if (d.type && d.content) {
+                  return d;
+                }
+                // 其他情况，尝试转换为文本类型
+                return {
+                  type: "text" as const,
+                  content: typeof d === "string" ? d : d.content || d.url || ""
+                };
+              });
             }
-            // 如果 type 是 "url" 且有 url 字段，使用 url 作为 content
-            if (d.type === "url" && d.url && !d.content) {
-              return {
-                type: "url" as const,
-                content: d.url
-              };
-            }
-            return d;
-          });
+          }
         }
 
-        return {
+        const convertedProject = {
           id: item._id || item.project_id || item.id,
           name: item.project_name || item.name,
           description: description || item.description || "",
@@ -281,6 +336,8 @@ const loadProjects = async () => {
           updatedAt:
             item.updated_at || item.updatedAt || new Date().toISOString()
         } as Project;
+
+        return convertedProject;
       });
       totalProjects.value = projectList.length;
     } else {
@@ -336,6 +393,9 @@ const handleCommand = async (command: string, project: Project) => {
     case "edit":
       editProject(project);
       break;
+    case "change_status":
+      changeProjectStatus(project);
+      break;
     case "members":
       manageMembers(project);
       break;
@@ -349,6 +409,11 @@ const handleCommand = async (command: string, project: Project) => {
 const editProject = (project: Project) => {
   editingProject.value = project;
   showProjectDialog.value = true;
+};
+
+// 更改项目状态
+const changeProjectStatus = (project: Project) => {
+  console.log(project);
 };
 
 // 管理成员

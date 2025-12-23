@@ -22,15 +22,16 @@ export default {
         roles: ["Admin", "ProjectManager", "Member", "DepartmentManager"]
       }
     },
-    // {
-    //   path: "/tasks/my-tasks",
-    //   name: "MyTasks",
-    //   component: () => import("@/views/tasks/my-tasks.vue"),
-    //   meta: {
-    //     title: "我的任务",
-    //     showLink: true
-    //   }
-    // },
+    {
+      path: "/tasks/time-tracking",
+      name: "TimeTracking",
+      component: () => import("@/views/tasks/time-tracking.vue"),
+      meta: {
+        title: "工时统计",
+        showLink: true,
+        roles: ["Admin", "ProjectManager", "DepartmentManager"]
+      }
+    },
     {
       path: "/tasks/detail/:id",
       name: "TaskDetail",

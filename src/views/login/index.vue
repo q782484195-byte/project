@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import Motion from "./utils/motion";
 import { useRouter } from "vue-router";
 import { message } from "@/utils/message";
 import { loginRules } from "./utils/rule";
@@ -45,7 +44,9 @@ const { initStorage } = useLayout();
 initStorage();
 
 const { dataTheme, overallStyle, dataThemeChange } = useDataThemeChange();
-dataThemeChange(overallStyle.value);
+// 确保 overallStyle.value 有值后再调用
+const overallStyleValue = overallStyle.value ?? "light";
+dataThemeChange(overallStyleValue);
 const { title } = useNav();
 
 const ruleForm = reactive({
@@ -124,14 +125,26 @@ const onLogin = async (formEl: FormInstance | undefined) => {
             saveAccount(ruleForm.username, ruleForm.password);
             loadSavedAccounts();
             // 获取后端路由
-            return initRouter().then(() => {
+            return initRouter().then(async () => {
               disabled.value = true;
-              router
-                .push(getTopMenu(true).path)
-                .then(() => {
+              try {
+                const topMenu = await getTopMenu(true);
+                if (topMenu && topMenu.path) {
+                  router
+                    .push(topMenu.path)
+                    .then(() => {
+                      message("登录成功", { type: "success" });
+                    })
+                    .finally(() => (disabled.value = false));
+                } else {
+                  disabled.value = false;
                   message("登录成功", { type: "success" });
-                })
-                .finally(() => (disabled.value = false));
+                }
+              } catch (error) {
+                console.error("获取顶部菜单失败:", error);
+                disabled.value = false;
+                message("登录成功", { type: "success" });
+              }
             });
           } else {
             // 显示后端返回的错误信息，如果没有则显示默认提示
@@ -165,13 +178,8 @@ useEventListener(document, "keydown", ({ code }) => {
     <img :src="bg" class="wave" />
     <div class="flex-c absolute right-5 top-3">
       <!-- 主题 -->
-      <el-switch
-        v-model="dataTheme"
-        inline-prompt
-        :active-icon="dayIcon"
-        :inactive-icon="darkIcon"
-        @change="dataThemeChange"
-      />
+      <el-switch v-model="dataTheme" inline-prompt :active-icon="dayIcon" :inactive-icon="darkIcon"
+        @change="dataThemeChange" />
     </div>
     <div class="login-container">
       <div class="img">
@@ -184,58 +192,31 @@ useEventListener(document, "keydown", ({ code }) => {
             <h2 class="outline-hidden">{{ title }}</h2>
           </Motion>
 
-          <el-form
-            ref="ruleFormRef"
-            :model="ruleForm"
-            :rules="loginRules"
-            size="large"
-          >
+          <el-form ref="ruleFormRef" :model="ruleForm" :rules="loginRules" size="large">
             <Motion :delay="100">
-              <el-form-item
-                :rules="[
-                  {
-                    required: true,
-                    message: '请输入账号',
-                    trigger: 'blur'
-                  }
-                ]"
-                prop="username"
-                class="account-form-item"
-              >
+              <el-form-item :rules="[
+                {
+                  required: true,
+                  message: '请输入账号',
+                  trigger: 'blur'
+                }
+              ]" prop="username" class="account-form-item">
                 <div ref="accountDropdownRef" class="relative">
-                  <el-input
-                    v-model="ruleForm.username"
-                    clearable
-                    placeholder="账号"
-                    :prefix-icon="useRenderIcon(User)"
-                    @focus="handleUsernameFocus"
-                    @click.stop
-                  />
+                  <el-input v-model="ruleForm.username" clearable placeholder="账号" :prefix-icon="useRenderIcon(User)"
+                    @focus="handleUsernameFocus" @click.stop />
                 </div>
                 <Teleport to="body">
-                  <div
-                    v-if="showAccountDropdown && savedAccounts.length > 0"
-                    class="account-dropdown"
-                    :style="{
-                      top: dropdownPosition.top + 'px',
-                      left: dropdownPosition.left + 'px',
-                      width: dropdownPosition.width + 'px'
-                    }"
-                    @click.stop
-                  >
-                    <div
-                      v-for="account in savedAccounts"
-                      :key="account.username"
-                      class="account-item"
-                      @click="selectAccount(account)"
-                    >
+                  <div v-if="showAccountDropdown && savedAccounts.length > 0" class="account-dropdown" :style="{
+                    top: dropdownPosition.top + 'px',
+                    left: dropdownPosition.left + 'px',
+                    width: dropdownPosition.width + 'px'
+                  }" @click.stop>
+                    <div v-for="account in savedAccounts" :key="account.username" class="account-item"
+                      @click="selectAccount(account)">
                       <span class="account-username">{{
                         account.username
                       }}</span>
-                      <el-icon
-                        class="delete-icon"
-                        @click="deleteAccount(account.username, $event)"
-                      >
+                      <el-icon class="delete-icon" @click="deleteAccount(account.username, $event)">
                         <Close />
                       </el-icon>
                     </div>
@@ -246,25 +227,14 @@ useEventListener(document, "keydown", ({ code }) => {
 
             <Motion :delay="150">
               <el-form-item prop="password">
-                <el-input
-                  v-model="ruleForm.password"
-                  clearable
-                  show-password
-                  placeholder="密码"
-                  :prefix-icon="useRenderIcon(Lock)"
-                />
+                <el-input v-model="ruleForm.password" clearable show-password placeholder="密码"
+                  :prefix-icon="useRenderIcon(Lock)" />
               </el-form-item>
             </Motion>
 
             <Motion :delay="250">
-              <el-button
-                class="w-full mt-4!"
-                size="default"
-                type="primary"
-                :loading="loading"
-                :disabled="disabled"
-                @click="onLogin(ruleFormRef)"
-              >
+              <el-button class="w-full mt-4!" size="default" type="primary" :loading="loading" :disabled="disabled"
+                @click="onLogin(ruleFormRef)">
                 登录
               </el-button>
             </Motion>

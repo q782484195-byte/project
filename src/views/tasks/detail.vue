@@ -17,101 +17,91 @@
         <el-tabs v-model="activeTab" class="detail-tabs">
           <!-- 基本信息 Tab -->
           <el-tab-pane label="基本信息" name="info">
-            <el-row :gutter="20">
-              <!-- 左侧：任务描述，占用2/3 -->
-              <el-col :span="16" :xs="24">
-                <el-card v-if="task?.describe && task.describe.length > 0" class="info-card" shadow="never">
-                  <template #header>
-                    <span>任务描述</span>
-                  </template>
-                  <div class="task-description">
-                    <template v-for="(item, index) in task.describe" :key="index">
-                      <p v-if="typeof item === 'string' && !item.startsWith('/data/')" class="description-text">
-                        {{ item }}
-                      </p>
-                      <div v-else-if="
-                        typeof item === 'string' && item.startsWith('/data/')
-                      " class="description-image">
-                        <el-image :src="getImageUrl(item)" :alt="`图片 ${index + 1}`" :preview-src-list="previewImageList"
-                          :initial-index="getImageIndex(index)" preview-teleported fit="contain"
-                          class="description-image-el" @error="handleImageError" />
-                      </div>
-                      <p v-else-if="item.type === 'text'" class="description-text">
-                        {{ item.content }}
-                      </p>
-                      <div v-else-if="item.type === 'url' || item.type === 'file'" class="description-image">
-                        <el-image :src="getImageUrl(item.content)" :alt="`图片 ${index + 1}`"
-                          :preview-src-list="previewImageList" :initial-index="getImageIndex(index)" preview-teleported
-                          fit="contain" class="description-image-el" @error="handleImageError" />
-                      </div>
-                    </template>
+            <!-- 基本信息 -->
+            <el-card class="info-card" shadow="never">
+              <template #header>
+                <span>基本信息</span>
+              </template>
+              <el-descriptions :column="2" border>
+                <el-descriptions-item label="任务名称">{{
+                  task.任务名 || task.task_name || task.title || "-"
+                }}</el-descriptions-item>
+                <el-descriptions-item label="所属项目">{{
+                  task.project_name || "-"
+                }}</el-descriptions-item>
+                <el-descriptions-item label="关联层级">{{
+                  task.requirement_name || "-"
+                }}</el-descriptions-item>
+                <el-descriptions-item label="负责人">{{
+                  task.当前处理人 || task.assignee || "-"
+                }}</el-descriptions-item>
+                <el-descriptions-item label="状态">
+                  <div style="display: flex; align-items: center; gap: 12px">
+                    <el-tag :type="getStatusType(task.状态 || task.status) || undefined" size="small">
+                      {{ task.状态 || task.status || "-" }}
+                    </el-tag>
                   </div>
-                </el-card>
-                <el-card v-else class="info-card" shadow="never">
-                  <template #header>
-                    <span>任务描述</span>
-                  </template>
-                  <el-empty description="暂无任务描述" :image-size="100" />
-                </el-card>
-              </el-col>
+                </el-descriptions-item>
+                <el-descriptions-item label="优先级">
+                  <el-tag :type="getPriorityType(task.优先级 || task.priority) || undefined
+                    " size="small">
+                    {{ task.优先级 || task.priority || "-" }}
+                  </el-tag>
+                </el-descriptions-item>
+                <el-descriptions-item label="计划工时">{{
+                  task.预计工时 || task.estimated_time || 0
+                }}
+                  天</el-descriptions-item>
+                <el-descriptions-item label="已用工时">{{
+                  task.已用工时 || task.actualHours || 0
+                }}
+                  天</el-descriptions-item>
+                <el-descriptions-item label="进度">
+                  <el-progress :percentage="task.进度 || task.progress || 0" />
+                </el-descriptions-item>
+                <el-descriptions-item v-if="task.create_time" label="创建时间">
+                  {{ task.create_time }}
+                </el-descriptions-item>
+                <el-descriptions-item v-if="task.creator" label="创建人">{{
+                  task.creator
+                }}</el-descriptions-item>
+              </el-descriptions>
+            </el-card>
 
-              <!-- 右侧：基本信息，占用1/3 -->
-              <el-col :span="8" :xs="24">
-                <el-card class="info-card" shadow="never">
-                  <template #header>
-                    <span>基本信息</span>
-                  </template>
-                  <el-descriptions :column="1" border>
-                    <el-descriptions-item label="任务名称">{{
-                      task.任务名 || task.task_name || task.title || "-"
-                    }}</el-descriptions-item>
-                    <el-descriptions-item label="所属项目">{{
-                      task.project_name || "-"
-                    }}</el-descriptions-item>
-                    <el-descriptions-item label="关联需求">{{
-                      task.requirement_name || "-"
-                    }}</el-descriptions-item>
-                    <el-descriptions-item label="负责人">{{
-                      task.指派给 || task.assignee || "-"
-                    }}</el-descriptions-item>
-                    <el-descriptions-item label="状态">
-                      <div style="display: flex; align-items: center; gap: 12px">
-                        <el-tag :type="getStatusType(task.状态 || task.status) || undefined" size="small">
-                          {{ task.状态 || task.status || "-" }}
-                        </el-tag>
-                        <el-button v-if="getNextStatus(task.状态 || task.status)" type="primary" size="small"
-                          :loading="statusFlowLoading" @click="openStatusFlowDialog">
-                          流转
-                        </el-button>
-                      </div>
-                    </el-descriptions-item>
-                    <el-descriptions-item label="优先级">
-                      <el-tag :type="getPriorityType(task.优先级 || task.priority) || undefined
-                        " size="small">
-                        {{ task.优先级 || task.priority || "-" }}
-                      </el-tag>
-                    </el-descriptions-item>
-                    <el-descriptions-item label="预计工时">{{
-                      task.预计工时 || task.estimated_time || 0
-                    }}
-                      小时</el-descriptions-item>
-                    <el-descriptions-item label="已用工时">{{
-                      task.已用工时 || task.actualHours || 0
-                    }}
-                      小时</el-descriptions-item>
-                    <el-descriptions-item label="进度">
-                      <el-progress :percentage="task.进度 || task.progress || 0" />
-                    </el-descriptions-item>
-                    <el-descriptions-item v-if="task.create_time" label="创建时间">
-                      {{ task.create_time }}
-                    </el-descriptions-item>
-                    <el-descriptions-item v-if="task.creator" label="创建人">{{
-                      task.creator
-                    }}</el-descriptions-item>
-                  </el-descriptions>
-                </el-card>
-              </el-col>
-            </el-row>
+            <!-- 任务描述 -->
+            <el-card v-if="task?.describe && task.describe.length > 0" class="info-card" shadow="never">
+              <template #header>
+                <span>任务描述</span>
+              </template>
+              <div class="task-description">
+                <template v-for="(item, index) in task.describe" :key="index">
+                  <p v-if="typeof item === 'string' && !item.startsWith('/data/')" class="description-text">
+                    {{ item }}
+                  </p>
+                  <div v-else-if="
+                    typeof item === 'string' && item.startsWith('/data/')
+                  " class="description-image">
+                    <el-image :src="getImageUrl(item)" :alt="`图片 ${index + 1}`" :preview-src-list="previewImageList"
+                      :initial-index="getImageIndex(index)" preview-teleported fit="contain"
+                      class="description-image-el" @error="handleImageError" />
+                  </div>
+                  <p v-else-if="item.type === 'text'" class="description-text">
+                    {{ item.content }}
+                  </p>
+                  <div v-else-if="item.type === 'url' || item.type === 'file'" class="description-image">
+                    <el-image :src="getImageUrl(item.content)" :alt="`图片 ${index + 1}`"
+                      :preview-src-list="previewImageList" :initial-index="getImageIndex(index)" preview-teleported
+                      fit="contain" class="description-image-el" @error="handleImageError" />
+                  </div>
+                </template>
+              </div>
+            </el-card>
+            <el-card v-else class="info-card" shadow="never">
+              <template #header>
+                <span>任务描述</span>
+              </template>
+              <el-empty description="暂无任务描述" :image-size="100" />
+            </el-card>
 
             <!-- 任务附件 -->
             <el-card v-if="task?.attachment && task.attachment.length > 0" class="info-card" shadow="never">
@@ -410,7 +400,7 @@ const openStatusFlowDialog = () => {
   if (!task.value) return;
   const nextState = getNextStatus(task.value.状态 || task.value.status);
   if (!nextState) {
-    ElMessage.warning("当前状态无法流转");
+    ElMessage.warning("当前状态无法分配");
     return;
   }
   statusFlowDialogVisible.value = true;

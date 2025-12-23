@@ -2,14 +2,30 @@ import { defineStore } from "pinia";
 import {
   type cacheType,
   store,
-  ascending,
-  getKeyList,
-  filterTree,
-  constantMenus,
-  filterNoPermissionTree,
-  formatFlatteningRoutes
+  getKeyList
 } from "../utils";
+import { constantMenus } from "@/router";
 import { useMultiTagsStoreHook } from "./multiTags";
+// 动态导入工具函数，避免循环依赖
+let routerUtilsCache: {
+  ascending: (arr: any[]) => any[];
+  filterTree: (data: any[]) => any[];
+  filterNoPermissionTree: (data: any[]) => any[];
+  formatFlatteningRoutes: (routesList: any[]) => any[];
+} | null = null;
+
+async function getRouterUtils() {
+  if (!routerUtilsCache) {
+    const routerUtils = await import("@/router/utils");
+    routerUtilsCache = {
+      ascending: routerUtils.ascending,
+      filterTree: routerUtils.filterTree,
+      filterNoPermissionTree: routerUtils.filterNoPermissionTree,
+      formatFlatteningRoutes: routerUtils.formatFlatteningRoutes
+    };
+  }
+  return routerUtilsCache;
+}
 
 export const usePermissionStore = defineStore("pure-permission", {
   state: () => ({
@@ -24,13 +40,14 @@ export const usePermissionStore = defineStore("pure-permission", {
   }),
   actions: {
     /** 组装整体路由生成的菜单 */
-    handleWholeMenus(routes: any[]) {
-      const filteredMenus = filterNoPermissionTree(
-        filterTree(ascending(this.constantMenus.concat(routes)))
+    async handleWholeMenus(routes: any[]) {
+      const utils = await getRouterUtils();
+      const filteredMenus = utils.filterNoPermissionTree(
+        utils.filterTree(utils.ascending(this.constantMenus.concat(routes)))
       );
       this.wholeMenus = filteredMenus;
 
-      this.flatteningRoutes = formatFlatteningRoutes(
+      this.flatteningRoutes = utils.formatFlatteningRoutes(
         this.constantMenus.concat(routes) as any
       );
     },

@@ -57,14 +57,14 @@ const markValue = ref($storage.configure?.showModel ?? "smart");
 const logoVal = ref($storage.configure?.showLogo ?? true);
 
 const settings = reactive({
-  greyVal: $storage.configure.grey,
-  weakVal: $storage.configure.weak,
-  tabsVal: $storage.configure.hideTabs,
-  showLogo: $storage.configure.showLogo,
-  showModel: $storage.configure.showModel,
-  hideFooter: $storage.configure.hideFooter,
-  multiTagsCache: $storage.configure.multiTagsCache,
-  stretch: $storage.configure.stretch
+  greyVal: $storage?.configure?.grey ?? false,
+  weakVal: $storage?.configure?.weak ?? false,
+  tabsVal: $storage?.configure?.hideTabs ?? false,
+  showLogo: $storage?.configure?.showLogo ?? true,
+  showModel: $storage?.configure?.showModel ?? "smart",
+  hideFooter: $storage?.configure?.hideFooter ?? true,
+  multiTagsCache: $storage?.configure?.multiTagsCache ?? false,
+  stretch: $storage?.configure?.stretch ?? false
 });
 
 const getThemeColorStyle = computed(() => {
@@ -81,6 +81,9 @@ const showThemeColors = computed(() => {
 });
 
 function storageConfigureChange<T>(key: string, val: T): void {
+  if (!$storage || !$storage.configure) {
+    return;
+  }
   const storageConfigure = $storage.configure;
   storageConfigure[key] = val;
   $storage.configure = storageConfigure;
@@ -316,12 +319,8 @@ onUnmounted(() => removeMatchMedia);
   <LayPanel>
     <div class="p-5">
       <p :class="pClass">整体风格</p>
-      <Segmented
-        resize
-        class="select-none"
-        :modelValue="overallStyle === 'system' ? 2 : dataTheme ? 1 : 0"
-        :options="themeOptions"
-        @change="
+      <Segmented resize class="select-none" :modelValue="overallStyle === 'system' ? 2 : dataTheme ? 1 : 0"
+        :options="themeOptions" @change="
           theme => {
             theme.index === 1 && theme.index !== 2
               ? (dataTheme = true)
@@ -330,23 +329,13 @@ onUnmounted(() => removeMatchMedia);
             dataThemeChange(theme.option.theme);
             theme.index === 2 && watchSystemThemeChange();
           }
-        "
-      />
+        " />
 
       <p :class="['mt-5!', pClass]">主题色</p>
       <ul class="theme-color">
-        <li
-          v-for="(item, index) in themeColors"
-          v-show="showThemeColors(item.themeColor)"
-          :key="index"
-          :style="getThemeColorStyle(item.color)"
-          @click="setLayoutThemeColor(item.themeColor)"
-        >
-          <el-icon
-            style="margin: 0.1em 0.1em 0 0"
-            :size="17"
-            :color="getThemeColor(item.themeColor)"
-          >
+        <li v-for="(item, index) in themeColors" v-show="showThemeColors(item.themeColor)" :key="index"
+          :style="getThemeColorStyle(item.color)" @click="setLayoutThemeColor(item.themeColor)">
+          <el-icon style="margin: 0.1em 0.1em 0 0" :size="17" :color="getThemeColor(item.themeColor)">
             <IconifyIconOffline :icon="Check" />
           </el-icon>
         </li>
@@ -354,41 +343,24 @@ onUnmounted(() => removeMatchMedia);
 
       <p :class="['mt-5!', pClass]">导航模式</p>
       <ul class="pure-theme">
-        <li
-          ref="verticalRef"
-          v-tippy="{
-            content: '左侧菜单，亲切熟悉',
-            zIndex: 41000
-          }"
-          :class="layoutTheme.layout === 'vertical' ? 'is-select' : ''"
-          @click="setLayoutModel('vertical')"
-        >
+        <li ref="verticalRef" v-tippy="{
+          content: '左侧菜单，亲切熟悉',
+          zIndex: 41000
+        }" :class="layoutTheme.layout === 'vertical' ? 'is-select' : ''" @click="setLayoutModel('vertical')">
           <div />
           <div />
         </li>
-        <li
-          v-if="device !== 'mobile'"
-          ref="horizontalRef"
-          v-tippy="{
-            content: '顶部菜单，简洁概览',
-            zIndex: 41000
-          }"
-          :class="layoutTheme.layout === 'horizontal' ? 'is-select' : ''"
-          @click="setLayoutModel('horizontal')"
-        >
+        <li v-if="device !== 'mobile'" ref="horizontalRef" v-tippy="{
+          content: '顶部菜单，简洁概览',
+          zIndex: 41000
+        }" :class="layoutTheme.layout === 'horizontal' ? 'is-select' : ''" @click="setLayoutModel('horizontal')">
           <div />
           <div />
         </li>
-        <li
-          v-if="device !== 'mobile'"
-          ref="mixRef"
-          v-tippy="{
-            content: '混合菜单，灵活多变',
-            zIndex: 41000
-          }"
-          :class="layoutTheme.layout === 'mix' ? 'is-select' : ''"
-          @click="setLayoutModel('mix')"
-        >
+        <li v-if="device !== 'mobile'" ref="mixRef" v-tippy="{
+          content: '混合菜单，灵活多变',
+          zIndex: 41000
+        }" :class="layoutTheme.layout === 'mix' ? 'is-select' : ''" @click="setLayoutModel('mix')">
           <div />
           <div />
         </li>
@@ -396,118 +368,54 @@ onUnmounted(() => removeMatchMedia);
 
       <span v-if="useAppStoreHook().getViewportWidth > 1280">
         <p :class="['mt-5!', pClass]">页宽</p>
-        <Segmented
-          resize
-          class="mb-2 select-none"
-          :modelValue="isNumber(settings.stretch) ? 1 : 0"
-          :options="stretchTypeOptions"
-          @change="stretchTypeChange"
-        />
-        <el-input-number
-          v-if="isNumber(settings.stretch)"
-          v-model="settings.stretch as number"
-          :min="1280"
-          :max="1600"
-          controls-position="right"
-          @change="value => setStretch(value)"
-        />
-        <button
-          v-else
-          v-ripple="{ class: 'text-gray-300' }"
+        <Segmented resize class="mb-2 select-none" :modelValue="isNumber(settings.stretch) ? 1 : 0"
+          :options="stretchTypeOptions" @change="stretchTypeChange" />
+        <el-input-number v-if="isNumber(settings.stretch)" v-model="settings.stretch as number" :min="1280" :max="1600"
+          controls-position="right" @change="value => setStretch(value)" />
+        <button v-else v-ripple="{ class: 'text-gray-300' }"
           class="bg-transparent flex-c w-full h-20 rounded-md border border-[var(--pure-border-color)]"
-          @click="setStretch(!settings.stretch)"
-        >
-          <div
-            class="flex-bc transition-all duration-300"
-            :class="[settings.stretch ? 'w-[24%]' : 'w-[50%]']"
-            style="color: var(--el-color-primary)"
-          >
-            <IconifyIconOffline
-              :icon="settings.stretch ? RightArrow : LeftArrow"
-            />
-            <div
-              class="grow border-0 border-b border-dashed"
-              style="border-color: var(--el-color-primary)"
-            />
-            <IconifyIconOffline
-              :icon="settings.stretch ? LeftArrow : RightArrow"
-            />
+          @click="setStretch(!settings.stretch)">
+          <div class="flex-bc transition-all duration-300" :class="[settings.stretch ? 'w-[24%]' : 'w-[50%]']"
+            style="color: var(--el-color-primary)">
+            <IconifyIconOffline :icon="settings.stretch ? RightArrow : LeftArrow" />
+            <div class="grow border-0 border-b border-dashed" style="border-color: var(--el-color-primary)" />
+            <IconifyIconOffline :icon="settings.stretch ? LeftArrow : RightArrow" />
           </div>
         </button>
       </span>
 
       <p :class="['mt-4!', pClass]">页签风格</p>
-      <Segmented
-        resize
-        class="select-none"
-        :modelValue="markValue === 'smart' ? 0 : markValue === 'card' ? 1 : 2"
-        :options="markOptions"
-        @change="onChange"
-      />
+      <Segmented resize class="select-none" :modelValue="markValue === 'smart' ? 0 : markValue === 'card' ? 1 : 2"
+        :options="markOptions" @change="onChange" />
 
       <p class="mt-5! font-medium text-sm dark:text-white">界面显示</p>
       <ul class="setting">
         <li>
           <span class="dark:text-white">灰色模式</span>
-          <el-switch
-            v-model="settings.greyVal"
-            inline-prompt
-            active-text="开"
-            inactive-text="关"
-            @change="greyChange"
-          />
+          <el-switch v-model="settings.greyVal" inline-prompt active-text="开" inactive-text="关" @change="greyChange" />
         </li>
         <li>
           <span class="dark:text-white">色弱模式</span>
-          <el-switch
-            v-model="settings.weakVal"
-            inline-prompt
-            active-text="开"
-            inactive-text="关"
-            @change="weekChange"
-          />
+          <el-switch v-model="settings.weakVal" inline-prompt active-text="开" inactive-text="关" @change="weekChange" />
         </li>
         <li>
           <span class="dark:text-white">隐藏标签页</span>
-          <el-switch
-            v-model="settings.tabsVal"
-            inline-prompt
-            active-text="开"
-            inactive-text="关"
-            @change="tagsChange"
-          />
+          <el-switch v-model="settings.tabsVal" inline-prompt active-text="开" inactive-text="关" @change="tagsChange" />
         </li>
         <li>
           <span class="dark:text-white">隐藏页脚</span>
-          <el-switch
-            v-model="settings.hideFooter"
-            inline-prompt
-            active-text="开"
-            inactive-text="关"
-            @change="hideFooterChange"
-          />
+          <el-switch v-model="settings.hideFooter" inline-prompt active-text="开" inactive-text="关"
+            @change="hideFooterChange" />
         </li>
         <li>
           <span class="dark:text-white">Logo</span>
-          <el-switch
-            v-model="logoVal"
-            inline-prompt
-            :active-value="true"
-            :inactive-value="false"
-            active-text="开"
-            inactive-text="关"
-            @change="logoChange"
-          />
+          <el-switch v-model="logoVal" inline-prompt :active-value="true" :inactive-value="false" active-text="开"
+            inactive-text="关" @change="logoChange" />
         </li>
         <li>
           <span class="dark:text-white">页签持久化</span>
-          <el-switch
-            v-model="settings.multiTagsCache"
-            inline-prompt
-            active-text="开"
-            inactive-text="关"
-            @change="multiTagsCacheChange"
-          />
+          <el-switch v-model="settings.multiTagsCache" inline-prompt active-text="开" inactive-text="关"
+            @change="multiTagsCacheChange" />
         </li>
       </ul>
     </div>

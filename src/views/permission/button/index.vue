@@ -25,13 +25,11 @@ defineOptions({
             拥有code：['permission:btn:edit'] 权限可见
           </el-button>
         </Auth>
-        <Auth
-          :value="[
-            'permission:btn:add',
-            'permission:btn:edit',
-            'permission:btn:delete'
-          ]"
-        >
+        <Auth :value="[
+          'permission:btn:add',
+          'permission:btn:edit',
+          'permission:btn:delete'
+        ]">
           <el-button plain type="danger">
             拥有code：['permission:btn:add', 'permission:btn:edit',
             'permission:btn:delete'] 权限可见
@@ -51,17 +49,13 @@ defineOptions({
         <el-button v-if="hasAuth(['permission:btn:edit'])" plain type="primary">
           拥有code：['permission:btn:edit'] 权限可见
         </el-button>
-        <el-button
-          v-if="
-            hasAuth([
-              'permission:btn:add',
-              'permission:btn:edit',
-              'permission:btn:delete'
-            ])
-          "
-          plain
-          type="danger"
-        >
+        <el-button v-if="
+          hasAuth([
+            'permission:btn:add',
+            'permission:btn:edit',
+            'permission:btn:delete'
+          ])
+        " plain type="danger">
           拥有code：['permission:btn:add', 'permission:btn:edit',
           'permission:btn:delete'] 权限可见
         </el-button>
@@ -81,15 +75,11 @@ defineOptions({
         <el-button v-auth="['permission:btn:edit']" plain type="primary">
           拥有code：['permission:btn:edit'] 权限可见
         </el-button>
-        <el-button
-          v-auth="[
-            'permission:btn:add',
-            'permission:btn:edit',
-            'permission:btn:delete'
-          ]"
-          plain
-          type="danger"
-        >
+        <el-button v-auth="[
+          'permission:btn:add',
+          'permission:btn:edit',
+          'permission:btn:delete'
+        ]" plain type="danger">
           拥有code：['permission:btn:add', 'permission:btn:edit',
           'permission:btn:delete'] 权限可见
         </el-button>

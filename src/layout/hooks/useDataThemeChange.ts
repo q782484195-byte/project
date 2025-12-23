@@ -32,41 +32,57 @@ export function useDataThemeChange() {
   ]);
 
   const { $storage } = useGlobal<GlobalPropertiesApi>();
-  const dataTheme = ref<boolean>($storage?.layout?.darkMode);
-  const overallStyle = ref<string>($storage?.layout?.overallStyle);
+  const dataTheme = ref<boolean>($storage?.layout?.darkMode ?? false);
+  const overallStyle = ref<string>($storage?.layout?.overallStyle ?? "light");
   const body = document.documentElement as HTMLElement;
 
   function toggleClass(flag: boolean, clsName: string, target?: HTMLElement) {
     const targetEl = target || document.body;
-    let { className } = targetEl;
+    if (!targetEl) return;
+    let className = targetEl.className || "";
+    // 确保 className 是字符串
+    if (typeof className !== "string") {
+      className = String(className || "");
+    }
     className = className.replace(clsName, "").trim();
-    targetEl.className = flag ? `${className} ${clsName}` : className;
+    targetEl.className = flag ? `${className} ${clsName}`.trim() : className;
   }
 
   /** 设置导航主题色 */
   function setLayoutThemeColor(
-    theme = getConfig().Theme ?? "light",
+    theme = getConfig()?.Theme ?? "light",
     isClick = true
   ) {
-    layoutTheme.value.theme = theme;
-    document.documentElement.setAttribute("data-theme", theme);
+    if (!layoutTheme.value) return;
+    // 确保 theme 是字符串
+    const themeValue = typeof theme === "string" ? theme : "light";
+    layoutTheme.value.theme = themeValue;
+    document.documentElement.setAttribute("data-theme", themeValue);
     // 如果非isClick，保留之前的themeColor
-    const storageThemeColor = $storage.layout.themeColor;
+    const storageThemeColor = $storage?.layout?.themeColor ?? "light";
+    if (!$storage?.layout) {
+      $storage.layout = {};
+    }
     $storage.layout = {
-      layout: layout.value,
-      theme,
-      darkMode: dataTheme.value,
-      sidebarStatus: $storage.layout?.sidebarStatus,
-      epThemeColor: $storage.layout?.epThemeColor,
-      themeColor: isClick ? theme : storageThemeColor,
-      overallStyle: overallStyle.value
+      layout: layout.value ?? "vertical",
+      theme: themeValue,
+      darkMode: dataTheme.value ?? false,
+      sidebarStatus: $storage.layout?.sidebarStatus ?? true,
+      epThemeColor: $storage.layout?.epThemeColor ?? "#409EFF",
+      themeColor: isClick ? themeValue : (storageThemeColor || "light"),
+      overallStyle: overallStyle.value ?? "light"
     };
 
-    if (theme === "default" || theme === "light") {
-      setEpThemeColor(getConfig().EpThemeColor);
+    if (themeValue === "default" || themeValue === "light") {
+      const epThemeColor = getConfig()?.EpThemeColor ?? "#409EFF";
+      setEpThemeColor(epThemeColor);
     } else {
-      const colors = themeColors.value.find(v => v.themeColor === theme);
-      setEpThemeColor(colors.color);
+      const colors = themeColors.value.find(v => v.themeColor === themeValue);
+      if (colors) {
+        setEpThemeColor(colors.color);
+      } else {
+        setEpThemeColor("#409EFF");
+      }
     }
   }
 
@@ -91,17 +107,21 @@ export function useDataThemeChange() {
 
   /** 浅色、深色整体风格切换 */
   function dataThemeChange(overall?: string) {
-    overallStyle.value = overall;
-    if (useEpThemeStoreHook().epTheme === "light" && dataTheme.value) {
+    // 确保 overall 有默认值
+    overallStyle.value = overall ?? "light";
+    const epThemeStore = useEpThemeStoreHook();
+    if (!epThemeStore) return;
+
+    if (epThemeStore.epTheme === "light" && dataTheme.value) {
       setLayoutThemeColor("default", false);
     } else {
-      setLayoutThemeColor(useEpThemeStoreHook().epTheme, false);
+      setLayoutThemeColor(epThemeStore.epTheme, false);
     }
 
     if (dataTheme.value) {
       document.documentElement.classList.add("dark");
     } else {
-      if ($storage.layout.themeColor === "light") {
+      if ($storage?.layout?.themeColor === "light") {
         setLayoutThemeColor("light", false);
       }
       document.documentElement.classList.remove("dark");

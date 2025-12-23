@@ -14,11 +14,7 @@ import {
   type UserListResponse,
   type AddUserParams
 } from "@/api/system";
-import Add from "~icons/ep/plus";
-import Edit from "~icons/ep/edit";
-import Delete from "~icons/ep/delete";
-import Refresh from "~icons/ep/refresh";
-import Search from "~icons/ep/search";
+import { Plus as Add, Edit, Delete, Refresh, Search } from "@element-plus/icons-vue";
 
 defineOptions({
   name: "SystemUser"
@@ -44,16 +40,16 @@ const formData = reactive<{
   id?: number;
   username: string;
   password: string;
-  departmentName: string;
+  department: string;
   role: string[];
-  workchat_name: string;
+  workchat_username: string;
 }>({
   id: undefined,
   username: "",
   password: "",
-  departmentName: "",
+  department: "",
   role: [],
-  workchat_name: ""
+  workchat_username: ""
 });
 
 const formRules: FormRules = {
@@ -77,7 +73,7 @@ const formRules: FormRules = {
     }
   ],
 
-  departmentName: [
+  department: [
     { required: true, message: "请选择部门", trigger: "change" }
   ],
   role: [
@@ -122,7 +118,7 @@ const columns = [
   // },
   {
     label: "部门",
-    prop: "departmentName",
+    prop: "department",
     minWidth: 120
   },
   {
@@ -195,8 +191,9 @@ const loadData = async () => {
         username: user.username,
         password: user.password,
         // email: user.email || "",
-        departmentName: user.department || "",
-        role: user.role?.[0] || ""
+        department: user.department || "",
+        role: user.role?.[0] || "",
+        workchat_username: user.workchat_username || ""
       }));
     } else {
       message(response.message || "获取用户列表失败", { type: "error" });
@@ -220,16 +217,17 @@ const handleAdd = () => {
 const handleEdit = (row: User) => {
   dialogTitle.value = "编辑用户";
   isEdit.value = true;
-  // 处理编辑时的数据格式：role 需要转换为数组，departmentName 需要转换为字符串
+  // 处理编辑时的数据格式：role 需要转换为数组， department 需要转换为字符串
   const editData = {
     ...row,
     password: "",
-    departmentName: row.departmentName
-      ? Array.isArray(row.departmentName)
-        ? row.departmentName[0]
-        : row.departmentName
+    department: row.department
+      ? Array.isArray(row.department)
+        ? row.department[0]
+        : row.department
       : "",
-    role: row.role ? (Array.isArray(row.role) ? row.role : [row.role]) : []
+    role: row.role ? (Array.isArray(row.role) ? row.role : [row.role]) : [],
+    workchat_username: row.workchat_username || ""
   };
   Object.assign(formData, editData);
   dialogVisible.value = true;
@@ -286,8 +284,8 @@ const handleSave = async () => {
             username: formData.username,
             password: formData.password,
             role: Array.isArray(formData.role) ? formData.role : [],
-            department: formData.departmentName || "",
-            workchat_name: formData.workchat_name || ""
+            department: formData.department || "",
+            workchat_username: formData.workchat_username || ""
           };
           response = await addUser(submitData);
         }
@@ -310,9 +308,9 @@ const resetForm = () => {
   formData.id = undefined;
   formData.username = "";
   formData.password = "";
-  formData.departmentName = "";
+  formData.department = "";
   formData.role = [];
-  formData.workchat_name = "";
+  formData.workchat_username = "";
   formRef.value?.resetFields();
 };
 
@@ -408,18 +406,18 @@ onMounted(() => {
           <el-input v-model="formData.password" type="password" :placeholder="isEdit ? '不修改请留空' : '请输入密码'" clearable
             show-password />
         </el-form-item>
-        <el-form-item label="部门" prop="departmentName">
-          <el-select v-model="formData.departmentName" placeholder="请选择部门" clearable style="width: 100%">
+        <el-form-item label="部门" prop="department">
+          <el-select v-model="formData.department" placeholder="请选择部门" clearable style="width: 100%">
             <el-option v-for="dept in departmentList" :key="dept" :label="dept" :value="dept" />
           </el-select>
         </el-form-item>
         <el-form-item label="角色" prop="role">
-          <el-select v-model="formData.role" placeholder="请选择角色" clearable multiple style="width: 100%">
+          <el-select v-model="formData.role" placeholder="请选择角色" clearable style="width: 100%">
             <el-option v-for="(label, value) in roleMap" :key="value" :label="label" :value="value" />
           </el-select>
         </el-form-item>
-        <el-form-item label="企业微信名" prop="workchat_name">
-          <el-input v-model="formData.workchat_name" placeholder="请输入企业微信名" clearable />
+        <el-form-item label="企业微信名" prop="workchat_username">
+          <el-input v-model="formData.workchat_username" placeholder="请输入企业微信名" clearable />
         </el-form-item>
       </el-form>
       <template #footer>

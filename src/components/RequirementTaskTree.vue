@@ -1,131 +1,43 @@
 <template>
-  <div class="requirement-task-tree registry-style">
-    <!-- 左右分栏布局，类似 Windows 注册表编辑器 -->
-    <div class="registry-container">
-      <!-- 左侧：树形路径面板（类似注册表的键路径） -->
-      <div class="registry-left-panel">
-        <div class="panel-header">
-          <span class="header-title">需求路径</span>
-        </div>
-        <div class="tree-container">
-          <RequirementTaskNode v-for="(value, key) in processedData" :key="key" :node-key="key" :node-data="value"
-            :parent-path="categoryName" :project-id="projectId" :project-name="projectName"
-            :selected-path="selectedPath" @add="handleAdd" @edit="handleEdit" @delete="handleDelete"
-            @refresh="handleRefresh" @select="handleNodeSelect" />
-        </div>
-      </div>
-
-      <!-- 分隔条 -->
-      <div class="registry-divider" @mousedown="handleDividerMouseDown"></div>
-
-      <!-- 右侧：任务详情面板（类似注册表的值列表） -->
-      <div class="registry-right-panel">
-        <div class="panel-header">
-          <span class="header-title">任务列表</span>
-          <div class="header-actions" v-if="selectedRequirement">
-            <el-button type="primary" size="small" @click="handleAddTask">
-              <el-icon>
-                <Plus />
-              </el-icon>
-              添加任务
-            </el-button>
-            <el-button type="primary" link size="small" @click="handleEditRequirement">
-              <el-icon>
-                <Edit />
-              </el-icon>
-              编辑需求
-            </el-button>
-          </div>
-        </div>
-        <div class="content-container">
-          <div v-if="!selectedRequirement" class="empty-state">
-            <el-empty description="请从左侧选择一个需求查看任务列表" />
-          </div>
-          <div v-else class="task-details">
-            <!-- 需求基本信息 -->
-            <div class="requirement-info">
-              <div class="info-header">
-                <h3>{{ selectedRequirement.需求名 }}</h3>
-                <div class="info-tags">
-                  <el-tag :type="getStatusTagType(selectedRequirement.状态)" size="small">
-                    {{ selectedRequirement.状态 || "未知" }}
-                  </el-tag>
-                  <el-tag v-if="selectedRequirement.优先级" type="info" size="small" style="margin-left: 8px">
-                    {{ selectedRequirement.优先级 }}
-                  </el-tag>
-                </div>
-              </div>
-              <div v-if="selectedRequirement.describe" class="info-description">
-                <div v-for="(item, index) in selectedRequirement.describe" :key="index">
-                  <p v-if="item.type === 'text'">{{ item.content }}</p>
-                  <el-image v-else-if="item.type === 'image' || item.type === 'url'" :src="item.url || item.content"
-                    fit="contain" style="max-width: 400px; max-height: 300px; margin: 8px 0" />
-                </div>
-              </div>
-              <div v-if="selectedRequirement.进度 !== undefined" class="info-progress">
-                <span>进度: {{ selectedRequirement.进度 }}%</span>
-                <el-progress :percentage="selectedRequirement.进度" :stroke-width="6"
-                  style="width: 300px; margin-left: 8px" />
-              </div>
-            </div>
-
-            <!-- 任务列表表格 -->
-            <div class="task-table-container">
-              <el-table :data="selectedRequirement.task_list || []" stripe style="width: 100%" empty-text="暂无任务">
-                <el-table-column prop="任务名" label="任务名称" min-width="200">
-                  <template #default="{ row }">
-                    <span>{{ getTaskDisplayName(row.任务名) }}</span>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="状态" label="状态" width="120">
-                  <template #default="{ row }">
-                    <el-tag :type="getStatusTagType(row.状态)" size="small">
-                      {{ row.状态 }}
-                    </el-tag>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="预计工时" label="预计工时" width="100">
-                  <template #default="{ row }">
-                    <span v-if="row.预计工时">{{ row.预计工时 }}h</span>
-                    <span v-else>-</span>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="已用工时" label="已用工时" width="100">
-                  <template #default="{ row }">
-                    <span v-if="row.已用工时">{{ row.已用工时 }}h</span>
-                    <span v-else>-</span>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="进度" label="进度" width="150">
-                  <template #default="{ row }">
-                    <div v-if="row.进度 !== undefined" style="display: flex; align-items: center;">
-                      <span style="margin-right: 8px; min-width: 40px;">{{ row.进度 }}%</span>
-                      <el-progress :percentage="row.进度" :stroke-width="4" style="flex: 1;" />
-                    </div>
-                    <span v-else>-</span>
-                  </template>
-                </el-table-column>
-                <el-table-column label="操作" width="120" fixed="right">
-                  <template #default="{ row }">
-                    <el-button type="primary" link size="small" @click="handleEditTask(row)">
-                      <el-icon>
-                        <Edit />
-                      </el-icon>
-                      编辑
-                    </el-button>
-                  </template>
-                </el-table-column>
-              </el-table>
-            </div>
-          </div>
+  <div class="requirement-task-tree">
+    <div class="form-container">
+      <!-- 直接渲染传入的分类数据（已经是单个分类下的需求数据） -->
+      <div class="section">
+        <!-- <div class="section-header">   -->
+        <!-- <h3>{{ categoryName }}</h3> -->
+        <!-- <el-button type="text" @click="toggleCollapse" class="collapse-button">
+            <el-icon style="margin-right: 4px">
+              <ArrowUp v-if="!isCollapsed" />
+              <ArrowDown v-else />
+            </el-icon>
+            {{ isCollapsed ? '展开' : '收起' }}
+          </el-button> -->
+        <!-- </div> -->
+        <div v-show="!isCollapsed" class="section-content">
+          <!-- 递归渲染子分类和需求 -->
+          <!-- 最外层不传入 parent-path，让 RequirementSection 识别为根节点 -->
+          <RequirementSection v-for="(value, key) in processedData"
+            :key="`root_${categoryName}_${String(key)}_${value?._id || key}`"
+            :ref="(el) => setSectionRef(el, String(key))" :node-key="String(key)" :node-data="value"
+            :parent-path="undefined" :project-id="projectId" :project-name="projectName"
+            :project-creator="projectCreator" :selected-path="selectedPath" @add="handleAdd" @edit="handleEdit"
+            @delete="handleDelete" @refresh="handleRefresh" @select="handleNodeSelect" />
         </div>
       </div>
     </div>
 
+    <!-- 底部保存按钮，打印所有数据 JSON -->
+    <div class="save-json-bar" v-perms="['requirement:update']" v-if="userStore.username === projectCreator">
+      <el-button type="success" class="save-json-btn" @click="handleSaveAllData">
+        保存
+      </el-button>
+    </div>
+
     <!-- 需求 Drawer -->
     <RequirementDrawer :visible="showRequirementDrawer" :project-id="projectId" :project-name="projectName"
-      :requirement="currentRequirement" :parent-path="currentRequirement ? undefined : selectedPath"
-      @update:visible="showRequirementDrawer = $event" @refresh="handleRequirementRefresh" />
+      :project-creator="projectCreator" :requirement="currentRequirement"
+      :parent-path="currentRequirement ? undefined : selectedPath" @update:visible="showRequirementDrawer = $event"
+      @refresh="handleRequirementRefresh" />
 
     <!-- 任务 Drawer -->
     <TaskDrawer :visible="showTaskDrawer" :project-id="projectId" :requirement-id="currentTaskRequirementId"
@@ -136,18 +48,45 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
-import { Edit, Plus } from "@element-plus/icons-vue";
-import RequirementTaskNode from "./RequirementTaskNode.vue";
+import { ref, computed, watch, onMounted } from "vue";
+import { ArrowUp, ArrowDown } from "@element-plus/icons-vue";
+import { ElMessage } from "element-plus";
+import { updateTaskByJson, selectAllRequirementsAndTasks } from "@/api/project";
+import RequirementSection from "./RequirementSection.vue";
 import RequirementDrawer from "./RequirementDrawer.vue";
 import TaskDrawer from "./TaskDrawer.vue";
+import { useUserStoreHook } from "@/store/modules/user";
 
 const props = defineProps<{
   data: Record<string, any>;
   categoryName: string;
   projectId?: string;
   projectName?: string;
+  projectCreator?: string;
 }>();
+
+const userStore = useUserStoreHook();
+
+// 打印项目创建人信息
+onMounted(() => {
+  console.log("=== RequirementTaskTree 项目信息 ===");
+  console.log("项目ID:", props.projectId);
+  console.log("项目名称:", props.projectName);
+  console.log("项目创建人:", props.projectCreator);
+  console.log("当前用户:", userStore.username);
+  console.log("是否匹配:", userStore.username === props.projectCreator);
+  console.log("===================================");
+});
+
+// 监听项目创建人变化
+watch(
+  () => props.projectCreator,
+  (newCreator) => {
+    console.log("项目创建人已更新:", newCreator);
+    console.log("当前用户:", userStore.username);
+    console.log("是否匹配:", userStore.username === newCreator);
+  }
+);
 
 const emit = defineEmits<{
   add: [type: "requirement" | "task", data: any, parentPath: string];
@@ -160,6 +99,19 @@ const emit = defineEmits<{
 const selectedPath = ref<string>("");
 const selectedRequirement = ref<any>(null);
 
+// 存储所有 RequirementSection 组件的引用
+const sectionRefs = ref<Record<string, any>>({});
+
+// 设置组件引用
+const setSectionRef = (el: any, key: string) => {
+  if (el) {
+    sectionRefs.value[key] = el;
+  }
+};
+
+// 展开/收起状态
+const isCollapsed = ref(false);
+
 // Drawer 控制
 const showRequirementDrawer = ref(false);
 const showTaskDrawer = ref(false);
@@ -168,27 +120,86 @@ const currentTask = ref<any>(null);
 const currentTaskRequirementId = ref<string>("");
 const currentTaskRequirementName = ref<string>("");
 
-// 左侧面板宽度（可调整）
-const leftPanelWidth = ref(300);
-
-// 直接使用原始数据，因为数据结构已经是正确的嵌套格式
+// 处理后的数据
 const processedData = computed(() => {
-  return props.data;
+  const data = props.data;
+
+  // 确保数据是对象格式
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    console.log("[RequirementTaskTree] 数据格式不正确，返回空对象");
+    return {};
+  }
+
+  const requirementTypes = ["软件任务", "硬件任务", "结构任务"];
+  const keys = Object.keys(data);
+
+  // 如果最外层键是层级类型（软件任务、硬件任务、结构任务），直接返回其子节点
+  for (const key of keys) {
+    if (requirementTypes.includes(key)) {
+      const value = data[key];
+      // 确保值是一个对象，且不是数组
+      if (value && typeof value === "object" && !Array.isArray(value)) {
+        // 检查是否有子节点（避免空对象）
+        if (Object.keys(value).length > 0) {
+          // 直接返回子节点，跳过层级类型层
+          return value;
+        }
+      }
+    }
+  }
+
+  // 如果最外层只有一个键，且这个键对应的值是一个文件夹（包含多个子节点，而不是单个需求节点），
+  // 则直接展开这个文件夹，返回其子节点
+  if (keys.length === 1) {
+    const firstKey = keys[0];
+    const firstValue = data[firstKey];
+
+    // 检查是否是文件夹（不是需求节点）
+    if (
+      firstValue &&
+      typeof firstValue === "object" &&
+      !Array.isArray(firstValue)
+    ) {
+      // 检查 firstValue 本身是否有 _id 和 需求名（需求节点的特征）
+      const hasId = "_id" in firstValue && typeof firstValue._id === "string" && firstValue._id.length > 0;
+      const hasName = "需求名" in firstValue && typeof firstValue.需求名 === "string" && firstValue.需求名.length > 0;
+
+      // 如果没有 _id 和 需求名，说明这是一个文件夹，直接返回其子节点
+      // 同时检查是否有子节点（避免空对象）
+      if ((!hasId || !hasName) && Object.keys(firstValue).length > 0) {
+        // 直接返回子节点，跳过最外层的文件夹
+        return firstValue;
+      }
+    }
+  }
+
+  return data;
 });
 
-// 查找需求节点（在处理后的数据中查找）
+// 切换展开/收起状态
+const toggleCollapse = () => {
+  isCollapsed.value = !isCollapsed.value;
+};
+
+// 查找需求节点
 const findRequirementByPath = (data: Record<string, any>, path: string): any => {
   if (!path) return null;
 
   const pathParts = path.split("/");
   let current = data;
 
-  for (let i = 0; i < pathParts.length; i++) {
+  // 如果路径的第一部分是分类名称（与 categoryName 相同），则跳过它
+  let startIndex = 0;
+  if (pathParts.length > 0 && pathParts[0] === props.categoryName) {
+    startIndex = 1;
+  }
+
+  for (let i = startIndex; i < pathParts.length; i++) {
     const part = pathParts[i];
-    if (current[part]) {
+    if (current && typeof current === "object" && !Array.isArray(current) && current[part]) {
       current = current[part];
       // 检查是否是需求节点
-      if (current._id && current.需求名 && i === pathParts.length - 1) {
+      if (current && typeof current === "object" && !Array.isArray(current) && current._id && current.需求名 && i === pathParts.length - 1) {
         return current;
       }
     } else {
@@ -203,87 +214,6 @@ const findRequirementByPath = (data: Record<string, any>, path: string): any => 
 const handleNodeSelect = (path: string, requirement: any) => {
   selectedPath.value = path;
   selectedRequirement.value = requirement;
-};
-
-// 处理分隔条拖拽
-const handleDividerMouseDown = (e: MouseEvent) => {
-  e.preventDefault();
-  const startX = e.clientX;
-  const startWidth = leftPanelWidth.value;
-
-  const handleMouseMove = (e: MouseEvent) => {
-    const diff = e.clientX - startX;
-    const newWidth = Math.max(200, Math.min(600, startWidth + diff));
-    leftPanelWidth.value = newWidth;
-  };
-
-  const handleMouseUp = () => {
-    document.removeEventListener("mousemove", handleMouseMove);
-    document.removeEventListener("mouseup", handleMouseUp);
-  };
-
-  document.addEventListener("mousemove", handleMouseMove);
-  document.addEventListener("mouseup", handleMouseUp);
-};
-
-// 获取任务显示名称
-const getTaskDisplayName = (taskName: string) => {
-  if (!taskName) return "";
-  if (typeof taskName === "string" && taskName.includes("/")) {
-    return taskName.split("/").pop() || taskName;
-  }
-  return taskName;
-};
-
-// 获取状态标签类型
-const getStatusTagType = (status: string) => {
-  const statusMap: Record<string, "success" | "warning" | "danger" | "info"> = {
-    已完成: "success",
-    审阅完毕: "success",
-    测试完毕: "success",
-    进行中: "warning",
-    任务进行中: "warning",
-    测试中: "warning",
-    审阅中: "warning",
-    草稿: "info",
-    待办: "info",
-  };
-  return statusMap[status] || "info";
-};
-
-// 添加任务
-const handleAddTask = () => {
-  if (selectedRequirement.value) {
-    currentTaskRequirementId.value = selectedRequirement.value._id || "";
-    currentTaskRequirementName.value = selectedRequirement.value.需求名 || "";
-  }
-  currentTask.value = null;
-  showTaskDrawer.value = true;
-};
-
-// 编辑需求
-const handleEditRequirement = () => {
-  if (!selectedRequirement.value) return;
-  currentRequirement.value = {
-    id: selectedRequirement.value._id,
-    title: selectedRequirement.value.需求名,
-    describe: selectedRequirement.value.describe || [],
-    status: selectedRequirement.value.状态,
-    priority: selectedRequirement.value.优先级 || "",
-    projectId: selectedRequirement.value.project_id,
-    creatorId: selectedRequirement.value.creator,
-    createdAt: selectedRequirement.value.create_time,
-    attachment: selectedRequirement.value.attachment || []
-  };
-  showRequirementDrawer.value = true;
-};
-
-// 编辑任务
-const handleEditTask = (task: any) => {
-  currentTask.value = task;
-  currentTaskRequirementId.value = task.requirement_id || selectedRequirement.value?._id || "";
-  currentTaskRequirementName.value = task.requirement_name || selectedRequirement.value?.需求名 || "";
-  showTaskDrawer.value = true;
 };
 
 // 刷新处理
@@ -327,150 +257,182 @@ const handleRefresh = () => {
     selectedRequirement.value = requirement;
   }
 };
+
+// 递归收集所有子组件的数据（包括编辑中的值）
+// 由于 RequirementSection 是递归组件，我们需要递归访问所有层级的 refs
+const collectAllData = (data: any, refs: Record<string, any>, path: string = ""): any => {
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    return data;
+  }
+
+  const result: any = {};
+
+  for (const key in data) {
+    if (Object.prototype.hasOwnProperty.call(data, key)) {
+      const value = data[key];
+      const currentPath = path ? `${path}.${key}` : key;
+
+      // 判断是否是需求节点（有 _id 和 需求名）
+      const isRequirementNode = value && typeof value === "object" && !Array.isArray(value) && value._id && value.需求名;
+
+      if (isRequirementNode) {
+        // 这是需求节点，尝试从对应的 ref 获取当前数据
+        const sectionRef = refs[currentPath];
+        if (sectionRef && typeof sectionRef.getCurrentData === "function") {
+          result[key] = sectionRef.getCurrentData();
+        } else {
+          result[key] = JSON.parse(JSON.stringify(value));
+        }
+      } else if (value && typeof value === "object" && !Array.isArray(value)) {
+        // 这是文件夹节点，递归处理
+        const sectionRef = refs[currentPath];
+        if (sectionRef && typeof sectionRef.getCurrentData === "function") {
+          const currentData = sectionRef.getCurrentData();
+          // 递归处理子节点，传递当前路径用于查找子组件的 refs
+          result[key] = collectAllData(currentData, refs, currentPath);
+        } else {
+          // 如果没有 ref，递归处理原始数据
+          result[key] = collectAllData(value, refs, currentPath);
+        }
+      } else {
+        result[key] = value;
+      }
+    }
+  }
+
+  return result;
+};
+
+// 打印所有数据的 JSON 并保存
+const handleSaveAllData = async () => {
+  try {
+    // 收集所有数据，包括编辑中的值
+    const allDataRaw = processedData.value ?? {};
+    const allData = collectAllData(allDataRaw, sectionRefs.value);
+
+    // 根据当前tab的分类名称，在最外层加上分类名称作为key
+    const result = {
+      [props.categoryName]: allData
+    };
+
+    // 转换为JSON字符串用于打印
+    const jsonString = JSON.stringify(result, null, 2);
+
+    // 打印到控制台
+    console.log("RequirementTaskTree 全部数据 JSON（包含编辑中的值）:", jsonString);
+
+    // 调用接口保存（传入JSON对象，不是字符串）
+    const response = await updateTaskByJson({
+      json_data: result
+    });
+
+    if (response.code === 200) {
+      ElMessage.success("数据保存成功");
+
+      // 保存成功后重新请求 select_all 接口刷新数据
+      if (props.projectId) {
+        try {
+          const refreshResponse = await selectAllRequirementsAndTasks({
+            project_id: props.projectId
+          });
+
+          if (refreshResponse.code === 200) {
+            // 触发 refresh 事件，让父组件更新数据
+            emit("refresh");
+          } else {
+            console.warn("刷新数据失败:", refreshResponse.message);
+          }
+        } catch (refreshError: any) {
+          console.error("刷新数据失败:", refreshError);
+          // 即使刷新失败，也触发 refresh 事件，让父组件尝试刷新
+          emit("refresh");
+        }
+      } else {
+        // 如果没有 projectId，直接触发 refresh 事件
+        emit("refresh");
+      }
+    } else {
+      ElMessage.error(response.message || "数据保存失败");
+    }
+  } catch (error: any) {
+    console.error("保存数据失败:", error);
+    ElMessage.error(error?.response?.data?.message || error?.message || "保存数据失败");
+  }
+};
 </script>
 
 <style scoped lang="scss">
-.requirement-task-tree.registry-style {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  background: #f5f5f5;
-}
-
-.registry-container {
-  display: flex;
-  height: 100%;
-  min-height: 600px;
-  background: #fff;
-  border: 1px solid #d1d1d1;
-}
-
-.registry-left-panel {
-  width: v-bind(leftPanelWidth + 'px');
-  min-width: 200px;
-  max-width: 600px;
-  display: flex;
-  flex-direction: column;
-  border-right: 1px solid #d1d1d1;
-  background: #fff;
+.requirement-task-tree {
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
   overflow: hidden;
+  min-width: 1080px;
 }
 
-.registry-divider {
-  width: 4px;
-  background: #d1d1d1;
-  cursor: col-resize;
-  flex-shrink: 0;
-  position: relative;
+.form-container {
+  padding: 32px;
+  max-height: none;
+  overflow-y: visible;
+}
+
+.section {
+  margin-bottom: 32px;
+  border: 1px solid #e4e7ed;
+  border-radius: 12px;
+  background-color: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #e4e7ed;
+  border-radius: 12px 12px 0 0;
+
+  h3 {
+    margin: 0;
+    color: #303133;
+    font-size: 18px;
+    font-weight: 600;
+  }
+}
+
+.section-content {
+  transition: all 0.3s ease;
+  padding: 24px;
+}
+
+// 收缩展开按钮样式
+.collapse-button {
+  color: #606266;
+  font-size: 14px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
 
   &:hover {
-    background: #0078d4;
-  }
-
-  &::after {
-    content: "";
-    position: absolute;
-    left: -2px;
-    right: -2px;
-    top: 0;
-    bottom: 0;
+    color: #409eff;
+    background-color: #f0f9ff;
   }
 }
 
-.registry-right-panel {
-  flex: 1;
+.save-json-bar {
   display: flex;
-  flex-direction: column;
-  background: #fff;
-  overflow: hidden;
-}
-
-.panel-header {
-  height: 32px;
-  background: #f0f0f0;
-  border-bottom: 1px solid #d1d1d1;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 8px;
-  flex-shrink: 0;
-
-  .header-title {
-    font-weight: 600;
-    font-size: 13px;
-    color: #333;
-  }
-
-  .header-actions {
-    display: flex;
-    gap: 8px;
-  }
-}
-
-.tree-container {
-  flex: 1;
-  overflow-y: auto;
-  padding: 4px;
-  font-family: "Segoe UI", sans-serif;
-  font-size: 12px;
-}
-
-.content-container {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px;
-}
-
-.empty-state {
-  display: flex;
-  align-items: center;
   justify-content: center;
-  height: 100%;
+  padding: 16px 32px;
+  border-top: 1px solid #e4e7ed;
+  background-color: #fafafa;
 }
 
-.task-details {
-  .requirement-info {
-    margin-bottom: 24px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid #e4e7ed;
-
-    .info-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 12px;
-
-      h3 {
-        margin: 0;
-        font-size: 16px;
-        font-weight: 600;
-        color: #303133;
-      }
-
-      .info-tags {
-        display: flex;
-        align-items: center;
-      }
-    }
-
-    .info-description {
-      margin: 12px 0;
-      color: #606266;
-      font-size: 14px;
-      line-height: 1.6;
-    }
-
-    .info-progress {
-      display: flex;
-      align-items: center;
-      margin-top: 12px;
-      font-size: 13px;
-      color: #909399;
-    }
-  }
-
-  .task-table-container {
-    margin-top: 16px;
-  }
+.save-json-btn {
+  min-width: 100px;
 }
 </style>

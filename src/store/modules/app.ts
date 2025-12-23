@@ -48,7 +48,15 @@ export const useAppStore = defineStore("pure-app", {
     TOGGLE_SIDEBAR(opened?: boolean, resize?: string) {
       const layout = storageLocal().getItem<StorageConfigs>(
         `${responsiveStorageNameSpace()}layout`
-      );
+      ) ?? {
+        layout: getConfig().Layout,
+        theme: getConfig().Theme ?? "light",
+        darkMode: getConfig().DarkMode ?? false,
+        sidebarStatus: getConfig().SidebarStatus ?? true,
+        epThemeColor: getConfig().EpThemeColor ?? "#409EFF",
+        themeColor: getConfig().Theme ?? "light",
+        overallStyle: getConfig().OverallStyle ?? "light"
+      };
       if (opened && resize) {
         this.sidebar.withoutAnimation = true;
         this.sidebar.opened = true;

@@ -1,13 +1,13 @@
 <template>
   <div class="requirements-page">
     <div class="page-header">
-      <h2>需求管理</h2>
+      <h2>层级管理</h2>
       <div class="header-actions">
-        <el-select v-model="selectedProjectId" placeholder="所属项目" clearable style="width: 180px"
+        <el-select v-model="selectedProjectId" placeholder="选择项目" clearable style="width: 180px"
           @change="handleProjectChange">
           <el-option v-for="project in projects" :key="project.id" :label="project.name" :value="project.id" />
         </el-select>
-        <el-select v-model="searchRequirementId" placeholder="选择需求" filterable clearable style="width: 220px"
+        <el-select v-model="searchRequirementId" placeholder="选择层级" filterable clearable style="width: 220px"
           @change="handleRequirementSelectChange" @clear="handleRequirementSelectChange">
           <el-option v-for="option in requirementOptions" :key="option.value" :label="option.label"
             :value="option.value" />
@@ -22,16 +22,16 @@
           <el-icon>
             <Plus />
           </el-icon>
-          新建需求
+          新建层级
         </el-button>
       </div>
     </div>
 
-    <!-- 需求列表 -->
+    <!-- 层级列表 -->
     <el-card v-loading="loading" class="requirements-table-card">
       <el-table :data="filteredRequirements" :style="{ width: '100%' }" height="680">
-        <el-table-column prop="requirement_name" label="需求名称" min-width="200" />
-        <el-table-column prop="project_name" label="所属项目" width="150" />
+        <el-table-column prop="requirement_name" label="层级名称" min-width="200" />
+        <el-table-column prop="project_name" label="选择项目" width="150" />
         <el-table-column prop="priority" label="优先级" width="100">
           <template #default="{ row }">
             <el-tag :type="getPriorityType(row.priority) || undefined" size="small">
@@ -77,7 +77,7 @@
         :total="totalRequirements" layout="total, sizes, prev, pager, next, jumper" />
     </div>
 
-    <!-- 新建/编辑需求抽屉 -->
+    <!-- 新建/编辑层级抽屉 -->
     <RequirementDrawer v-model:visible="showRequirementDrawer" :project-id="currentProjectId"
       :project-name="currentProjectName" :requirement="currentRequirement" @refresh="handleRequirementRefresh" />
   </div>
@@ -165,7 +165,7 @@ const currentProjectName = computed(() => {
   return project?.name || (route.query.project_name as string) || "";
 });
 
-// 过滤后的需求列表
+// 过滤后的层级列表
 const filteredRequirements = computed(() => {
   let result = requirements.value;
   if (statusFilter.value) {
@@ -306,7 +306,7 @@ const loadProjects = async () => {
   }
 };
 
-// 加载需求列表
+// 加载层级列表
 const loadRequirements = async () => {
   loading.value = true;
   try {
@@ -353,14 +353,14 @@ const loadRequirements = async () => {
       // 更新总数（使用 total_count，如果没有则使用扁平化后的数组长度）
       totalRequirements.value = response.total_count ?? flattenedResult.length;
     } else {
-      ElMessage.error(response.message || "加载需求列表失败");
+      ElMessage.error(response.message || "加载层级列表失败");
       requirements.value = [];
       totalRequirements.value = 0;
     }
   } catch (error: any) {
-    console.error("加载需求列表失败:", error);
+    console.error("加载层级列表失败:", error);
     ElMessage.error(
-      error?.response?.data?.message || error?.message || "加载需求列表失败"
+      error?.response?.data?.message || error?.message || "加载层级列表失败"
     );
     requirements.value = [];
     totalRequirements.value = 0;
@@ -401,7 +401,7 @@ const handleProjectChange = () => {
   loadRequirements();
 };
 
-// 新建需求
+// 新建层级
 const handleCreate = () => {
   // 检查是否已选择项目
   if (!selectedProjectId.value) {
@@ -435,7 +435,7 @@ const handleView = (requirement: any) => {
   });
 };
 
-// 编辑需求
+// 编辑层级
 const handleEdit = (requirement: any) => {
   // 将需求数据转换为 Requirement 类型，并保留原始数据用于编辑
   currentRequirement.value = {
@@ -554,7 +554,7 @@ watch(
   }
 );
 
-// 监听项目ID变化，自动加载需求列表
+// 监听项目ID变化，自动加载层级列表
 watch(
   () => selectedProjectId.value,
   () => {
@@ -642,7 +642,7 @@ onMounted(async () => {
   saveParamsToCache();
 
   await loadRequirementOptions();
-  // 项目列表加载完成后，会自动设置selectedProjectId，然后加载需求列表
+  // 项目列表加载完成后，会自动设置selectedProjectId，然后加载层级列表
   if (projectId.value) {
     loadRequirements();
   }

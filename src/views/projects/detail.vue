@@ -27,11 +27,12 @@
           <el-tab-pane label="项目统计" name="statistics">
             <div v-if="projectStatistics" class="statistics-content">
               <div class="statistics-header">
-                <el-button type="primary" :loading="importingRequirement" @click="handleImportRequirement">
+                <el-button type="primary" :loading="importingRequirement" v-perms="['requirement:update']"
+                  v-if="userStore.username === project.creator" @click="handleImportRequirement">
                   <el-icon>
                     <InfoFilled />
                   </el-icon>
-                  导入需求
+                  导入任务模板
                 </el-button>
                 <el-button type="primary" @click="showInfoDrawer = true">
                   <el-icon>
@@ -73,9 +74,9 @@
                   <el-tab-pane v-for="(categoryData, categoryName) in requirementsTasksData" :key="categoryName"
                     :label="categoryName" :name="categoryName">
                     <RequirementTaskTree :data="categoryData" :category-name="categoryName" :project-id="project?.id"
-                      :project-name="project?.name" @add="handleAddRequirementOrTask"
-                      @edit="handleEditRequirementOrTask" @delete="handleDeleteRequirementOrTask"
-                      @refresh="handleRequirementTaskRefresh" />
+                      :project-name="project?.name" :project-creator="project?.creator"
+                      @add="handleAddRequirementOrTask" @edit="handleEditRequirementOrTask"
+                      @delete="handleDeleteRequirementOrTask" @refresh="handleRequirementTaskRefresh" />
                   </el-tab-pane>
                 </el-tabs>
               </div>
@@ -140,7 +141,7 @@
           <el-descriptions :column="1" border>
             <el-descriptions-item label="项目名称">{{
               project.name
-            }}</el-descriptions-item>
+              }}</el-descriptions-item>
             <el-descriptions-item label="状态">
               <el-select v-model="currentStatus" :loading="statusUpdating" size="small" style="width: 120px"
                 @change="handleStatusChange">
@@ -157,13 +158,13 @@
             </el-descriptions-item>
             <el-descriptions-item label="计划开始时间">{{
               formatDate(project.startDate)
-            }}</el-descriptions-item>
+              }}</el-descriptions-item>
             <el-descriptions-item label="计划结束时间">{{
               formatDate(project.endDate)
-            }}</el-descriptions-item>
+              }}</el-descriptions-item>
             <el-descriptions-item v-if="project.createdAt" label="创建时间">{{
               formatDate(project.createdAt)
-            }}</el-descriptions-item>
+              }}</el-descriptions-item>
           </el-descriptions>
         </el-card>
 
@@ -297,7 +298,7 @@
                   <el-icon>
                     <Clock />
                   </el-icon>
-                  <span>{{ task.预计工时 }}小时</span>
+                  <span>{{ task.预计工时 }}天</span>
                 </div>
               </div>
             </div>
@@ -356,6 +357,7 @@ import {
   type TaskWithDetailItem
 } from "@/api/project";
 import { useProjectStoreHook } from "@/store/modules/project";
+import { useUserStoreHook } from "@/store/modules/user";
 import RequirementDrawer from "@/components/RequirementDrawer.vue";
 import ProjectStructureTree, { StructureTreeNode } from "@/components/ProjectStructureTree.vue";
 import RequirementTaskTree from "@/components/RequirementTaskTree.vue";
@@ -388,6 +390,7 @@ const tasksLoading = ref(false);
 const showTasksDrawer = ref(false);
 const showInfoDrawer = ref(false);
 const projectStore = useProjectStoreHook();
+const userStore = useUserStoreHook();
 const activeTab = ref<string>("statistics");
 const structureTreeData = ref<StructureTreeNode | Record<string, any> | null>(null);
 const structureTreeLoading = ref(false);
@@ -701,7 +704,7 @@ const buildStructureTree = (
 
   const requirementNodes: StructureTreeNode[] = requirementList.map(req => {
     const reqTasks = tasksMap[req._id] || [];
-    // 从原始需求列表中查找完整的需求数据
+    // 从原始层级列表中查找完整的需求数据
     const rawRequirementData = rawRequirementList?.find(r => r._id === req._id);
     return {
       id: req._id,
@@ -727,7 +730,7 @@ const buildStructureTree = (
             type: "task",
             status: task.状态 || task.status || "未知状态", // 直接使用任务的状态，不进行映射
             assignee: task.指派人 || task.assignee || task.assigneeId,
-            estimate: task.预计工时 ? `${task.预计工时} 小时` : undefined,
+            estimate: task.预计工时 ? `${task.预计工时} 天` : undefined,
             progress: task.进度 || task.progress, // 从 task_list 中获取任务进度
             rawData: rawTaskData // 保存完整的原始任务数据
           };
@@ -911,7 +914,7 @@ const loadProjectStructure = async () => {
       if (Array.isArray(response.result)) {
         const requirementList: RequirementWithTasksItem[] = response.result;
 
-        // 从需求列表中获取项目名称（如果 project.value 还没有加载完成）
+        // 从层级列表中获取项目名称（如果 project.value 还没有加载完成）
         const projectNameFromApi = requirementList.length > 0 ? requirementList[0].project_name : null;
 
         // 将 RequirementWithTasksItem 转换为 RequirementListItem 格式
@@ -972,7 +975,7 @@ const loadProjectStructure = async () => {
         // 使用 project.value?.name，如果没有则使用 API 返回的 project_name，最后才使用默认值
         const projectName = project.value?.name || projectNameFromApi || "项目详情";
 
-        // 传递原始的需求列表数据，以便在弹框中显示完整字段
+        // 传递原始的层级列表数据，以便在弹框中显示完整字段
         structureTreeData.value = buildStructureTree(convertedRequirementList, tasksMap, projectName, requirementList);
       } else if (response.result && typeof response.result === "object") {
         structureTreeData.value = response.result as Record<string, any>;
@@ -1005,7 +1008,7 @@ const handleAddRequirementOrTask = (type: "requirement" | "task", data: any, par
   // 这个事件现在由 RequirementTaskNode 内部处理，这里保留作为备用
 };
 
-// 处理编辑需求或任务
+// 处理编辑层级或任务
 const handleEditRequirementOrTask = (type: "requirement" | "task", data: any) => {
   // 这个事件现在由 RequirementTaskNode 内部处理，这里保留作为备用
 };
@@ -1024,7 +1027,7 @@ const handleRequirementTaskRefresh = () => {
   }
 };
 
-// 导入需求
+// 导入任务
 const handleImportRequirement = () => {
   // 创建文件输入元素
   const input = document.createElement("input");
@@ -1187,7 +1190,7 @@ const goToRequirementPage = () => {
 
 
 
-// 选择需求（打开任务列表抽屉）
+// 选择层级（打开任务列表抽屉）
 const selectRequirement = (requirement: Requirement) => {
   selectedRequirement.value = requirement;
   showTasksDrawer.value = true;
@@ -1197,7 +1200,7 @@ const selectRequirement = (requirement: Requirement) => {
   }
 };
 
-// 点击需求列表，跳转到需求列表页并带上参数
+// 点击层级列表，跳转到层级列表页并带上参数
 const handleRequirementClick = (requirement: Requirement) => {
   const projectIdValue = project.value?.id || projectId.value || "";
   const requirementId = requirement.id || (requirement as any)._id || "";

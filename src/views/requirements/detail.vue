@@ -62,7 +62,7 @@
                         {{ formatDate(task.create_time) }}
                       </span>
                       <span v-if="task.预计工时">
-                        预计 {{ task.预计工时 }} 小时 / 已用 {{ task.已用工时 || 0 }} 小时
+                        预计 {{ task.预计工时 }} 天 / 已用 {{ task.已用工时 || 0 }} 天
                       </span>
                     </div>
                   </div>
@@ -79,10 +79,10 @@
               <span>基本信息</span>
             </template>
             <el-descriptions :column="1" border>
-              <el-descriptions-item label="需求名称">{{
+              <el-descriptions-item label="层级名称">{{
                 requirement.requirement_name
                 }}</el-descriptions-item>
-              <el-descriptions-item label="所属项目">{{
+              <el-descriptions-item label="选择项目">{{
                 requirement.project_name
                 }}</el-descriptions-item>
               <el-descriptions-item label="优先级">
@@ -107,10 +107,10 @@
             </el-descriptions>
           </el-card>
 
-          <!-- 需求描述 -->
+          <!-- 层级描述 -->
           <el-card v-if="requirement.describe && requirement.describe.length > 0" class="info-card">
             <template #header>
-              <span>需求描述</span>
+              <span>层级描述</span>
             </template>
             <div class="requirement-description">
               <template v-for="(item, index) in requirement.describe" :key="index">
@@ -126,10 +126,10 @@
             </div>
           </el-card>
 
-          <!-- 需求附件 -->
+          <!-- 层级附件 -->
           <el-card v-if="requirement.attachment && requirement.attachment.length > 0" class="info-card">
             <template #header>
-              <span>需求附件</span>
+              <span>层级附件</span>
             </template>
             <div class="attachment-list">
               <div v-for="(attachment, index) in requirement.attachment" :key="index" class="attachment-item">
@@ -605,7 +605,7 @@ const goBack = () => {
       query: { tab: "requirements" }
     });
   } else {
-    // 默认返回到需求列表
+    // 默认返回到层级列表
     router.push({ name: "RequirementsList" });
   }
 };

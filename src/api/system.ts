@@ -14,9 +14,9 @@ export interface User {
   email?: string;
   phone?: string;
   departmentId?: number;
-  departmentName?: string;
+  department?: string;
   role?: string;
-  workchat_name?: string;
+  workchat_username?: string;
   status?: number;
   createTime?: string;
   updateTime?: string;
@@ -73,7 +73,7 @@ export const addDepartment = (department: string) => {
 };
 /** 部门用户映射类型 */
 export interface DepartmentUserMap {
-  [departmentName: string]: Array<{
+  [department: string]: Array<{
     username: string;
     password: string;
     role: string[];
@@ -128,6 +128,7 @@ export interface UserListResponse {
     role: string[];
     department: string;
     button_permissions: string[];
+    workchat_username?: string;
   }>;
 }
 
@@ -144,7 +145,7 @@ export interface AddUserParams {
   password: string;
   role: string[];
   department: string;
-  workchat_name?: string;
+  workchat_username?: string;
 }
 
 /** 新增用户 */

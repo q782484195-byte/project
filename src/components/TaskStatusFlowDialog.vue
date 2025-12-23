@@ -1,5 +1,5 @@
 <template>
-  <el-dialog v-model="dialogVisible" title="任务流转" width="500px" append-to-body>
+  <el-dialog v-model="dialogVisible" title="任务分配" width="500px" append-to-body>
     <el-form ref="formRef" :model="form" :rules="rules" label-width="90px">
       <el-form-item label="当前状态">
         <el-tag :type="getStatusType(currentStatus) || undefined">
@@ -20,8 +20,8 @@
           </el-radio-group>
         </template>
       </el-form-item>
-      <el-form-item v-if="props.task?.need_assign" label="流转给" prop="personName">
-        <el-tree-select v-model="form.personName" placeholder="请选择流转给" :loading="allUsersLoading" filterable
+      <el-form-item v-if="props.task?.need_assign" label="分配给" prop="personName">
+        <el-tree-select v-model="form.personName" placeholder="请选择分配给" :loading="allUsersLoading" filterable
           check-strictly default-expand-all :data="allUsersTree" :props="treeSelectProps" node-key="value"
           :render-after-expand="false" style="width: 100%" clearable />
       </el-form-item>
@@ -32,7 +32,7 @@
         <el-button type="primary" :loading="confirmLoading" :disabled="nextOptions.length === 0 ||
           (nextOptions.length > 1 && !selectedNextState)
           " @click="handleConfirm">
-          确认流转
+          确认分配
         </el-button>
       </span>
     </template>
@@ -46,6 +46,7 @@ import { ElMessage } from "element-plus";
 import { TaskStatus } from "@/types";
 import { updateTaskState } from "@/api/project";
 import { selectAllUsers } from "@/api/system";
+import { sendWorkchatMessage } from "@/api/report";
 import { useUserStoreHook } from "@/store/modules/user";
 
 const props = defineProps<{
@@ -85,6 +86,7 @@ type TreeNode = {
   value: string;
   disabled?: boolean;
   children?: TreeNode[];
+  userInfo?: any; // 保存完整的用户信息，用于获取 workchat_username
 };
 
 const treeSelectProps = {
@@ -212,13 +214,19 @@ const loadAllUsers = async () => {
   }
 };
 
+// 用户信息映射，用于根据 username 查找完整的用户信息
+const userInfoMap = ref<Map<string, any>>(new Map());
+
 const buildTreeData = (data: Array<Record<string, any>>): TreeNode[] => {
   if (!Array.isArray(data)) return [];
   const currentUsername = userStore.username;
   const isPendingAssignToMember = normalizedStatus.value === TaskStatus.PENDING_ASSIGN_TO_MEMBER;
 
+  // 清空之前的映射
+  userInfoMap.value.clear();
+
   return data.map(item => {
-    const [departmentName, members] = Object.entries(item)[0] || ["未分配部门", []];
+    const [department, members] = Object.entries(item)[0] || ["未分配部门", []];
     const children: TreeNode[] = Array.isArray(members)
       ? members
         .filter(user => {
@@ -231,14 +239,21 @@ const buildTreeData = (data: Array<Record<string, any>>): TreeNode[] => {
           const userValue = user.username || user.nickname;
           return userValue !== currentUsername;
         })
-        .map(user => ({
-          label: user.username || user.nickname || "未知用户",
-          value: user.username || user.nickname || `${departmentName}-${Math.random()}`
-        }))
+        .map(user => {
+          const username = user.username || user.nickname || "未知用户";
+          const value = username || `${department}-${Math.random()}`;
+          // 保存用户信息到映射中
+          userInfoMap.value.set(value, user);
+          return {
+            label: username,
+            value: value,
+            userInfo: user // 保存完整的用户信息
+          };
+        })
       : [];
     return {
-      label: departmentName,
-      value: `dept_${departmentName}`,
+      label: department,
+      value: `dept_${department}`,
       disabled: true,
       children
     };
@@ -267,14 +282,32 @@ const handleConfirm = () => {
     try {
       // 如果 need_assign 为 false，可以不传 person_name 或传空字符串
       const personName = props.task?.need_assign ? form.personName.trim() : "";
+
+      // 从用户信息映射中获取选中成员的完整信息
+      const selectedUser = userInfoMap.value.get(personName);
+
+      // 即使 workchat_username 为空也发送消息
+      // const workchatUsername = selectedUser?.workchat_username || '';
+
+      // const res = await sendWorkchatMessage({
+      //   workchat_username: workchatUsername,
+      //   current_state: currentState,
+      //   next_state: targetState,
+      //   task_id: taskId,
+      //   task_name: props.task.任务名
+      // });
+      // if (res.code !== 200) {
+      //   ElMessage.error(res.message || "发送消息失败");
+      //   return;
+      // }
       const response = await updateTaskState({
         task_id: taskId,
         current_state: currentState,
         next_state: targetState,
-        person_name: personName
+        person_name: personName || ""
       });
       if (response.code === 200) {
-        ElMessage.success("状态更新成功");
+        ElMessage.success(response.message || "状态更新成功");
         emit("success", targetState, personName);
         dialogVisible.value = false;
       } else {

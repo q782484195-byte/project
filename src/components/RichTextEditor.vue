@@ -1,6 +1,6 @@
 <template>
-  <div class="rich-text-editor">
-    <div v-if="editor" class="editor-toolbar">
+  <div class="rich-text-editor" :class="{ 'is-readonly': readonly }">
+    <div v-if="editor && !disableImageUpload && !readonly" class="editor-toolbar">
       <button type="button" @click="handleImageUpload">插入图片</button>
     </div>
     <EditorContent :editor="editor" class="editor-content" />
@@ -18,13 +18,18 @@ import { uploadFile } from "@/api/project";
 
 interface Props {
   modelValue: DescribeContent[];
+  disableImageUpload?: boolean; // 是否禁用图片上传功能
+  readonly?: boolean; // 是否只读
 }
 
 interface Emits {
   (e: "update:modelValue", value: DescribeContent[]): void;
 }
 
-const props = defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+  disableImageUpload: false,
+  readonly: false
+});
 const emit = defineEmits<Emits>();
 
 // 标志位：防止循环更新导致光标位置丢失
@@ -57,6 +62,7 @@ const editor = useEditor({
     })
   ],
   content: "",
+  editable: !props.readonly,
   onUpdate: ({ editor }) => {
     // 标记为内部更新，避免触发 watch
     isInternalUpdate.value = true;
@@ -73,6 +79,16 @@ const editor = useEditor({
 const fileMap = ref<
   Map<string, { file: File; url: string; serverUrl?: string }>
 >(new Map());
+
+watch(
+  () => props.readonly,
+  val => {
+    if (editor.value) {
+      editor.value.setEditable(!val);
+    }
+  },
+  { immediate: true }
+);
 
 // 获取图片 URL（处理文件路径）
 // 显示时：相对路径需要拼接 baseUrl 为完整 URL
@@ -126,15 +142,15 @@ const contentToHtml = (content: DescribeContent[]): string => {
       // 显示时使用完整 URL，data-file-path 保存相对路径用于提交
       const relativePath =
         item.content.startsWith("http://") ||
-        item.content.startsWith("https://")
+          item.content.startsWith("https://")
           ? (() => {
-              try {
-                const urlObj = new URL(item.content);
-                return urlObj.pathname;
-              } catch (e) {
-                return item.content;
-              }
-            })()
+            try {
+              const urlObj = new URL(item.content);
+              return urlObj.pathname;
+            } catch (e) {
+              return item.content;
+            }
+          })()
           : item.content;
       const imageUrl = getImageUrl(relativePath);
       htmlParts.push(
@@ -473,6 +489,14 @@ onBeforeUnmount(() => {
         margin: 0.5em 0;
         padding-left: 1.5em;
       }
+    }
+  }
+
+  &.is-readonly {
+    background: #fafafa;
+
+    .editor-content {
+      cursor: not-allowed;
     }
   }
 }

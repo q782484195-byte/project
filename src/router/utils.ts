@@ -5,7 +5,6 @@ import {
   createWebHistory,
   createWebHashHistory
 } from "vue-router";
-import { router } from "./index";
 import { isProxy, toRaw } from "vue";
 import { useTimeoutFn } from "@vueuse/core";
 import {
@@ -19,11 +18,70 @@ import {
 import { buildHierarchyTree } from "@/utils/tree";
 import { userKey, type DataInfo } from "@/utils/auth";
 import { type menuType, getRouterArrays } from "@/layout/types";
-import { useMultiTagsStoreHook } from "@/store/modules/multiTags";
-import { usePermissionStoreHook } from "@/store/modules/permission";
 const IFrame = () => import("@/layout/frame.vue");
 // https://cn.vitejs.dev/guide/features.html#glob-import
 const modulesRoutes = import.meta.glob("/src/views/**/*.{vue,tsx}");
+
+// 延迟获取 router，避免循环依赖
+let routerInstance: any = null;
+
+// 设置 router 实例（在 main.ts 中调用）
+export function setRouterInstance(router: any) {
+  routerInstance = router;
+}
+
+function getRouter() {
+  if (!routerInstance) {
+    // 如果还没有设置，尝试延迟导入（这不应该发生，但作为后备方案）
+    throw new Error("Router not initialized. Please call setRouterInstance() first.");
+  }
+  return routerInstance;
+}
+
+// 异步获取 router
+async function getRouterAsync() {
+  if (routerInstance) {
+    return routerInstance;
+  }
+  // 如果还没有设置，抛出错误（这不应该发生，router 应该在 main.ts 中初始化）
+  throw new Error("Router not initialized. Please call setRouterInstance() in main.ts before using router functions.");
+}
+
+// 延迟获取 store hooks，避免循环依赖
+// 使用函数来延迟导入，避免在模块顶层导入导致循环依赖
+let storeHooksCache: {
+  useMultiTagsStoreHook: () => any;
+  usePermissionStoreHook: () => any;
+} | null = null;
+let storeHooksInitPromise: Promise<void> | null = null;
+
+// 初始化 store hooks（在应用启动时调用）
+export function initStoreHooks() {
+  if (storeHooksCache) {
+    return Promise.resolve();
+  }
+  if (!storeHooksInitPromise) {
+    storeHooksInitPromise = Promise.all([
+      import("@/store/modules/multiTags"),
+      import("@/store/modules/permission")
+    ]).then(([multiTagsModule, permissionModule]) => {
+      storeHooksCache = {
+        useMultiTagsStoreHook: multiTagsModule.useMultiTagsStoreHook,
+        usePermissionStoreHook: permissionModule.usePermissionStoreHook
+      };
+    });
+  }
+  return storeHooksInitPromise;
+}
+
+function getStoreHooks() {
+  if (!storeHooksCache) {
+    // 如果还没有初始化，同步导入（这会在第一次调用时发生）
+    // 注意：这可能会导致循环依赖，所以应该先调用 initStoreHooks
+    throw new Error("Store hooks not initialized. Please call initStoreHooks() first.");
+  }
+  return storeHooksCache;
+}
 
 // 不再需要动态路由接口
 // import { getAsyncRoutes } from "@/api/routes";
@@ -145,7 +203,8 @@ function findRouteByPath(path: string, routes: RouteRecordRaw[]) {
 }
 
 /** 动态路由注册完成后，再添加全屏404（页面不存在）页面，避免刷新动态路由页面时误跳转到404页面 */
-function addPathMatch() {
+async function addPathMatch() {
+  const router = await getRouterAsync();
   if (!router.hasRoute("pathMatch")) {
     router.addRoute({
       path: "/:pathMatch(.*)*",
@@ -160,9 +219,16 @@ function addPathMatch() {
 }
 
 /** 处理动态路由（后端返回的路由） */
-function handleAsyncRoutes(routeList) {
+async function handleAsyncRoutes(routeList) {
+  const router = await getRouterAsync();
+  const [multiTagsModule, permissionModule] = await Promise.all([
+    import("@/store/modules/multiTags"),
+    import("@/store/modules/permission")
+  ]);
+  const usePermissionStoreHook = permissionModule.usePermissionStoreHook;
+  const useMultiTagsStoreHook = multiTagsModule.useMultiTagsStoreHook;
   if (routeList.length === 0) {
-    usePermissionStoreHook().handleWholeMenus(routeList);
+    await usePermissionStoreHook().handleWholeMenus(routeList);
   } else {
     formatFlatteningRoutes(addAsyncRoutes(routeList)).map(
       (v: RouteRecordRaw) => {
@@ -188,7 +254,7 @@ function handleAsyncRoutes(routeList) {
         }
       }
     );
-    usePermissionStoreHook().handleWholeMenus(routeList);
+    await usePermissionStoreHook().handleWholeMenus(routeList);
   }
   if (!useMultiTagsStoreHook().getMultiTagsCache) {
     useMultiTagsStoreHook().handleTags("equal", [
@@ -198,17 +264,17 @@ function handleAsyncRoutes(routeList) {
       )
     ]);
   }
-  addPathMatch();
+  await addPathMatch();
 }
 
 /** 初始化路由（根据登录返回的 roles 过滤静态路由，不再调用接口）*/
 function initRouter() {
-  return new Promise(resolve => {
+  return new Promise(async resolve => {
     // 直接使用静态路由，根据 roles 进行过滤
     // 静态路由已经在 constantMenus 中定义，通过 filterNoPermissionTree 会根据 roles 自动过滤
     // 这里传入空数组，因为不需要动态路由，只使用静态路由
-    handleAsyncRoutes([]);
-    resolve(router);
+    await handleAsyncRoutes([]);
+    resolve(getRouter());
   });
 }
 
@@ -258,37 +324,62 @@ function formatTwoStageRoutes(routesList: RouteRecordRaw[]) {
 
 /** 处理缓存路由（添加、删除、刷新） */
 function handleAliveRoute({ name }: ToRouteType, mode?: string) {
-  switch (mode) {
-    case "add":
-      usePermissionStoreHook().cacheOperate({
-        mode: "add",
-        name
-      });
-      break;
-    case "delete":
-      usePermissionStoreHook().cacheOperate({
-        mode: "delete",
-        name
-      });
-      break;
-    case "refresh":
-      usePermissionStoreHook().cacheOperate({
-        mode: "refresh",
-        name
-      });
-      break;
-    default:
-      usePermissionStoreHook().cacheOperate({
-        mode: "delete",
-        name
-      });
-      useTimeoutFn(() => {
+  // 如果 store hooks 已经缓存，同步执行
+  if (storeHooksCache) {
+    const usePermissionStoreHook = storeHooksCache.usePermissionStoreHook;
+    switch (mode) {
+      case "add":
         usePermissionStoreHook().cacheOperate({
           mode: "add",
           name
         });
-      }, 100);
+        break;
+      case "delete":
+        usePermissionStoreHook().cacheOperate({
+          mode: "delete",
+          name
+        });
+        break;
+      case "refresh":
+        usePermissionStoreHook().cacheOperate({
+          mode: "refresh",
+          name
+        });
+        break;
+      default:
+        usePermissionStoreHook().cacheOperate({
+          mode: "delete",
+          name
+        });
+        useTimeoutFn(() => {
+          usePermissionStoreHook().cacheOperate({
+            mode: "add",
+            name
+          });
+        }, 100);
+    }
+    return;
   }
+  // 如果缓存未准备好，异步加载
+  import("@/store/modules/permission").then(permissionModule => {
+    const usePermissionStoreHook = permissionModule.usePermissionStoreHook;
+    switch (mode) {
+      case "add":
+        usePermissionStoreHook().cacheOperate({ mode: "add", name });
+        break;
+      case "delete":
+        usePermissionStoreHook().cacheOperate({ mode: "delete", name });
+        break;
+      case "refresh":
+        usePermissionStoreHook().cacheOperate({ mode: "refresh", name });
+        break;
+      default:
+        usePermissionStoreHook().cacheOperate({ mode: "delete", name });
+        useTimeoutFn(() => {
+          usePermissionStoreHook().cacheOperate({ mode: "add", name });
+        }, 100);
+    }
+  });
 }
 
 /** 过滤后端传来的动态路由 重新生成规范路由 */
@@ -322,6 +413,10 @@ function addAsyncRoutes(arrRoutes: Array<RouteRecordRaw>) {
 
 /** 获取路由历史模式 https://next.router.vuejs.org/zh/guide/essentials/history-mode.html */
 function getHistoryMode(routerHistory): RouterHistory {
+  // 如果没有配置或为空，默认使用 hash 模式（兼容性更好）
+  if (!routerHistory || routerHistory.trim() === "") {
+    return createWebHashHistory("");
+  }
   // len为1 代表只有历史模式 为2 代表历史模式中存在base参数 https://next.router.vuejs.org/zh/api/#%E5%8F%82%E6%95%B0-1
   const historyMode = routerHistory.split(",");
   const leftMode = historyMode[0];
@@ -341,10 +436,13 @@ function getHistoryMode(routerHistory): RouterHistory {
       return createWebHistory(rightMode);
     }
   }
+  // 默认返回 hash 模式
+  return createWebHashHistory("");
 }
 
 /** 获取当前页面按钮级别的权限 */
 function getAuths(): Array<string> {
+  const router = getRouter();
   return router.currentRoute.value.meta.auths as Array<string>;
 }
 
@@ -373,12 +471,39 @@ function handleTopMenu(route) {
 }
 
 /** 获取所有菜单中的第一个菜单（顶级菜单）*/
-function getTopMenu(tag = false): menuType {
-  const topMenu = handleTopMenu(
-    usePermissionStoreHook().wholeMenus[0]?.children[0]
-  );
-  tag && useMultiTagsStoreHook().handleTags("push", topMenu);
-  return topMenu;
+function getTopMenu(tag = false): menuType | null {
+  // 如果 store hooks 已经缓存，同步返回
+  if (storeHooksCache) {
+    const permissionStore = storeHooksCache.usePermissionStoreHook();
+    const wholeMenus = permissionStore.wholeMenus;
+
+    // 检查菜单是否已初始化
+    if (!wholeMenus || wholeMenus.length === 0) {
+      return null;
+    }
+
+    const topMenu = handleTopMenu(wholeMenus[0]?.children?.[0]);
+    if (tag && topMenu) {
+      storeHooksCache.useMultiTagsStoreHook().handleTags("push", topMenu);
+    }
+    return topMenu;
+  }
+  // 否则异步加载（这种情况不应该在初始化后发生）
+  import("@/store/modules/permission").then(permissionModule => {
+    import("@/store/modules/multiTags").then(multiTagsModule => {
+      const usePermissionStoreHook = permissionModule.usePermissionStoreHook;
+      const useMultiTagsStoreHook = multiTagsModule.useMultiTagsStoreHook;
+      const wholeMenus = usePermissionStoreHook().wholeMenus;
+
+      if (wholeMenus && wholeMenus.length > 0) {
+        const topMenu = handleTopMenu(wholeMenus[0]?.children?.[0]);
+        if (tag && topMenu) {
+          useMultiTagsStoreHook().handleTags("push", topMenu);
+        }
+      }
+    });
+  });
+  return null;
 }
 
 export {

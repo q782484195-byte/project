@@ -7,7 +7,7 @@ export default {
   redirect: "/requirements/list",
   meta: {
     icon: "ri:file-list-line",
-    title: "需求",
+    title: "层级",
     rank: 2
   },
   children: [
@@ -16,7 +16,7 @@ export default {
       name: "RequirementsList",
       component: () => import("@/views/requirements/index.vue"),
       meta: {
-        title: "需求列表",
+        title: "层级列表",
         showLink: true,
         showParent: true,
         roles: ["Admin", "ProjectManager", "DepartmentManager", "Member"]

@@ -25,11 +25,11 @@ const transitions = computed(() => {
 });
 
 const hideTabs = computed(() => {
-  return $storage?.configure.hideTabs;
+  return $storage?.configure?.hideTabs ?? false;
 });
 
 const hideFooter = computed(() => {
-  return $storage?.configure.hideFooter;
+  return $storage?.configure?.hideFooter ?? true;
 });
 
 const backtopReady = ref(false);
@@ -40,7 +40,7 @@ onMounted(() => {
 });
 
 const stretch = computed(() => {
-  return $storage?.configure.stretch;
+  return $storage?.configure?.stretch ?? false;
 });
 
 const layout = computed(() => {
@@ -124,11 +124,11 @@ const transitionMain = defineComponent({
               margin: '0 auto',
               transition: 'all 300ms cubic-bezier(0.4, 0, 0.2, 1)'
             }" :view-style="{
-                display: 'flex',
-                flex: 'auto',
-                overflow: 'hidden',
-                'flex-direction': 'column'
-              }">
+              display: 'flex',
+              flex: 'auto',
+              overflow: 'hidden',
+              'flex-direction': 'column'
+            }">
               <el-backtop v-if="backtopReady" title="回到顶部" :target="backtopTarget">
                 <BackTopIcon />
               </el-backtop>

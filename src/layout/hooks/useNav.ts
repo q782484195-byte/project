@@ -1,5 +1,5 @@
 import { storeToRefs } from "pinia";
-import { getConfig } from "@/config";
+import { getConfig, configRef } from "@/config";
 import { emitter } from "@/utils/mitt";
 import Avatar from "@/assets/user.jpg";
 import { getTopMenu } from "@/router/utils";
@@ -69,14 +69,19 @@ export function useNav() {
   });
 
   const title = computed(() => {
-    return $config.Title;
+    // 直接访问响应式配置对象，确保能追踪到变化
+    // 优先使用 configRef.Title（响应式），然后尝试 $config，最后使用默认值
+    return configRef.Title || $config?.Title || getConfig()?.Title || "Pure Admin";
   });
 
   /** 动态title */
   function changeTitle(meta: routeMetaType) {
-    const Title = getConfig().Title;
-    if (Title) document.title = `${meta.title} | ${Title}`;
-    else document.title = meta.title;
+    const Title = getConfig()?.Title;
+    if (Title && meta?.title) {
+      document.title = `${meta.title} | ${Title}`;
+    } else if (meta?.title) {
+      document.title = meta.title;
+    }
   }
 
   /** 退出登录 */

@@ -31,13 +31,11 @@ defineOptions({
             拥有code：['permission:btn:edit'] 权限可见
           </el-button>
         </Perms>
-        <Perms
-          :value="[
-            'permission:btn:add',
-            'permission:btn:edit',
-            'permission:btn:delete'
-          ]"
-        >
+        <Perms :value="[
+          'permission:btn:add',
+          'permission:btn:edit',
+          'permission:btn:delete'
+        ]">
           <el-button plain type="danger">
             拥有code：['permission:btn:add', 'permission:btn:edit',
             'permission:btn:delete'] 权限可见
@@ -54,24 +52,16 @@ defineOptions({
         <el-button v-if="hasPerms('permission:btn:add')" plain type="warning">
           拥有code：'permission:btn:add' 权限可见
         </el-button>
-        <el-button
-          v-if="hasPerms(['permission:btn:edit'])"
-          plain
-          type="primary"
-        >
+        <el-button v-if="hasPerms(['permission:btn:edit'])" plain type="primary">
           拥有code：['permission:btn:edit'] 权限可见
         </el-button>
-        <el-button
-          v-if="
-            hasPerms([
-              'permission:btn:add',
-              'permission:btn:edit',
-              'permission:btn:delete'
-            ])
-          "
-          plain
-          type="danger"
-        >
+        <el-button v-if="
+          hasPerms([
+            'permission:btn:add',
+            'permission:btn:edit',
+            'permission:btn:delete'
+          ])
+        " plain type="danger">
           拥有code：['permission:btn:add', 'permission:btn:edit',
           'permission:btn:delete'] 权限可见
         </el-button>
@@ -91,15 +81,11 @@ defineOptions({
         <el-button v-perms="['permission:btn:edit']" plain type="primary">
           拥有code：['permission:btn:edit'] 权限可见
         </el-button>
-        <el-button
-          v-perms="[
-            'permission:btn:add',
-            'permission:btn:edit',
-            'permission:btn:delete'
-          ]"
-          plain
-          type="danger"
-        >
+        <el-button v-perms="[
+          'permission:btn:add',
+          'permission:btn:edit',
+          'permission:btn:delete'
+        ]" plain type="danger">
           拥有code：['permission:btn:add', 'permission:btn:edit',
           'permission:btn:delete'] 权限可见
         </el-button>
