@@ -93,7 +93,7 @@
                 <template #default="{ row }">
                   <el-button type="primary" link size="small" @click="handleView(row)">查看</el-button>
                   <el-button type="primary" link size="small" @click="handleEdit(row)" v-perms="['task:update']"
-                    v-if="(userStore.username === (row.当前处理人 || row.current_handler)) || isAdmin || isProjectManager">编辑</el-button>
+                    v-if="((userStore.username === (row.当前处理人 || row.current_handler)) || isAdmin || isProjectManager) && row.状态 !== '已完成'">编辑</el-button>
                   <el-button type="primary" link size="small" @click="handleChangeAssignee(row)"
                     v-perms="['task:update_current_assignee']"
                     v-if="isPendingAssignStatus(row.状态 || row.status)">更改负责人</el-button>

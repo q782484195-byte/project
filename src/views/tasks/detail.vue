@@ -25,16 +25,16 @@
               <el-descriptions :column="2" border>
                 <el-descriptions-item label="任务名称">{{
                   task.任务名 || task.task_name || task.title || "-"
-                }}</el-descriptions-item>
+                  }}</el-descriptions-item>
                 <el-descriptions-item label="所属项目">{{
                   task.project_name || "-"
-                }}</el-descriptions-item>
+                  }}</el-descriptions-item>
                 <el-descriptions-item label="关联层级">{{
                   task.requirement_name || "-"
-                }}</el-descriptions-item>
+                  }}</el-descriptions-item>
                 <el-descriptions-item label="负责人">{{
                   task.当前处理人 || task.assignee || "-"
-                }}</el-descriptions-item>
+                  }}</el-descriptions-item>
                 <el-descriptions-item label="状态">
                   <div style="display: flex; align-items: center; gap: 12px">
                     <el-tag :type="getStatusType(task.状态 || task.status) || undefined" size="small">
@@ -50,11 +50,11 @@
                 </el-descriptions-item>
                 <el-descriptions-item label="计划工时">{{
                   task.预计工时 || task.estimated_time || 0
-                }}
+                  }}
                   天</el-descriptions-item>
                 <el-descriptions-item label="已用工时">{{
                   task.已用工时 || task.actualHours || 0
-                }}
+                  }}
                   天</el-descriptions-item>
                 <el-descriptions-item label="进度">
                   <el-progress :percentage="task.进度 || task.progress || 0" />
@@ -64,7 +64,7 @@
                 </el-descriptions-item>
                 <el-descriptions-item v-if="task.creator" label="创建人">{{
                   task.creator
-                }}</el-descriptions-item>
+                  }}</el-descriptions-item>
               </el-descriptions>
             </el-card>
 
@@ -81,17 +81,17 @@
                   <div v-else-if="
                     typeof item === 'string' && item.startsWith('/data/')
                   " class="description-image">
-                    <el-image :src="getImageUrl(item)" :alt="`图片 ${index + 1}`" :preview-src-list="previewImageList"
-                      :initial-index="getImageIndex(index)" preview-teleported fit="contain"
-                      class="description-image-el" @error="handleImageError" />
+                    <el-image :src="getImageUrl(item)" :alt="`图片 ${Number(index) + 1}`"
+                      :preview-src-list="previewImageList" :initial-index="getImageIndex(Number(index))"
+                      preview-teleported fit="contain" class="description-image-el" @error="handleImageError" />
                   </div>
                   <p v-else-if="item.type === 'text'" class="description-text">
                     {{ item.content }}
                   </p>
                   <div v-else-if="item.type === 'url' || item.type === 'file'" class="description-image">
-                    <el-image :src="getImageUrl(item.content)" :alt="`图片 ${index + 1}`"
-                      :preview-src-list="previewImageList" :initial-index="getImageIndex(index)" preview-teleported
-                      fit="contain" class="description-image-el" @error="handleImageError" />
+                    <el-image :src="getImageUrl(item.content)" :alt="`图片 ${Number(index) + 1}`"
+                      :preview-src-list="previewImageList" :initial-index="getImageIndex(Number(index))"
+                      preview-teleported fit="contain" class="description-image-el" @error="handleImageError" />
                   </div>
                 </template>
               </div>

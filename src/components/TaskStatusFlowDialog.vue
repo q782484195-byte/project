@@ -220,7 +220,12 @@ const userInfoMap = ref<Map<string, any>>(new Map());
 const buildTreeData = (data: Array<Record<string, any>>): TreeNode[] => {
   if (!Array.isArray(data)) return [];
   const currentUsername = userStore.username;
+  const currentUserRoles = userStore.roles || [];
   const isPendingAssignToMember = normalizedStatus.value === TaskStatus.PENDING_ASSIGN_TO_MEMBER;
+
+  // 判断当前用户的角色类型
+  const isCurrentUserDepartmentManager = currentUserRoles.includes("DepartmentManager");
+  const isCurrentUserMember = currentUserRoles.includes("Member");
 
   // 清空之前的映射
   userInfoMap.value.clear();
@@ -231,12 +236,36 @@ const buildTreeData = (data: Array<Record<string, any>>): TreeNode[] => {
       ? members
         .filter(user => {
           if (!user) return false;
-          // 如果当前状态是"待指派给成员"，不过滤当前用户；其他状态过滤掉当前用户
+
+          const userValue = user.username || user.nickname;
+          const userRoles = Array.isArray(user.role) ? user.role : user.role ? [user.role] : [];
+          const isUserProjectManager = userRoles.includes("ProjectManager");
+
+          // 规则1：如果当前用户是部门负责人，不能分配给其他项目负责人
+          if (isCurrentUserDepartmentManager && isUserProjectManager) {
+            return false;
+          }
+
+          // 规则2：如果当前用户是普通成员，不能分配给自己和项目负责人
+          if (isCurrentUserMember) {
+            // 不能分配给自己
+            if (userValue === currentUsername) {
+              return false;
+            }
+            // 不能分配给项目负责人
+            if (isUserProjectManager) {
+              return false;
+            }
+          }
+
+          // 如果当前状态是"待指派给成员"，不过滤当前用户（除非是普通成员，已在上面处理）
           if (isPendingAssignToMember) {
+            // 普通成员不能分配给自己和项目负责人，已在上面处理
+            // 其他角色可以分配
             return true;
           }
-          // 其他状态：过滤掉当前用户
-          const userValue = user.username || user.nickname;
+
+          // 其他状态：过滤掉当前用户（普通成员已在上面处理）
           return userValue !== currentUsername;
         })
         .map(user => {

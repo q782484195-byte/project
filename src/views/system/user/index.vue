@@ -22,7 +22,6 @@ defineOptions({
 
 // 角色映射
 const roleMap: Record<string, string> = {
-  Admin: "管理员",
   ProjectManager: "项目经理",
   DepartmentManager: "部门主管",
   Member: "普通成员"
@@ -41,21 +40,21 @@ const formData = reactive<{
   username: string;
   password: string;
   department: string;
-  role: string[];
+  role: string; // 表单中使用字符串类型（单选）
   workchat_username: string;
 }>({
   id: undefined,
   username: "",
   password: "",
   department: "",
-  role: [],
+  role: "", // 初始值为空字符串
   workchat_username: ""
 });
 
 const formRules: FormRules = {
   username: [
     { required: true, message: "请输入用户名", trigger: "blur" },
-    { min: 3, max: 20, message: "用户名长度在 3 到 20 个字符", trigger: "blur" }
+    { min: 2, max: 20, message: "用户名长度在 3 到 20 个字符", trigger: "blur" }
   ],
   password: [
     {
@@ -80,7 +79,7 @@ const formRules: FormRules = {
     {
       required: true,
       validator: (rule, value, callback) => {
-        if (!value || (Array.isArray(value) && value.length === 0)) {
+        if (!value || value.trim() === "") {
           callback(new Error("请选择角色"));
         } else {
           callback();
@@ -97,7 +96,12 @@ const queryForm = reactive({
   department: ""
 });
 
-const tableData = ref<User[]>([]);
+// 表格数据类型（role 为数组）
+interface TableUser extends Omit<User, 'role'> {
+  role: string[];
+}
+
+const tableData = ref<TableUser[]>([]);
 const departmentList = ref<string[]>([]);
 
 const columns = [
@@ -145,6 +149,11 @@ const columns = [
     }
   },
   {
+    label: "企业微信账号",
+    prop: "workchat_username",
+    minWidth: 120
+  },
+  {
     label: "操作",
     fixed: "right",
     width: 180,
@@ -186,13 +195,14 @@ const loadData = async () => {
     const response = await getUserList(queryParams);
     if (response.code === 200) {
       // 将返回的数据转换为表格需要的格式
+      // 保持 role 为数组格式，以便编辑时能正确填充
       tableData.value = response.result.map(user => ({
         id: undefined,
         username: user.username,
         password: user.password,
         // email: user.email || "",
         department: user.department || "",
-        role: user.role?.[0] || "",
+        role: Array.isArray(user.role) ? user.role : user.role ? [user.role] : [],
         workchat_username: user.workchat_username || ""
       }));
     } else {
@@ -214,10 +224,10 @@ const handleAdd = () => {
 };
 
 // 打开编辑对话框
-const handleEdit = (row: User) => {
+const handleEdit = (row: TableUser) => {
   dialogTitle.value = "编辑用户";
   isEdit.value = true;
-  // 处理编辑时的数据格式：role 需要转换为数组， department 需要转换为字符串
+  // 处理编辑时的数据格式：role 数组转换为字符串（单选），department 需要转换为字符串
   const editData = {
     ...row,
     password: "",
@@ -226,7 +236,12 @@ const handleEdit = (row: User) => {
         ? row.department[0]
         : row.department
       : "",
-    role: row.role ? (Array.isArray(row.role) ? row.role : [row.role]) : [],
+    // 将 role 数组转换为字符串（取第一个，因为表单是单选）
+    role: row.role && Array.isArray(row.role) && row.role.length > 0
+      ? row.role[0]
+      : row.role
+        ? (typeof row.role === "string" ? row.role : String(row.role))
+        : "",
     workchat_username: row.workchat_username || ""
   };
   Object.assign(formData, editData);
@@ -234,7 +249,7 @@ const handleEdit = (row: User) => {
 };
 
 // 删除
-const handleDelete = async (row: User) => {
+const handleDelete = async (row: TableUser) => {
   if (!row.username) {
     message("无法获取用户名", { type: "error" });
     return;
@@ -272,18 +287,25 @@ const handleSave = async () => {
         let response;
         if (isEdit.value) {
           // 编辑时，如果密码为空则不传密码
-          const submitData: any = { ...formData };
-          if (!submitData.password) {
-            delete submitData.password;
+          // 将 role 字符串转换为数组格式
+          const submitData: any = {
+            username: formData.username,
+            role: formData.role ? [formData.role] : [],
+            department: formData.department || "",
+            workchat_username: formData.workchat_username || ""
+          };
+          // 如果密码不为空，则包含密码
+          if (formData.password) {
+            submitData.password = formData.password;
           }
-          // 编辑时保持数组格式，但类型可能需要转换
           response = await updateUser(submitData as any);
         } else {
           // 新增用户：按照 API 要求的格式构建参数
+          // 将 role 字符串转换为数组格式
           const submitData = {
             username: formData.username,
             password: formData.password,
-            role: Array.isArray(formData.role) ? formData.role : [],
+            role: formData.role ? [formData.role] : [],
             department: formData.department || "",
             workchat_username: formData.workchat_username || ""
           };
@@ -309,7 +331,7 @@ const resetForm = () => {
   formData.username = "";
   formData.password = "";
   formData.department = "";
-  formData.role = [];
+  formData.role = ""; // 重置为空字符串
   formData.workchat_username = "";
   formRef.value?.resetFields();
 };
@@ -416,8 +438,8 @@ onMounted(() => {
             <el-option v-for="(label, value) in roleMap" :key="value" :label="label" :value="value" />
           </el-select>
         </el-form-item>
-        <el-form-item label="企业微信名" prop="workchat_username">
-          <el-input v-model="formData.workchat_username" placeholder="请输入企业微信名" clearable />
+        <el-form-item label="企业微信账号" prop="workchat_username">
+          <el-input v-model="formData.workchat_username" placeholder="请输入企业微信账号" clearable />
         </el-form-item>
       </el-form>
       <template #footer>

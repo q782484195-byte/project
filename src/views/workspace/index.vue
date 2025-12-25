@@ -273,7 +273,10 @@
                         <el-icon class="activity-icon">
                           <Document />
                         </el-icon>
-                        <span>{{ report.content }}</span>
+                        <div class="activity-text">
+                          <div class="activity-main-content">{{ report.content }}</div>
+
+                        </div>
                       </div>
                     </div>
                     <el-empty v-if="myReports.length === 0" description="暂无汇报记录" />
@@ -287,7 +290,11 @@
                         <el-icon class="activity-icon">
                           <Document />
                         </el-icon>
-                        <span>{{ report.content }}</span>
+                        <div class="activity-text">
+                          <div class="activity-main-content">{{ report.content }}</div>
+                          <div v-if="report.taskName || report.progress !== undefined" class="activity-details">
+                          </div>
+                        </div>
                       </div>
                     </div>
                     <el-empty v-if="receivedReports.length === 0" description="暂无收到的汇报" />
@@ -532,7 +539,7 @@ import { createBug } from "@/api/bug";
 import { selectDepartmentUsers, type DepartmentUserItem } from "@/api/system";
 import { selectSelfReports, selectReports, type ReportRecord } from "@/api/report";
 import { ElMessage } from "element-plus";
-import { User, Clock, Document } from "@element-plus/icons-vue";
+import { User, Clock, Document, DataLine } from "@element-plus/icons-vue";
 import type { TaskListItem, RequirementListItem, ProjectListItem } from "@/api/project";
 import { TaskStatus } from "@/types";
 import TaskStatusFlowDialog from "@/components/TaskStatusFlowDialog.vue";
@@ -619,8 +626,8 @@ const taskActivities = ref<Array<{ time: string; content: string; icon: string }
 const requirementActivities = ref<Array<{ time: string; content: string; icon: string }>>([]);
 const projectActivities = ref<Array<{ time: string; content: string; icon: string }>>([]);
 const activityTab = ref("activities"); // 动态tab切换
-const myReports = ref<Array<{ time: string; content: string; icon: string }>>([]); // 我汇报的
-const receivedReports = ref<Array<{ time: string; content: string; icon: string }>>([]); // 收到的汇报
+const myReports = ref<Array<{ time: string; content: string; icon: string; taskName?: string; progress?: number }>>([]); // 我汇报的
+const receivedReports = ref<Array<{ time: string; content: string; icon: string; taskName?: string; progress?: number }>>([]); // 收到的汇报
 
 // 检查是否可以查看收到的汇报（只有admin和部门主管可以查看）
 const canViewReceivedReports = computed(() => {
@@ -866,19 +873,36 @@ const handleActivityTabChange = (tabName: string) => {
 };
 
 // 将汇报记录转换为活动格式
-const convertReportsToActivities = (reports: ReportRecord[]): Array<{ time: string; content: string; icon: string }> => {
+const convertReportsToActivities = (reports: ReportRecord[]): Array<{ time: string; content: string; icon: string; taskName?: string; progress?: number }> => {
   return reports.map(report => {
     const time = report.create_time || report.createdAt || "";
     const projectName = report.project_name || "";
     const message = report.message || "";
-    const content = projectName
-      ? `项目 "${projectName}" 的汇报: ${message}`
-      : `汇报: ${message}`;
+    const taskName = report.task_name || report.任务名 || "";
+    const progress = report.progress !== undefined ? report.progress : (report.进度 !== undefined ? report.进度 : undefined);
+
+    // 构建内容，包含任务名和进度信息
+    let content = message;
+    if (projectName) {
+      content = `项目 "${projectName}" 的汇报: ${message}`;
+    }
+
+    // 如果有任务名，添加到内容中
+    if (taskName) {
+      content += ` [任务: ${taskName}]`;
+    }
+
+    // 如果有进度，添加到内容中
+    if (progress !== undefined && progress !== null) {
+      content += ` [进度: ${progress}%]`;
+    }
 
     return {
       time,
       content,
-      icon: "Document"
+      icon: "Document",
+      taskName: taskName || undefined,
+      progress: progress !== undefined && progress !== null ? progress : undefined
     };
   });
 };
@@ -1799,7 +1823,7 @@ onBeforeUnmount(() => {
       .activity-content {
         display: flex;
         align-items: flex-start;
-        gap: 8px;
+        gap: 10px;
         font-size: 14px;
         color: #606266;
         line-height: 1.5;
@@ -1808,8 +1832,42 @@ onBeforeUnmount(() => {
           margin-top: 2px;
           color: #409eff;
           font-size: 16px;
+          flex-shrink: 0;
+        }
+
+        .activity-text {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+
+          .activity-main-content {
+            line-height: 1.5;
+            color: #606266;
+          }
+
+          .activity-details {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 4px;
+
+            .activity-detail-item {
+              display: inline-flex;
+              align-items: center;
+              gap: 4px;
+              font-size: 12px;
+              color: #909399;
+
+              .detail-icon {
+                font-size: 14px;
+                color: #409eff;
+              }
+            }
+          }
         }
       }
+
     }
   }
 
