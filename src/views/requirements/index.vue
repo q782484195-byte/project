@@ -1,5 +1,5 @@
 <template>
-  <div class="requirements-page">
+  <div class="requirements-page" ref="pageRef">
     <div class="page-header">
       <h2>层级管理</h2>
       <div class="header-actions">
@@ -28,8 +28,8 @@
     </div>
 
     <!-- 层级列表 -->
-    <el-card v-loading="loading" class="requirements-table-card">
-      <el-table :data="filteredRequirements" :style="{ width: '100%' }" height="680">
+    <el-card v-loading="loading" class="requirements-table-card" ref="requirementsCardRef">
+      <el-table :data="filteredRequirements" :style="{ width: '100%' }" :height="tableHeight">
         <el-table-column prop="requirement_name" label="层级名称" min-width="200" />
         <el-table-column prop="project_name" label="选择项目" width="150" />
         <el-table-column prop="priority" label="优先级" width="100">
@@ -84,7 +84,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, nextTick } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { Plus } from "@element-plus/icons-vue";
@@ -121,6 +121,11 @@ const showRequirementDrawer = ref(false);
 const currentRequirement = ref<Requirement | null>(null);
 const requirementOptions = ref<Array<{ label: string; value: string }>>([]);
 const hasOpenedCreateDrawer = ref(false); // 标志，用于避免重复打开新建抽屉
+
+// 表格高度相关
+const pageRef = ref<HTMLElement>();
+const requirementsCardRef = ref<HTMLElement>();
+const tableHeight = ref<number>(680);
 
 // 缓存键名
 const CACHE_KEY = "requirements-list-params";
@@ -616,6 +621,28 @@ watch(
   { immediate: false }
 );
 
+// 计算表格高度
+const calculateTableHeight = () => {
+  nextTick(() => {
+    if (!requirementsCardRef.value) return;
+
+    const viewportHeight = window.innerHeight;
+    const cardRect = requirementsCardRef.value.getBoundingClientRect();
+    const cardTopToViewportBottom = viewportHeight - cardRect.top;
+    const cardHeaderHeight = 0; // card没有header
+    const cardPadding = 40;
+    const paginationHeight = 60;
+    const bottomPadding = 20;
+    const availableHeight = cardTopToViewportBottom - cardHeaderHeight - cardPadding - paginationHeight - bottomPadding;
+    tableHeight.value = Math.max(400, availableHeight);
+  });
+};
+
+// 窗口大小改变时重新计算
+const handleResize = () => {
+  calculateTableHeight();
+};
+
 onMounted(async () => {
   // 先加载项目列表
   await loadProjects();
@@ -660,6 +687,14 @@ onMounted(async () => {
 
   }
   // 如果项目还未选择，watch 会在项目选择后自动处理
+
+  // 计算表格高度
+  calculateTableHeight();
+  window.addEventListener('resize', handleResize);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize);
 });
 </script>
 

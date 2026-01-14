@@ -525,9 +525,9 @@ export interface CreateTaskParams {
   requirement_id: string;
   requirement_name: string;
   priority: string;
-  estimated_time: number;
   default_person?: string;
   attachment?: string[];
+  task_deadline: string;
 }
 
 /** 创建任务 */
@@ -539,7 +539,7 @@ export const createTask = (params: CreateTaskParams) => {
       requirement_id: params.requirement_id,
       requirement_name: params.requirement_name,
       priority: params.priority,
-      estimated_time: params.estimated_time,
+      task_deadline: params.task_deadline,
       default_person: params.default_person,
       attachment: params.attachment || []
     }
@@ -552,7 +552,7 @@ export interface UpdateTaskParams {
   task_name: string;
   describe: DescribeContent[];
   priority: string;
-  estimated_time: number;
+  task_deadline: string;
   default_person?: string;
   attachment?: string[];
 }
@@ -565,7 +565,7 @@ export const updateTask = (params: UpdateTaskParams) => {
       task_name: params.task_name,
       describe: params.describe,
       priority: params.priority,
-      estimated_time: params.estimated_time,
+      task_deadline: params.task_deadline,
       default_person: params.default_person,
       attachment: params.attachment || []
     }
@@ -578,6 +578,7 @@ export interface UpdateTaskStateParams {
   current_state: string;
   next_state: string;
   person_name: string;
+  rejection_reason?: string;
 }
 
 /** 更新任务状态 */
@@ -587,25 +588,30 @@ export const updateTaskState = (params: UpdateTaskStateParams) => {
       task_id: params.task_id,
       current_state: params.current_state,
       next_state: params.next_state,
-      person_name: params.person_name
+      person_name: params.person_name,
+      rejection_reason: params.rejection_reason || ""
     }
   });
 };
 
 /** 批量分配任务参数 */
 export interface BulkAssignmentParams {
+  hour?: number;
   task_json: Record<string, {
     task_name: string;
     state: string;
     current_assignee: string;
   }>;
+  task_deadline: string;
 }
 
 /** 批量分配任务 */
 export const bulkAssignment = (params: BulkAssignmentParams) => {
   return http.request<ApiResponse<any>>("post", "/task/bulk_assignment", {
     data: {
-      task_json: params.task_json
+      task_json: params.task_json,
+      hour: params.hour || 1,
+      task_deadline: params.task_deadline
     }
   });
 };
@@ -745,5 +751,20 @@ export const timeTracking = (params: TimeTrackingParams) => {
 };
 
 
+/** 更新任务开发时间参数 */
+export interface UpdateDevelopmentTimeParams {
+  task_id: string;
+  development_start_time: string;
+  development_end_time: string;
+}
 
-
+/** 更新任务开发时间 */
+export const updateDevelopmentTime = (params: UpdateDevelopmentTimeParams) => {
+  return http.request<ApiResponse<any>>("post", "/task/update_development_time", {
+    data: {
+      task_id: params.task_id,
+      development_start_time: params.development_start_time,
+      development_end_time: params.development_end_time
+    }
+  });
+};

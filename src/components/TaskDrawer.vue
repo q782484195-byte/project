@@ -48,10 +48,9 @@
           </el-select>
         </el-form-item>
 
-        <el-form-item label="计划工时" prop="estimated_time">
-          <el-input-number v-model="taskForm.estimated_time" :min="0" :precision="0"
-            :disabled="isEdit && !canEditAllFields" placeholder="请输入计划工时（天）" style="width: 30%" />
-          <span style="margin-left: 8px; color: #606266;">天</span>
+        <el-form-item label="任务截止日期" prop="task_deadline">
+          <el-date-picker v-model="taskForm.task_deadline" type="date" placeholder="请选择任务截止日期" style="width: 50%"
+            format="YYYY-MM-DD" value-format="YYYY-MM-DD" :disabled="isEdit && !canEditAllFields" />
         </el-form-item>
 
         <!-- 附件上传 -->
@@ -236,7 +235,7 @@ const taskForm = reactive<{
   requirement_id: string;
   requirement_name: string;
   priority: string;
-  estimated_time: number;
+  task_deadline: string;
   default_person?: string;
   file_name?: string;
   files?: string[];
@@ -247,7 +246,7 @@ const taskForm = reactive<{
   requirement_id: "",
   requirement_name: "",
   priority: "低",
-  estimated_time: 1,
+  task_deadline: "",
   default_person: ""
 });
 
@@ -280,16 +279,10 @@ const rules: FormRules = {
   requirement_id: [
     { required: true, message: "请选择所属层级", trigger: "change" }
   ],
-  
+
   priority: [{ required: true, message: "请选择优先级", trigger: "change" }],
-  estimated_time: [
-    { required: true, message: "请输入预计时间", trigger: "blur" },
-    {
-      type: "number",
-      min: 0,
-      message: "预计时间必须大于等于0",
-      trigger: "blur"
-    }
+  task_deadline: [
+    { required: true, message: "请选择任务截止日期", trigger: "change" }
   ]
 };
 
@@ -882,7 +875,7 @@ const handleSubmit = async () => {
             task_name: taskForm.task_name,
             describe: describeContents,
             priority: taskForm.priority,
-            estimated_time: taskForm.estimated_time,
+            task_deadline: taskForm.task_deadline,
             default_person: taskForm.default_person,
             attachment: allFiles.length > 0 ? allFiles : undefined
           });
@@ -896,7 +889,7 @@ const handleSubmit = async () => {
             requirement_id: taskForm.requirement_id,
             requirement_name: taskForm.requirement_name,
             priority: taskForm.priority,
-            estimated_time: taskForm.estimated_time,
+            task_deadline: taskForm.task_deadline,
             default_person: taskForm.default_person,
             attachment: allFiles.length > 0 ? allFiles : undefined
           });

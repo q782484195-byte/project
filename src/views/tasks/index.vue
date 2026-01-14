@@ -1,12 +1,8 @@
 <template>
-  <div class="tasks-page">
+  <div class="tasks-page" ref="pageRef">
     <!-- 搜索表单 -->
     <el-card class="search-card mb-5">
-      <template #header>
-        <div class="card-header">
-          <span>任务查询</span>
-        </div>
-      </template>
+
       <el-form :model="searchForm" :inline="true" class="search-form">
         <el-form-item label="选择项目">
           <el-select v-model="searchForm.projectId" placeholder="请选择项目" clearable style="width: 180px"
@@ -25,8 +21,8 @@
     </el-card>
 
     <!-- 任务列表 -->
-    <el-card v-loading="loading">
-      <div class="tasks-table-container">
+    <el-card v-loading="loading" ref="tasksCardRef">
+      <div class="tasks-table-container" ref="containerRef">
         <div class="table-header-actions" v-if="Object.keys(tasks).length > 0">
           <el-button type="success" @click="handleBatchAssign" v-perms="['task:bulk_assignment']"
             :loading="batchAssignLoading" :disabled="selectedTasks.length === 0">
@@ -46,7 +42,7 @@
         <el-tabs v-model="activeTab" v-if="Object.keys(tasks).length > 0">
           <el-tab-pane v-for="(taskList, taskType) in tasks" :key="taskType" :label="`${taskType} (${taskList.length})`"
             :name="taskType">
-            <el-table :data="filteredTasks" :style="{ width: '100%' }" height="600" row-key="rowKey"
+            <el-table :data="filteredTasks" :style="{ width: '100%' }" :height="tableHeight" row-key="rowKey"
               @selection-change="handleSelectionChange">
               <el-table-column type="selection" width="55" :selectable="isRowSelectable" />
               <el-table-column prop="任务名" label="任务名称" width="140">
@@ -67,7 +63,7 @@
                   </div>
                 </template>
               </el-table-column>
-              <el-table-column prop="状态" label="状态" width="140">
+              <el-table-column prop="状态" label="状态" width="150">
                 <template #default="{ row }">
                   <el-tag :type="getStatusType(row.状态 || row.status) || undefined" size="small" effect="light">
                     {{ row.状态 || row.status || "-" }}
@@ -86,8 +82,7 @@
                   <el-progress :percentage="row.进度 || 0" :status="row.进度 === 100 ? 'success' : undefined" />
                 </template>
               </el-table-column>
-              <el-table-column prop="预计工时" label="计划工时" width="100" />
-              <el-table-column prop="已用工时" label="已用工时" width="100" />
+              <el-table-column prop="task_deadline" label="任务截止日期" width="150" />
               <el-table-column prop="create_time" label="创建时间" width="180" />
               <el-table-column label="操作" width="260" fixed="right">
                 <template #default="{ row }">
@@ -160,6 +155,34 @@
       </template>
     </el-dialog>
 
+    <!-- 批量分配任务对话框 -->
+    <el-dialog v-model="batchAssignDialogVisible" title="批量分配任务" width="600px" append-to-body
+      :close-on-click-modal="false">
+      <el-form ref="batchAssignFormRef" :model="batchAssignForm" :rules="batchAssignRules" label-width="140px">
+        <el-form-item label="任务指派时限" prop="time_limit">
+          <el-input-number v-model="batchAssignForm.time_limit" :min="0" :precision="3" placeholder="请输入任务指派时限"
+            style="width: 90%" />
+          <span style="margin-left: 8px; color: #606266;">时</span>
+        </el-form-item>
+        <el-form-item label="任务截止期限" prop="task_assign_limit">
+          <el-date-picker v-model="batchAssignForm.task_assign_limit" type="date" placeholder="请选择任务截止期限"
+            format="YYYY-MM-DD" value-format="YYYY-MM-DD" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="指派超时提醒人" prop="notification_recipients">
+          <el-tree-select v-model="batchAssignForm.notification_recipients" placeholder="请选择指派超时提醒人"
+            :loading="batchAssignDepartmentLeadersLoading" filterable check-strictly default-expand-all
+            :data="batchAssignDepartmentLeadersTree" :props="treeSelectProps" node-key="value"
+            :render-after-expand="false" style="width: 100%" clearable multiple />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="batchAssignDialogVisible = false">取消</el-button>
+          <el-button type="primary" :loading="batchAssignLoading" @click="handleBatchAssignSubmit">确定</el-button>
+        </span>
+      </template>
+    </el-dialog>
+
     <!-- 更改负责人对话框 -->
     <el-dialog v-model="changeAssigneeDialogVisible" title="更改负责人" width="500px" append-to-body
       :close-on-click-modal="false">
@@ -189,7 +212,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, reactive, nextTick, toRaw } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch, reactive, nextTick, toRaw } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import type { FormInstance, FormRules } from "element-plus";
@@ -203,7 +226,7 @@ import {
   updateCurrentAssignee,
   type ProjectListItem
 } from "@/api/project";
-import { selectDepartmentUsers, getDepartmentNameList, type DepartmentUserItem, type DepartmentListItem } from "@/api/system";
+import { selectDepartmentUsers, getDepartmentNameList, selectAllUsers, selectNotificationPerson, sendNotification, type DepartmentUserItem, type DepartmentListItem, type DepartmentUserMap } from "@/api/system";
 import type { Project } from "@/types";
 import { TaskStatus } from "@/types";
 import TaskStatusFlowDialog from "@/components/TaskStatusFlowDialog.vue";
@@ -237,6 +260,12 @@ const currentProjectId = ref<string>("");
 const hasOpenedCreateDrawer = ref(false); // 标志，用于避免重复打开新建抽屉
 const batchAssignLoading = ref(false);
 const selectedTasks = ref<any[]>([]); // 选中的任务列表
+
+// 表格高度相关
+const pageRef = ref<HTMLElement>();
+const tasksCardRef = ref<HTMLElement>();
+const containerRef = ref<HTMLElement>();
+const tableHeight = ref<number>(600);
 
 // 缓存键名
 const CACHE_KEY = "tasks-list-params";
@@ -370,8 +399,7 @@ const canRecordBug = (status: string): boolean => {
   if (!status) return false;
   // 如果无法标准化，检查中文状态
   const testReviewStatuses = [
-    "测试中", "任务进行中", "测试未通过", "审阅未通过", '任务未开始'
-
+    "第一轮测试", "第二轮测试", "第三轮测试", "任务进行中",
   ];
   return testReviewStatuses.includes(status);
 };
@@ -511,6 +539,100 @@ const handleSelectionChange = (selection: any[]) => {
   selectedTasks.value = selection;
 };
 
+// 构建所有用户的树形数据（用于批量分配）
+const buildBatchAssignDepartmentLeadersTree = (departmentList: DepartmentListItem[], userMaps: DepartmentUserMap[]): any[] => {
+  if (!Array.isArray(departmentList)) return [];
+
+  // 将用户映射数组转换为对象，方便查找
+  const departmentUsersMap: Record<string, string[]> = {};
+  if (Array.isArray(userMaps)) {
+    userMaps.forEach(map => {
+      Object.keys(map).forEach(department => {
+        departmentUsersMap[department] = map[department].map(
+          user => user.username
+        );
+      });
+    });
+  }
+
+  return departmentList.map((item, index) => {
+    const departmentName = String(item.部门名 || "未分配部门");
+    // 获取该部门的所有用户
+    const users = departmentUsersMap[departmentName] || [];
+    // 如果没有用户数据，使用负责人列表作为备选
+    const allUsers = users.length > 0 ? users : (item.负责人 || []);
+
+    const children: any[] = allUsers
+      .filter(user => user && String(user).trim())
+      .map(user => ({
+        label: String(user),
+        value: String(user)
+      }));
+
+    return {
+      label: departmentName,
+      value: `dept_${index}_${departmentName.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_')}`,
+      disabled: true,
+      children
+    };
+  });
+};
+
+// 加载批量分配部门用户列表（使用department/select获取所有用户）
+const loadBatchAssignDepartmentLeaders = async () => {
+  batchAssignDepartmentLeadersLoading.value = true;
+  try {
+    // 先获取部门列表
+    const departmentResponse = await getDepartmentNameList();
+    if (departmentResponse.code !== 200 || !Array.isArray(departmentResponse.result)) {
+      ElMessage.error("加载部门列表失败");
+      batchAssignDepartmentLeadersTree.value = [];
+      return;
+    }
+
+    // 获取所有用户
+    const usersResponse = await selectAllUsers();
+    if (usersResponse.code === 200 && Array.isArray(usersResponse.result)) {
+      batchAssignDepartmentLeadersTree.value = buildBatchAssignDepartmentLeadersTree(
+        departmentResponse.result,
+        usersResponse.result
+      );
+    } else {
+      // 如果获取用户失败，只使用部门列表和负责人
+      batchAssignDepartmentLeadersTree.value = buildBatchAssignDepartmentLeadersTree(
+        departmentResponse.result,
+        []
+      );
+    }
+  } catch (error: any) {
+    console.error("加载部门用户列表失败:", error);
+    ElMessage.error(
+      error?.response?.data?.message || error?.message || "加载部门用户列表失败"
+    );
+    batchAssignDepartmentLeadersTree.value = [];
+  } finally {
+    batchAssignDepartmentLeadersLoading.value = false;
+  }
+};
+
+// 加载超时消息接收人
+const loadNotificationPerson = async () => {
+  try {
+    const response = await selectNotificationPerson();
+    if (response.code === 200 && response.result) {
+      // 如果返回的是数组，设置到表单中
+      if (response.result && Array.isArray(response.result.recipient)) {
+        batchAssignForm.notification_recipients = response.result.recipient;
+      } else {
+        batchAssignForm.notification_recipients = [];
+      }
+    }
+  } catch (error: any) {
+    console.error("加载超时消息接收人失败:", error);
+    // 不显示错误，使用默认值
+  }
+};
+
 // 批量分配选中任务
 const handleBatchAssign = async () => {
   if (!searchForm.value.projectId) {
@@ -526,118 +648,166 @@ const handleBatchAssign = async () => {
     return;
   }
 
-  try {
-    await ElMessageBox.confirm(
-      `确定要批量分配任务吗？`,
-      "批量分配确认",
-      {
-        confirmButtonText: "确定",
-        cancelButtonText: "取消",
-        type: "warning"
-      }
-    );
+  // 打开批量分配对话框
+  batchAssignDialogVisible.value = true;
 
-    batchAssignLoading.value = true;
+  // 重置表单
+  batchAssignForm.time_limit = 1;
+  batchAssignForm.notification_recipients = [];
 
-    // 直接使用表格数据构建 task_json
-    // 使用 Object.create(null) 创建纯对象，避免响应式处理
-    const taskJson: Record<string, {
-      task_name: string;
-      state: string;
-      current_assignee: string;
-      default_person: string;
-    }> = Object.create(null);
+  // 加载部门负责人列表和超时消息接收人
+  if (batchAssignDepartmentLeadersTree.value.length === 0) {
+    await loadBatchAssignDepartmentLeaders();
+  }
+  await loadNotificationPerson();
 
-    currentTasks.forEach((task: any) => {
-      const taskId = task._id || task.id;
-      if (taskId) {
-        const taskIdStr = String(taskId);
-        // 确保 taskId 不是 "0"
-        if (taskIdStr && taskIdStr !== "0") {
-          taskJson[taskIdStr] = {
-            task_name: String(task.任务名 || task.task_name || task.title || ""),
-            state: String(task.状态 || task.status || ""),
-            current_assignee: String(task.当前处理人 || task.current_handler || task.assignee || ""),
-            default_person: String(task.default_person || task.默认部门负责人 || "")
-          };
+  nextTick(() => {
+    batchAssignFormRef.value?.clearValidate();
+  });
+};
+
+// 批量分配提交
+const handleBatchAssignSubmit = async () => {
+  if (!batchAssignFormRef.value) return;
+
+  await batchAssignFormRef.value.validate(async (valid) => {
+    if (!valid) return;
+
+    if (!searchForm.value.projectId) {
+      ElMessage.warning("请先选择项目");
+      return;
+    }
+
+    const currentTasks = selectedTasks.value;
+    if (currentTasks.length === 0) {
+      ElMessage.warning("请先选择要分配的任务");
+      return;
+    }
+
+    try {
+      batchAssignLoading.value = true;
+
+      // 先调用更新超时消息接收人接口
+      try {
+        const notificationResponse = await sendNotification({
+          recipient: Array.isArray(batchAssignForm.notification_recipients)
+            ? batchAssignForm.notification_recipients
+            : [batchAssignForm.notification_recipients]
+        });
+
+        if (notificationResponse.code !== 200) {
+          ElMessage.error(notificationResponse.message || "更新超时消息接收人失败");
+          batchAssignLoading.value = false;
+          return;
         }
+      } catch (notificationError: any) {
+        console.error("更新超时消息接收人失败:", notificationError);
+        ElMessage.error(
+          notificationError?.response?.data?.message || notificationError?.message || "更新超时消息接收人失败"
+        );
+        batchAssignLoading.value = false;
+        return;
       }
-    });
 
-    if (Object.keys(taskJson).length === 0) {
-      ElMessage.warning("没有有效的任务可以分配");
-      batchAssignLoading.value = false;
-      return;
-    }
+      // 直接使用表格数据构建 task_json
+      const taskJson: Record<string, {
+        task_name: string;
+        state: string;
+        current_assignee: string;
+        default_person: string;
+      }> = Object.create(null);
 
-    // 构建最终的对象，确保所有键都是有效的字符串（不是纯数字）
-    const taskJsonFinal: Record<string, {
-      task_name: string;
-      state: string;
-      current_assignee: string;
-      default_person: string;
-    }> = {};
-
-    Object.keys(taskJson).forEach(key => {
-      // 跳过纯数字键（如 "0", "1" 等），这些会导致 Vue 渲染错误
-      if (!/^\d+$/.test(key)) {
-        taskJsonFinal[key] = taskJson[key];
-      }
-    });
-
-    if (Object.keys(taskJsonFinal).length === 0) {
-      ElMessage.warning("没有有效的任务可以分配");
-      batchAssignLoading.value = false;
-      return;
-    }
-
-    // 使用 JSON 序列化/反序列化创建纯对象，确保不会被响应式系统处理
-    const taskJsonPlain = JSON.parse(JSON.stringify(taskJsonFinal));
-
-    // 最终检查：确保没有任何数字键
-    const finalKeys = Object.keys(taskJsonPlain);
-    const hasNumericKeys = finalKeys.some(k => /^\d+$/.test(k));
-    if (hasNumericKeys) {
-      console.error("警告：taskJsonPlain 仍然包含数字键:", finalKeys.filter(k => /^\d+$/.test(k)));
-      // 移除所有数字键
-      finalKeys.forEach(key => {
-        if (/^\d+$/.test(key)) {
-          delete taskJsonPlain[key];
+      currentTasks.forEach((task: any) => {
+        const taskId = task._id || task.id;
+        if (taskId) {
+          const taskIdStr = String(taskId);
+          if (taskIdStr && taskIdStr !== "0") {
+            taskJson[taskIdStr] = {
+              task_name: String(task.任务名 || task.task_name || task.title || ""),
+              state: String(task.状态 || task.status || ""),
+              current_assignee: String(task.当前处理人 || task.current_handler || task.assignee || ""),
+              default_person: String(task.default_person || task.默认部门负责人 || "")
+            };
+          }
         }
       });
-    }
 
-    if (Object.keys(taskJsonPlain).length === 0) {
-      ElMessage.warning("没有有效的任务可以分配");
-      batchAssignLoading.value = false;
-      return;
-    }
+      if (Object.keys(taskJson).length === 0) {
+        ElMessage.warning("没有有效的任务可以分配");
+        batchAssignLoading.value = false;
+        return;
+      }
 
-    // 使用 try-catch 包装 API 调用，确保错误被正确捕获
-    let response;
-    try {
-      response = await bulkAssignment({
+      // 构建最终的对象，确保所有键都是有效的字符串（不是纯数字）
+      const taskJsonFinal: Record<string, {
+        task_name: string;
+        state: string;
+        current_assignee: string;
+        default_person: string;
+      }> = {};
+
+      Object.keys(taskJson).forEach(key => {
+        if (!/^\d+$/.test(key)) {
+          taskJsonFinal[key] = taskJson[key];
+        }
+      });
+
+      if (Object.keys(taskJsonFinal).length === 0) {
+        ElMessage.warning("没有有效的任务可以分配");
+        batchAssignLoading.value = false;
+        return;
+      }
+
+      // 使用 JSON 序列化/反序列化创建纯对象
+      const taskJsonPlain = JSON.parse(JSON.stringify(taskJsonFinal));
+
+      // 最终检查：确保没有任何数字键
+      const finalKeys = Object.keys(taskJsonPlain);
+      const hasNumericKeys = finalKeys.some(k => /^\d+$/.test(k));
+      if (hasNumericKeys) {
+        finalKeys.forEach(key => {
+          if (/^\d+$/.test(key)) {
+            delete taskJsonPlain[key];
+          }
+        });
+      }
+
+      if (Object.keys(taskJsonPlain).length === 0) {
+        ElMessage.warning("没有有效的任务可以分配");
+        batchAssignLoading.value = false;
+        return;
+      }
+
+      // 调用批量分配接口
+      console.log({
+        hour: Number(batchAssignForm.time_limit),
         task_json: taskJsonPlain
       });
-    } catch (apiError: any) {
-      // 如果 API 调用失败，直接抛出错误，让外层 catch 处理
-      throw apiError;
-    }
 
-    if (response.code === 200) {
-      const successMsg = typeof response.message === 'string' ? response.message : `成功分配 ${currentTasks.length} 个任务`;
-      ElMessage.success(successMsg);
-      // 清空选中状态
-      selectedTasks.value = [];
-      // 刷新任务列表
-      await handleSearchAllTasks();
-    } else {
-      const errorMsg = typeof response.message === 'string' ? response.message : "批量分配失败";
-      ElMessage.error(errorMsg);
-    }
-  } catch (error: any) {
-    if (error !== "cancel") {
-      // 确保错误信息是字符串，避免对象被用于渲染
+      // 格式化日期，只保留年月日
+      let formattedDeadline = batchAssignForm.task_assign_limit;
+
+
+      const response = await bulkAssignment({
+        hour: Number(batchAssignForm.time_limit),
+        task_json: taskJsonPlain,
+        task_deadline: formattedDeadline
+      });
+
+      if (response.code === 200) {
+        const successMsg = typeof response.message === 'string' ? response.message : `成功分配 ${currentTasks.length} 个任务`;
+        ElMessage.success(successMsg);
+        // 关闭对话框
+        batchAssignDialogVisible.value = false;
+        // 清空选中状态
+        selectedTasks.value = [];
+        // 刷新任务列表
+        await handleSearchAllTasks();
+      } else {
+        const errorMsg = typeof response.message === 'string' ? response.message : "批量分配失败";
+        ElMessage.error(errorMsg);
+      }
+    } catch (error: any) {
       let errorMessage = "批量分配失败";
       if (error?.response?.data?.message) {
         errorMessage = typeof error.response.data.message === 'string'
@@ -650,10 +820,10 @@ const handleBatchAssign = async () => {
       }
       console.error("批量分配失败:", errorMessage, error);
       ElMessage.error(errorMessage);
+    } finally {
+      batchAssignLoading.value = false;
     }
-  } finally {
-    batchAssignLoading.value = false;
-  }
+  });
 };
 
 // 查看任务
@@ -705,7 +875,7 @@ const handleEdit = (task: any) => {
     requirement_id: task.requirement_id || task.requirementId || "",
     requirement_name: task.requirement_name || "",
     priority: task.优先级 || task.priority || "",
-    estimated_time: task.预计工时 || task.estimated_time || 0,
+    task_deadline: task.task_deadline || "",
     default_person: task.default_person || task.默认部门负责人 || "",
     attachment: task.attachment || [],
     // 用于权限判断的当前处理人
@@ -858,6 +1028,37 @@ const treeSelectProps = {
   children: "children",
   disabled: "disabled"
 } as const;
+
+// 批量分配对话框相关
+const batchAssignDialogVisible = ref(false);
+const batchAssignFormRef = ref<FormInstance>();
+const batchAssignForm = reactive({
+  time_limit: 0,
+  task_assign_limit: '',
+  notification_recipients: [] as string[]
+});
+const batchAssignRules: FormRules = {
+  time_limit: [
+    { required: true, message: "请输入任务指派时限（小时）", trigger: "blur" },
+    { type: "number", min: 0, message: "任务指派时限必须大于0", trigger: "blur" }
+  ],
+  task_assign_limit: [
+    { required: true, message: "请输入任务截止期限（天）", trigger: "blur" },
+    {
+      validator: (rule, value, callback) => {
+        if (value && new Date(value) < new Date()) {
+          callback(new Error("任务截止期限必须大于当前日期"));
+        } else {
+          callback();
+        }
+      },
+      trigger: "change"
+    }
+  ],
+  notification_recipients: [{ required: true, message: "请选择指派超时提醒人", trigger: "change" }]
+};
+const batchAssignDepartmentLeadersTree = ref<any[]>([]);
+const batchAssignDepartmentLeadersLoading = ref(false);
 const reportForm = reactive({
   recipient: "",
   cc_person: "",
@@ -1022,7 +1223,8 @@ const handleCloseTask = async (task: any) => {
       task_id: taskId,
       current_state: currentState,
       next_state: TaskStatus.CANCELLED,
-      person_name: task.指派人 || task.assignee || ""
+      person_name: task.指派人 || task.assignee || "",
+      rejection_reason: ""
     });
     if (response.code === 200) {
       ElMessage.success("任务已关闭");
@@ -1103,12 +1305,42 @@ const restoreSearchFromQuery = async () => {
   }
 };
 
+// 计算表格高度
+const calculateTableHeight = () => {
+  nextTick(() => {
+    if (!containerRef.value) return;
+
+    const viewportHeight = window.innerHeight;
+    const containerRect = containerRef.value.getBoundingClientRect();
+    const containerTopToViewportBottom = viewportHeight - containerRect.top;
+    const tabsHeaderHeight = 65;
+    const cardPadding = 65;
+    const bottomPadding = 20;
+    const availableHeight = containerTopToViewportBottom - tabsHeaderHeight - cardPadding - bottomPadding;
+
+    tableHeight.value = availableHeight
+  });
+};
+
+// 窗口大小改变时重新计算
+const handleResize = () => {
+  calculateTableHeight();
+};
+
 onMounted(async () => {
   // 先加载项目列表
   await loadProjects();
   // 从路由参数中恢复搜索条件（内部会处理 create 参数）
   await restoreSearchFromQuery();
   // 如果需求还未选择，watch 会在需求选择后自动处理
+
+  // 计算表格高度
+  calculateTableHeight();
+  window.addEventListener('resize', handleResize);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize);
 });
 </script>
 

@@ -157,7 +157,6 @@ const projectForm = reactive({
 const rules: FormRules = {
   name: [{ required: true, message: "请输入项目名称", trigger: "blur" }],
   describe: [{ required: true, message: "请输入项目描述", trigger: "change" }],
-  startDate: [{ required: true, message: "请选择计划开始时间", trigger: "change" }],
   project_proposal: [
     {
       required: true,
@@ -475,12 +474,15 @@ const handleSubmit = async () => {
       return;
     }
 
-    // 验证日期
-    if (!projectForm.startDate || !projectForm.endDate) {
-      ElMessage.warning("请选择项目开始和计划结束时间");
+    // 验证日期（只验证结束时间，开始时间隐藏但保留参数）
+    if (!projectForm.endDate) {
+      ElMessage.warning("请选择计划结束时间");
       submitting.value = false;
       return;
     }
+
+    // 确保开始时间为空字符串（隐藏字段，但参数保留）
+    projectForm.startDate = "";
 
     // 验证立项文件
     if (!proposalFileList.value || proposalFileList.value.length === 0) {

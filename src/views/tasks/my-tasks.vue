@@ -1,5 +1,5 @@
 <template>
-  <div class="my-tasks-page">
+  <div class="my-tasks-page" ref="pageRef">
     <!-- 搜索表单 -->
     <el-card class="search-card mb-20">
       <el-form :model="searchForm" :inline="true" class="search-form">
@@ -43,8 +43,8 @@
     </el-card>
 
     <!-- 任务表格 -->
-    <el-card v-loading="loading">
-      <el-table :data="filteredTasks" style="width: 100%" height="650">
+    <el-card v-loading="loading" ref="tasksCardRef">
+      <el-table :data="filteredTasks" style="width: 100%" :height="tableHeight">
         <el-table-column prop="任务名" label="任务名称" min-width="200">
           <template #default="{ row }">
             <el-link type="primary" :underline="false" @click="handleView(row)">
@@ -101,7 +101,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import { Search } from "@element-plus/icons-vue";
@@ -127,6 +127,11 @@ const loading = ref(false);
 
 const tasks = ref<any[]>([]);
 const totalTasks = ref(0);
+
+// 表格高度相关
+const pageRef = ref<HTMLElement>();
+const tasksCardRef = ref<HTMLElement>();
+const tableHeight = ref<number>(650);
 
 // 过滤后的任务列表（前端过滤：关键词和优先级）
 const filteredTasks = computed(() => {
@@ -271,8 +276,36 @@ const handleSizeChange = (size: number) => {
   loadTasks();
 };
 
+// 计算表格高度
+const calculateTableHeight = () => {
+  nextTick(() => {
+    if (!tasksCardRef.value) return;
+
+    const viewportHeight = window.innerHeight;
+    const cardRect = tasksCardRef.value.getBoundingClientRect();
+    const cardTopToViewportBottom = viewportHeight - cardRect.top;
+    const cardHeaderHeight = 0; // 这个card没有header
+    const cardPadding = 40;
+    const paginationHeight = 60;
+    const bottomPadding = 20;
+    const availableHeight = cardTopToViewportBottom - cardHeaderHeight - cardPadding - paginationHeight - bottomPadding;
+    tableHeight.value = Math.max(400, availableHeight);
+  });
+};
+
+// 窗口大小改变时重新计算
+const handleResize = () => {
+  calculateTableHeight();
+};
+
 onMounted(() => {
   loadTasks();
+  calculateTableHeight();
+  window.addEventListener('resize', handleResize);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize);
 });
 </script>
 

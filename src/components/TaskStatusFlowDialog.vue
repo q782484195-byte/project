@@ -25,6 +25,9 @@
           check-strictly default-expand-all :data="allUsersTree" :props="treeSelectProps" node-key="value"
           :render-after-expand="false" style="width: 100%" clearable />
       </el-form-item>
+      <el-form-item v-if="needRejectionReason" label="驳回理由" prop="rejectionReason">
+        <el-input v-model="form.rejectionReason" type="textarea" :rows="3" placeholder="请输入驳回理由" />
+      </el-form-item>
     </el-form>
     <template #footer>
       <span class="dialog-footer">
@@ -68,7 +71,8 @@ const dialogVisible = computed({
 
 const formRef = ref<FormInstance>();
 const form = reactive({
-  personName: ""
+  personName: "",
+  rejectionReason: ""
 });
 const rules = computed<FormRules>(() => {
   const baseRules: FormRules = {};
@@ -76,6 +80,12 @@ const rules = computed<FormRules>(() => {
   if (props.task?.need_assign) {
     baseRules.personName = [
       { required: true, message: "负责人不能为空", trigger: ["blur", "change"] }
+    ];
+  }
+  // 根据选中的状态对应的 need_reason 来决定驳回理由是否必填
+  if (needRejectionReason.value) {
+    baseRules.rejectionReason = [
+      { required: true, message: "请输入驳回理由", trigger: ["blur", "change"] }
     ];
   }
   return baseRules;
@@ -147,15 +157,51 @@ const nextOptions = computed<string[]>(() => {
   }
   return [];
 });
+
+// 从接口返回的 need_reason 字段获取是否需要驳回理由
+const needReasonArray = computed<boolean[]>(() => {
+  if (props.task?.need_reason && Array.isArray(props.task.need_reason)) {
+    return props.task.need_reason;
+  }
+  return [];
+});
+
+// 根据选中的下一状态，判断是否需要显示驳回理由输入框
+const needRejectionReason = computed<boolean>(() => {
+  if (nextOptions.value.length === 0 || needReasonArray.value.length === 0) {
+    return false;
+  }
+
+  // 如果只有一个选项，直接使用第一个 need_reason
+  if (nextOptions.value.length === 1) {
+    return needReasonArray.value[0] === true;
+  }
+
+  // 如果有多个选项，需要选中状态才能判断
+  if (!selectedNextState.value) {
+    return false;
+  }
+
+  // 根据选中的状态找到对应的 need_reason
+  const selectedIndex = nextOptions.value.indexOf(selectedNextState.value);
+  if (selectedIndex !== -1 && selectedIndex < needReasonArray.value.length) {
+    return needReasonArray.value[selectedIndex] === true;
+  }
+
+  return false;
+});
+
 const selectedNextState = ref<string>("");
 
 const resetForm = () => {
   form.personName = "";
+  form.rejectionReason = "";
   selectedNextState.value = "";
 };
 
 const initForm = () => {
   form.personName = "";
+  form.rejectionReason = "";
   if (nextOptions.value.length === 1) {
     selectedNextState.value = nextOptions.value[0];
   } else {
@@ -189,6 +235,19 @@ watch(
     } else {
       selectedNextState.value = "";
     }
+    // 当选项变化时，清空驳回理由
+    form.rejectionReason = "";
+  }
+);
+
+// 监听选中的状态变化，清空驳回理由
+watch(
+  () => selectedNextState.value,
+  () => {
+    form.rejectionReason = "";
+    nextTick(() => {
+      formRef.value?.clearValidate("rejectionReason");
+    });
   }
 );
 
@@ -246,27 +305,23 @@ const buildTreeData = (data: Array<Record<string, any>>): TreeNode[] => {
             return false;
           }
 
-          // 规则2：如果当前用户是普通成员，不能分配给自己和项目负责人
+          // 规则2：如果当前用户是普通成员，不能分配给项目负责人（但允许分配给自己）
           if (isCurrentUserMember) {
-            // 不能分配给自己
-            if (userValue === currentUsername) {
-              return false;
-            }
             // 不能分配给项目负责人
             if (isUserProjectManager) {
               return false;
             }
           }
 
-          // 如果当前状态是"待指派给成员"，不过滤当前用户（除非是普通成员，已在上面处理）
+          // 如果当前状态是"待指派给成员"，允许分配
           if (isPendingAssignToMember) {
-            // 普通成员不能分配给自己和项目负责人，已在上面处理
+            // 普通成员不能分配给项目负责人，已在上面处理
             // 其他角色可以分配
             return true;
           }
 
-          // 其他状态：过滤掉当前用户（普通成员已在上面处理）
-          return userValue !== currentUsername;
+          // 其他状态：允许分配给当前用户
+          return true;
         })
         .map(user => {
           const username = user.username || user.nickname || "未知用户";
@@ -329,11 +384,19 @@ const handleConfirm = () => {
       //   ElMessage.error(res.message || "发送消息失败");
       //   return;
       // }
+      // 根据选中的状态对应的 need_reason 来决定是否传递驳回理由
+      const selectedIndex = options.length > 1
+        ? options.indexOf(targetState)
+        : 0;
+      const needReason = needReasonArray.value[selectedIndex] === true;
+      const rejectionReason = needReason ? form.rejectionReason.trim() : "";
+
       const response = await updateTaskState({
         task_id: taskId,
         current_state: currentState,
         next_state: targetState,
-        person_name: personName || ""
+        person_name: personName || "",
+        rejection_reason: rejectionReason
       });
       if (response.code === 200) {
         ElMessage.success(response.message || "状态更新成功");

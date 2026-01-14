@@ -119,6 +119,29 @@
               </div>
             </div>
           </el-tab-pane>
+          <el-tab-pane label="项目更新记录" name="update-history">
+            <div v-loading="loading" class="update-history-content">
+              <el-card v-if="projectHistory && projectHistory.length > 0" class="history-list-card" shadow="never">
+                <template #header>
+                  <div class="history-list-header">
+                    <span>更新记录</span>
+                  </div>
+                </template>
+                <div class="custom-timeline">
+                  <div v-for="(record, index) in projectHistory" :key="index" class="timeline-item">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-line" v-if="index < projectHistory.length - 1"></div>
+                    <div class="timeline-content">
+                      <div class="history-content">{{ record }}</div>
+                    </div>
+                  </div>
+                </div>
+              </el-card>
+              <div v-else-if="!loading" class="history-empty">
+                <el-empty description="暂无更新记录" :image-size="100" />
+              </div>
+            </div>
+          </el-tab-pane>
         </el-tabs>
       </el-card>
 
@@ -370,6 +393,7 @@ const projectStatistics = ref<ProjectStatisticsResponse | null>(null);
 const loading = ref(false);
 const currentStatus = ref<string>("");
 const statusUpdating = ref(false);
+const projectHistory = ref<string[]>([]);
 // 树形需求节点类型
 interface RequirementTreeNode {
   id: string;
@@ -599,6 +623,9 @@ const loadProject = async () => {
         progress: 0
       } as any;
       currentStatus.value = project.value.status || "进行中";
+
+      // 加载项目更新记录
+      projectHistory.value = ((item as any).history && Array.isArray((item as any).history)) ? (item as any).history : [];
 
       // 加载项目统计数据
       await loadProjectStatistics(projectId.value);
@@ -2487,6 +2514,96 @@ const getPriorityText = (priority: "low" | "medium" | "high"): string => {
 
     .el-tabs__content {
       padding: 16px;
+    }
+  }
+}
+
+.update-history-content {
+  .history-list-card {
+    border-radius: 8px;
+    box-shadow:
+      0 2px 8px rgba(0, 0, 0, 0.04),
+      0 1px 3px rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(0, 0, 0, 0.04);
+
+    :deep(.el-card__header) {
+      padding: 18px 20px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+      font-weight: 600;
+      font-size: 15px;
+      color: #303133;
+    }
+
+    :deep(.el-card__body) {
+      padding: 20px;
+    }
+
+    .history-list-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+  }
+
+  .history-empty {
+    padding: 40px 0;
+  }
+
+  .custom-timeline {
+    position: relative;
+    padding-left: 20px;
+
+    .timeline-item {
+      position: relative;
+      padding-bottom: 20px;
+      display: flex;
+      align-items: center;
+
+      &:last-child {
+        padding-bottom: 0;
+      }
+
+      .timeline-dot {
+        position: absolute;
+        left: -6px;
+        width: 14px;
+        height: 14px;
+        background-color: #409eff;
+        border-radius: 50%;
+        border: 2px solid #fff;
+        box-shadow: 0 0 0 2px #409eff;
+        z-index: 2;
+        flex-shrink: 0;
+      }
+
+      .timeline-line {
+        position: absolute;
+        left: -1px;
+        top: 14px;
+        bottom: -20px;
+        width: 2px;
+        background-color: #e4e7ed;
+        z-index: 1;
+      }
+
+      .timeline-content {
+        flex: 1;
+        padding-left: 16px;
+        display: flex;
+        align-items: center;
+        min-height: 40px;
+
+        .history-content {
+          font-size: 14px;
+          color: #606266;
+          line-height: 1.6;
+          padding: 8px 12px;
+          background: #f8f9fa;
+          border-radius: 6px;
+          border-left: 3px solid #409eff;
+          width: 100%;
+        }
+      }
     }
   }
 }

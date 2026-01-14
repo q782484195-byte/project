@@ -1,5 +1,5 @@
 <template>
-  <div class="workspace-page">
+  <div class="workspace-page" ref="pageRef">
     <!-- Tab 切换：工作台-任务-需求-项目 -->
     <el-tabs v-model="activeTab" @tab-change="handleTabChange" class="workspace-tabs">
       <!-- 工作台 Tab -->
@@ -70,13 +70,14 @@
             </el-card>
 
             <!-- 待办事项 -->
-            <el-card>
+            <el-card ref="todoTasksCardRef">
               <template #header>
                 <div class="card-header">
                   <span>待办事项</span>
                 </div>
               </template>
-              <el-table :data="todoTasks" v-loading="tasksLoading" :style="{ width: '100%' }" :height="480">
+              <el-table :data="todoTasks" v-loading="tasksLoading" :style="{ width: '100%' }"
+                :height="todoTasksTableHeight">
                 <el-table-column prop="项目名称" label="项目名称">
                   <template #default="{ row }">
                     <el-tooltip :content="row.项目名称 || row.project_name || '-'" placement="top"
@@ -94,7 +95,7 @@
                   </template>
                 </el-table-column>
                 <el-table-column prop="requirement_name" label="关联层级" show-overflow-tooltip width="150" />
-                <el-table-column prop="指派人" label="负责人" width="150">
+                <el-table-column prop="指派人" label="负责人">
                   <template #default="{ row }">
                     <el-tooltip :content="row.指派人 || row.assignee || '-'" placement="top"
                       :disabled="!row.指派人 && !row.assignee">
@@ -117,13 +118,13 @@
                     </el-tag>
                   </template>
                 </el-table-column>
-                <el-table-column prop="进度" label="进度" width="150">
+                <el-table-column prop="进度" label="进度">
                   <template #default="{ row }">
                     <el-progress :percentage="row.进度 || 0" :status="row.进度 === 100 ? 'success' : undefined" />
                   </template>
                 </el-table-column>
-                <el-table-column prop="预计工时" label="计划工时" show-overflow-tooltip />
-                <el-table-column prop="已用工时" label="已用工时" show-overflow-tooltip />
+                <el-table-column prop="development_start_time" label="研发开始时间" show-overflow-tooltip width="100" />
+                <el-table-column prop="development_end_time" label="研发结束时间" show-overflow-tooltip width="100" />
                 <el-table-column prop="assignment_time" label="任务分配时间" show-overflow-tooltip width="180" />
                 <el-table-column label="操作" width="150" fixed="right">
                   <template #default="{ row }">
@@ -309,7 +310,7 @@
       <!-- 任务 Tab -->
       <el-tab-pane label="任务" name="tasks">
         <!-- 搜索表单 -->
-        <el-card class="mb-20">
+        <!-- <el-card class="mb-20">
           <template #header>
             <div class="card-header">
               <span>任务查询</span>
@@ -338,16 +339,17 @@
               <el-button @click="handleTaskSearchReset">重置</el-button>
             </el-form-item>
           </el-form>
-        </el-card>
+        </el-card> -->
 
-        <el-card>
+        <el-card ref="allTasksCardRef">
           <template #header>
             <div class="card-header">
               <span>任务列表</span>
               <!-- <el-button type="primary" size="small" @click="goToMyTasks">查看更多</el-button> -->
             </div>
           </template>
-          <el-table :data="filteredAllTasks" v-loading="allTasksLoading" :style="{ width: '100%' }" :height="700">
+          <el-table :data="filteredAllTasks" v-loading="allTasksLoading" :style="{ width: '100%' }"
+            :height="allTasksTableHeight">
             <el-table-column prop="任务名" label="任务名称" min-width="200" />
             <el-table-column prop="状态" label="状态" width="140">
               <template #default="{ row }">
@@ -366,9 +368,14 @@
               </template>
             </el-table-column>
             <el-table-column prop="requirement_name" label="所属层级" min-width="150" />
-            <el-table-column prop="预计工时" label="预计工时" width="100">
+            <el-table-column prop="development_start_time" label="研发开始时间" width="150">
               <template #default="{ row }">
-                {{ row.预计工时 || 0 }}天
+                {{ row.development_start_time || "-" }}
+              </template>
+            </el-table-column>
+            <el-table-column prop="development_start_time" label="研发结束时间" width="150">
+              <template #default="{ row }">
+                {{ row.development_end_time || "-" }}
               </template>
             </el-table-column>
             <el-table-column label="操作" width="280" fixed="right">
@@ -377,7 +384,8 @@
                   查看
                 </el-button>
                 <el-button v-if="(row.当前处理人 || row.current_handler) === userStore.username" type="primary" link
-                  size="small" :disabled="!getNextStatus(row.状态 || row.status)"
+                  size="small"
+                  :disabled="!row.next_state || !Array.isArray(row.next_state) || row.next_state.length === 0"
                   :loading="statusFlowButtonLoadingTaskId === (row._id || row.id)" @click="openStatusFlowDialog(row)">
                   分配
                 </el-button>
@@ -387,7 +395,8 @@
                   @click="openBugDialog(row)">记录BUG</el-button>
                 <el-button type="success" link size="small" @click="openReportDialog(row)"
                   v-if="(row.当前处理人 || row.current_handler) === userStore.username && canRecordBug(row.状态 || row.status, 'report')"
-                  v-perms="['task:report']">进度汇报</el-button>
+                  v-perms="['task:report']">进度汇报
+                </el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -435,14 +444,15 @@
 
       <!-- 项目 Tab -->
       <el-tab-pane label="项目" name="projects">
-        <el-card>
+        <el-card ref="projectsCardRef">
           <template #header>
             <div class="card-header">
               <span>项目列表</span>
               <!-- <el-button type="primary" size="small" @click="goToProjects">查看更多</el-button> -->
             </div>
           </template>
-          <el-table :data="projects" v-loading="projectsLoading" :style="{ width: '100%' }" :height="700">
+          <el-table :data="projects" v-loading="projectsLoading" :style="{ width: '100%' }"
+            :height="projectsTableHeight">
             <el-table-column prop="project_name" label="项目名称" min-width="200" />
             <el-table-column prop="state" label="状态" width="140">
               <template #default="{ row }">
@@ -527,14 +537,47 @@
         </span>
       </template>
     </el-dialog>
+
+    <!-- 填写预计工时对话框 -->
+    <el-dialog v-model="developmentTimeDialogVisible" title="填写预计工时" width="500px" append-to-body
+      :close-on-click-modal="false">
+      <el-form ref="developmentTimeFormRef" :model="developmentTimeForm" :rules="developmentTimeRules"
+        label-width="120px">
+        <el-form-item label="任务名称">
+          <span>{{ developmentTimeForm.task_name || "-" }}</span>
+        </el-form-item>
+        <el-form-item label="研发开始时间" prop="development_start_time">
+          <el-date-picker v-model="developmentTimeForm.development_start_time" type="datetime" placeholder="请选择研发开始时间"
+            format="YYYY-MM-DD" value-format="YYYY-MM-DD" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="研发结束时间" prop="development_end_time">
+          <el-date-picker v-model="developmentTimeForm.development_end_time" type="datetime" placeholder="请选择研发结束时间"
+            format="YYYY-MM-DD" value-format="YYYY-MM-DD" :disabled-date="(time: Date) => {
+              if (developmentTimeForm.task_deadline) {
+                const deadline = new Date(developmentTimeForm.task_deadline);
+                deadline.setHours(23, 59, 59, 999);
+                return time.getTime() > deadline.getTime();
+              }
+              return false;
+            }" style="width: 100%" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="developmentTimeDialogVisible = false">取消</el-button>
+          <el-button type="primary" :loading="developmentTimeSubmitting"
+            @click="handleDevelopmentTimeSubmit">提交</el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive, onMounted, onBeforeUnmount, nextTick } from "vue";
+import { ref, computed, reactive, onMounted, onBeforeUnmount, onUnmounted, nextTick } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useUserStoreHook } from "@/store/modules/user";
-import { selectMyTasks, selectRequirements, selectProjects, getTaskStatistics, selectPendingTasks, selectUserRequirements, flattenRequirementData, reportTaskProgress } from "@/api/project";
+import { selectMyTasks, selectRequirements, selectProjects, getTaskStatistics, selectPendingTasks, selectUserRequirements, flattenRequirementData, reportTaskProgress, updateDevelopmentTime } from "@/api/project";
 import { createBug } from "@/api/bug";
 import { selectDepartmentUsers, type DepartmentUserItem } from "@/api/system";
 import { selectSelfReports, selectReports, type ReportRecord } from "@/api/report";
@@ -559,6 +602,15 @@ let timeInterval: number | null = null;
 
 // 当前激活的 Tab
 const activeTab = ref("workspace");
+
+// 表格高度相关
+const pageRef = ref<HTMLElement>();
+const todoTasksCardRef = ref<HTMLElement>();
+const allTasksCardRef = ref<HTMLElement>();
+const projectsCardRef = ref<HTMLElement>();
+const todoTasksTableHeight = ref<number>(480);
+const allTasksTableHeight = ref<number>(700);
+const projectsTableHeight = ref<number>(700);
 
 // 工作台统计数据（直接使用接口返回的字段）
 const stats = ref({
@@ -884,12 +936,16 @@ const convertReportsToActivities = (reports: ReportRecord[]): Array<{ time: stri
     // 构建内容，包含任务名和进度信息
     let content = message;
     if (projectName) {
-      content = `项目 "${projectName}" 的汇报: ${message}`;
-    }
-
-    // 如果有任务名，添加到内容中
-    if (taskName) {
-      content += ` [任务: ${taskName}]`;
+      // 如果有任务名，格式为：项目 【项目名-任务-任务名】 的汇报: 内容
+      if (taskName) {
+        content = `项目 【${projectName}】-【任务-${taskName}】 的汇报: ${message}`;
+      } else {
+        // 如果只有项目名，格式为：项目 【项目名】 的汇报: 内容
+        content = `项目 【${projectName}】 的汇报: ${message}`;
+      }
+    } else if (taskName) {
+      // 如果没有项目名但有任务名，格式为：任务 【任务名】 的汇报: 内容
+      content = `任务 【${taskName}】 的汇报: ${message}`;
     }
 
     // 如果有进度，添加到内容中
@@ -1228,14 +1284,128 @@ const canRecordBug = (status: string, type?: 'bug' | 'report'): boolean => {
   ];
   // 如果是进度汇报，添加进行中状态
   if (type === 'report') {
-    testReviewStatuses.push("任务进行中", "测试未通过", "审阅未通过", '任务未开始');
+    testReviewStatuses.push("任务进行中", "第一轮测试", "第二轮测试", "第三轮测试");
   }
   return testReviewStatuses.includes(status);
 
 };
 
+// 填写预计工时对话框
+const developmentTimeDialogVisible = ref(false);
+const developmentTimeFormRef = ref<FormInstance>();
+const developmentTimeSubmitting = ref(false);
+const developmentTimeForm = reactive({
+  task_id: "",
+  task_name: "",
+  task_deadline: "",
+  development_start_time: "",
+  development_end_time: ""
+});
+const developmentTimeRules: FormRules = {
+  development_start_time: [
+    { required: true, message: "请选择研发开始时间", trigger: "change" }
+  ],
+  development_end_time: [
+    { required: true, message: "请选择研发结束时间", trigger: "change" },
+    {
+      validator: (rule, value, callback) => {
+        if (!value) {
+          callback();
+          return;
+        }
+
+        const endTime = new Date(value).getTime();
+
+        // 检查是否晚于开始时间
+        if (developmentTimeForm.development_start_time) {
+          const startTime = new Date(developmentTimeForm.development_start_time).getTime();
+          if (endTime <= startTime) {
+            callback(new Error("研发结束时间必须晚于开始时间"));
+            return;
+          }
+        }
+
+        // 检查是否超过任务截止日期
+        if (developmentTimeForm.task_deadline) {
+          const deadline = new Date(developmentTimeForm.task_deadline).getTime();
+          // 只比较日期部分，忽略时分秒
+          const endDate = new Date(value);
+          endDate.setHours(0, 0, 0, 0);
+          const deadlineDate = new Date(developmentTimeForm.task_deadline);
+          deadlineDate.setHours(0, 0, 0, 0);
+
+          if (endDate.getTime() > deadlineDate.getTime()) {
+            callback(new Error("开发结束日期不能超过任务截止日期"));
+            return;
+          }
+        }
+
+        callback();
+      },
+      trigger: "change"
+    }
+  ]
+};
+
+// 打开填写预计工时对话框
+const openDevelopmentTimeDialog = (task: any) => {
+  const taskId = task._id || task.id || "";
+  developmentTimeForm.task_id = taskId;
+  developmentTimeForm.task_name = task.任务名 || task.task_name || task.title || "";
+  // 获取任务截止日期，可能是 task_deadline 或 task_dead_line
+  developmentTimeForm.task_deadline = task.task_deadline || task.task_dead_line || "";
+  developmentTimeForm.development_start_time = "";
+  developmentTimeForm.development_end_time = "";
+  developmentTimeDialogVisible.value = true;
+  nextTick(() => {
+    developmentTimeFormRef.value?.clearValidate();
+  });
+};
+
+// 提交预计工时
+const handleDevelopmentTimeSubmit = () => {
+  developmentTimeFormRef.value?.validate(async (valid) => {
+    if (!valid) return;
+    if (!developmentTimeForm.task_id) {
+      ElMessage.error("任务信息缺失");
+      return;
+    }
+    developmentTimeSubmitting.value = true;
+    try {
+      const response = await updateDevelopmentTime({
+        task_id: developmentTimeForm.task_id,
+        development_start_time: developmentTimeForm.development_start_time,
+        development_end_time: developmentTimeForm.development_end_time
+      });
+      if (response.code === 200) {
+        ElMessage.success("预计工时填写成功");
+        developmentTimeDialogVisible.value = false;
+        // 刷新工作台的待办事项列表
+        loadTodoTasks(todoTasksPage.value);
+        // 刷新任务tab的列表
+        loadAllTasks();
+      } else {
+        ElMessage.error(response.message || "预计工时填写失败");
+      }
+    } catch (error: any) {
+      console.error("填写预计工时失败:", error);
+      ElMessage.error(
+        error?.response?.data?.message || error?.message || "预计工时填写失败"
+      );
+    } finally {
+      developmentTimeSubmitting.value = false;
+    }
+  });
+};
+
 // 打开状态分配对话框
 const openStatusFlowDialog = (task: any) => {
+  // 检查状态是否为"填写预计工时"
+  const taskStatus = task.状态 || task.status || "";
+  if (taskStatus === "填写预计工时") {
+    openDevelopmentTimeDialog(task);
+    return;
+  }
   // 检查 next_state 是否存在且有值
   if (!task.next_state || !Array.isArray(task.next_state) || task.next_state.length === 0) {
     ElMessage.warning("当前状态无法继续分配");
@@ -1466,6 +1636,49 @@ const handleTaskSearchReset = () => {
   taskSearchForm.value.state = "";
 };
 
+// 计算表格高度
+const calculateTableHeights = () => {
+  nextTick(() => {
+    const viewportHeight = window.innerHeight;
+
+    // 计算待办任务表格高度
+    if (todoTasksCardRef.value) {
+      const cardRect = todoTasksCardRef.value.getBoundingClientRect();
+      const cardTopToViewportBottom = viewportHeight - cardRect.top;
+      const cardHeaderHeight = 50; // card header高度
+      const cardPadding = 40; // card内部padding
+      const paginationHeight = 60; // 分页高度
+      const bottomPadding = 20;
+      todoTasksTableHeight.value = Math.max(300, cardTopToViewportBottom - cardHeaderHeight - cardPadding - paginationHeight - bottomPadding);
+    }
+
+    // 计算所有任务表格高度
+    if (allTasksCardRef.value) {
+      const cardRect = allTasksCardRef.value.getBoundingClientRect();
+      const cardTopToViewportBottom = viewportHeight - cardRect.top;
+      const cardHeaderHeight = 50;
+      const cardPadding = 40;
+      const bottomPadding = 20;
+      allTasksTableHeight.value = Math.max(400, cardTopToViewportBottom - cardHeaderHeight - cardPadding - bottomPadding);
+    }
+
+    // 计算项目表格高度
+    if (projectsCardRef.value) {
+      const cardRect = projectsCardRef.value.getBoundingClientRect();
+      const cardTopToViewportBottom = viewportHeight - cardRect.top;
+      const cardHeaderHeight = 50;
+      const cardPadding = 40;
+      const bottomPadding = 20;
+      projectsTableHeight.value = Math.max(400, cardTopToViewportBottom - cardHeaderHeight - cardPadding - bottomPadding);
+    }
+  });
+};
+
+// 窗口大小改变时重新计算
+const handleResize = () => {
+  calculateTableHeights();
+};
+
 onMounted(() => {
   updateTime();
   timeInterval = window.setInterval(updateTime, 1000);
@@ -1479,6 +1692,14 @@ onMounted(() => {
     // 默认加载工作台的待办任务
     loadTodoTasks();
   }
+
+  // 计算表格高度
+  calculateTableHeights();
+  window.addEventListener('resize', handleResize);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize);
 });
 
 onBeforeUnmount(() => {
@@ -1796,8 +2017,8 @@ onBeforeUnmount(() => {
 
   .activity-tabs {
     :deep(.el-tabs__content) {
-      max-height: 250px;
-      min-height: 200px;
+      max-height: 245px;
+      min-height: 240px;
       overflow-y: auto;
       overflow-x: hidden;
     }

@@ -22,6 +22,11 @@ export interface User {
   updateTime?: string;
 }
 
+/** 上传Excel文件导入用户参数 */
+export interface LoadUserFromExcelParams {
+  file: File;
+}
+
 /** API响应类型 */
 export interface ApiResponse<T> {
   code: number;
@@ -164,5 +169,48 @@ export const updateUser = (data: User) => {
 export const deleteUser = (username: string) => {
   return http.request<ApiResponse<void>>("post", "/admin/delete_user", {
     data: { username }
+  });
+};
+
+/** 通过文件导入用户 */
+export const loadUserFromExcel = (params: LoadUserFromExcelParams) => {
+  const formData = new FormData();
+  formData.append("file", params.file);
+
+  return http.request<ApiResponse<void>>("post", "/admin/load_user_from_excel", {
+    data: formData,
+    headers: {
+      "Content-Type": "multipart/form-data"
+    }
+  });
+};
+
+/** 获取部门任务统计 */
+export const getTaskStatistics = () => {
+  return http.request<{
+    code: number;
+    result: any;
+  }>("get", "/department/task_statistics", {
+  });
+};
+
+export interface SelectNotificationPersonResponse {
+  code: number;
+  result: {
+    recipient: string[];
+  } | null;
+}
+/** 查询超时消息接收人 */
+export const selectNotificationPerson = () => {
+  return http.request<SelectNotificationPersonResponse>("get", "/notification/select_person", {
+  })
+};
+
+/** 更新超时消息接收人 */
+export const sendNotification = (data: {
+  recipient: string[];
+}) => {
+  return http.request<ApiResponse<any>>("post", "/notification/update_person", {
+    data
   });
 };

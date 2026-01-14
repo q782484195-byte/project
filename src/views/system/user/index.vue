@@ -9,6 +9,7 @@ import {
   updateUser,
   deleteUser,
   getDepartmentNameList,
+  loadUserFromExcel,
   type User,
   type DepartmentListItem,
   type UserListResponse,
@@ -24,12 +25,14 @@ defineOptions({
 const roleMap: Record<string, string> = {
   ProjectManager: "项目经理",
   DepartmentManager: "部门主管",
-  Member: "普通成员"
+  Member: "普通成员",
+  ProjectDirector: "项目总监"
 };
 
 const tableRef = ref();
 const formRef = ref<FormInstance>();
 const queryFormRef = ref<FormInstance>();
+const fileInputRef = ref<HTMLInputElement>();
 const loading = ref(false);
 const dialogVisible = ref(false);
 const dialogTitle = ref("新增用户");
@@ -223,6 +226,36 @@ const handleAdd = () => {
   dialogVisible.value = true;
 };
 
+// 批量导入
+const handleBatchImport = () => {
+  fileInputRef.value?.click();
+};
+
+const handleFileChange = async (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0];
+  if (file) {
+    // 检查文件类型
+    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+      message('请选择Excel文件', { type: 'error' });
+      return;
+    }
+    try {
+      const response = await loadUserFromExcel({ file });
+      if (response.code === 200) {
+        message('批量导入成功', { type: 'success' });
+        loadData(); // 刷新列表
+      } else {
+        message(response.message || '批量导入失败', { type: 'error' });
+      }
+    } catch (error) {
+      message('批量导入失败', { type: 'error' });
+    }
+  }
+  // 重置input
+  target.value = '';
+};
+
 // 打开编辑对话框
 const handleEdit = (row: TableUser) => {
   dialogTitle.value = "编辑用户";
@@ -362,6 +395,7 @@ onMounted(() => {
 
 <template>
   <div class="user-management">
+    <input ref="fileInputRef" type="file" accept=".xlsx,.xls" @change="handleFileChange" style="display: none;" />
     <!-- 查询表单 -->
     <el-card shadow="never">
       <el-form ref="queryFormRef" :model="queryForm" :inline="true" class="query-form">
@@ -394,6 +428,9 @@ onMounted(() => {
         <div class="card-header">
           <span class="font-medium">用户管理</span>
           <div>
+            <el-button v-perms="'admin:add_user'" type="primary" :icon="Add" @click="handleBatchImport">
+              从Excel导入
+            </el-button>
             <el-button v-perms="'admin:add_user'" type="primary" :icon="Add" @click="handleAdd">
               新增
             </el-button>

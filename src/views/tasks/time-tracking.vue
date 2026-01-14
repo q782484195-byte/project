@@ -31,23 +31,30 @@
           <span>工时统计结果</span>
         </div>
       </template>
-      <div v-if="tableData.length > 0" class="result-container">
-        <el-table :data="tableData" border stripe style="width: 100%" height="100%">
-          <el-table-column v-for="(header, index) in tableHeaders" :key="index" :prop="`col_${index}`" :label="header"
-            :min-width="index === 0 ? 200 : 120" :fixed="index === 0 ? 'left' : false" show-overflow-tooltip>
-            <template #default="{ row }">
-              <div v-if="row[`col_${index}`]" class="cell-content">
-                <template v-if="hasMultipleValues(row[`col_${index}`])">
-                  <div v-for="(item, idx) in splitValue(row[`col_${index}`])" :key="idx" class="cell-item">
-                    {{ item }}
-                  </div>
-                </template>
-                <span v-else>{{ row[`col_${index}`] }}</span>
-              </div>
-              <span v-else style="color: #c0c4cc;">-</span>
-            </template>
-          </el-table-column>
-        </el-table>
+      <div v-if="groupedTableData.size > 0" class="result-container">
+        <el-tabs v-model="activeTab" type="border-card" class="time-tracking-tabs">
+          <el-tab-pane v-for="(groupName, index) in groupNames" :key="groupName" :label="groupName" :name="groupName">
+            <div class="tab-table-container">
+              <el-table :data="groupedTableData.get(groupName) || []" border stripe style="width: 100%" height="100%">
+                <el-table-column v-for="(header, colIndex) in tableHeaders" :key="colIndex" :prop="`col_${colIndex}`"
+                  :label="header" :min-width="colIndex === 0 ? 200 : 120" :fixed="colIndex === 0 ? 'left' : false"
+                  show-overflow-tooltip>
+                  <template #default="{ row }">
+                    <div v-if="row[`col_${colIndex}`]" class="cell-content">
+                      <template v-if="hasMultipleValues(row[`col_${colIndex}`])">
+                        <div v-for="(item, idx) in splitValue(row[`col_${colIndex}`])" :key="idx" class="cell-item">
+                          {{ item }}
+                        </div>
+                      </template>
+                      <span v-else>{{ row[`col_${colIndex}`] }}</span>
+                    </div>
+                    <span v-else style="color: #c0c4cc;">-</span>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </div>
+          </el-tab-pane>
+        </el-tabs>
       </div>
       <div v-else class="empty-container">
         <el-empty description="暂无数据，请先查询" />
@@ -83,8 +90,11 @@ const timeTrackingData = ref<Record<string, any>>({});
 // 表头数据
 const tableHeaders = ref<string[]>([]);
 
-// 表格数据
-const tableData = ref<Array<Record<string, any>>>([]);
+// 表格数据（按任务组分组）
+const groupedTableData = ref<Map<string, Array<Record<string, any>>>>(new Map());
+
+// 当前激活的 tab
+const activeTab = ref<string>("");
 
 // 项目列表
 const projects = ref<Array<{ id: string; name: string }>>([]);
@@ -92,6 +102,11 @@ const projects = ref<Array<{ id: string; name: string }>>([]);
 // 项目选项
 const projectOptions = computed(() => {
   return projects.value;
+});
+
+// 任务组名称列表
+const groupNames = computed(() => {
+  return Array.from(groupedTableData.value.keys());
 });
 
 // 项目选择
@@ -156,7 +171,7 @@ const loadTimeTracking = async () => {
       // 处理表格数据
       processTableData(timeTrackingData.value);
 
-      if (tableData.value.length === 0) {
+      if (groupedTableData.value.size === 0) {
         ElMessage.info("查询成功，但暂无数据");
       } else {
         ElMessage.success("查询成功");
@@ -165,7 +180,8 @@ const loadTimeTracking = async () => {
       ElMessage.error(res.message || "查询失败");
       timeTrackingData.value = {};
       tableHeaders.value = [];
-      tableData.value = [];
+      groupedTableData.value = new Map();
+      activeTab.value = "";
     }
   } catch (error: any) {
     console.error("查询时间追踪失败:", error);
@@ -174,7 +190,8 @@ const loadTimeTracking = async () => {
     );
     timeTrackingData.value = {};
     tableHeaders.value = [];
-    tableData.value = [];
+    groupedTableData.value = new Map();
+    activeTab.value = "";
   } finally {
     loading.value = false;
   }
@@ -187,23 +204,63 @@ const processTableData = (data: Record<string, any>) => {
     tableHeaders.value = data["#head#"];
   } else {
     tableHeaders.value = [];
-    tableData.value = [];
+    groupedTableData.value = new Map();
+    activeTab.value = "";
     return;
   }
 
-  // 处理表格行数据
-  tableData.value = [];
+  // 处理表格行数据，按任务组分组
+  const groupedData = new Map<string, Array<Record<string, any>>>();
+  const groupNameList: string[] = [];
+
   Object.keys(data).forEach(key => {
     if (key !== "#head#" && Array.isArray(data[key])) {
-      const row: Record<string, any> = {};
-      data[key].forEach((value: any, index: number) => {
-        row[`col_${index}`] = value;
-      });
-      // 添加任务ID作为唯一标识
-      row._id = key;
-      tableData.value.push(row);
+      const groupName = key.trim();
+      const groupRows: Array<Record<string, any>> = [];
+
+      // 检查是否是二维数组（新格式）
+      const isTwoDimensional = Array.isArray(data[key][0]);
+
+      if (isTwoDimensional) {
+        // 新格式：二维数组，每个子数组代表一行任务
+        data[key].forEach((taskRow: any[], rowIndex: number) => {
+          if (Array.isArray(taskRow)) {
+            const row: Record<string, any> = {};
+            taskRow.forEach((value: any, index: number) => {
+              row[`col_${index}`] = value;
+            });
+            // 添加任务组名称和行索引作为唯一标识
+            row._group = groupName;
+            row._rowIndex = rowIndex;
+            row._id = `${key}_${rowIndex}`;
+            groupRows.push(row);
+          }
+        });
+      } else {
+        // 旧格式兼容：一维数组
+        const row: Record<string, any> = {};
+        data[key].forEach((value: any, index: number) => {
+          row[`col_${index}`] = value;
+        });
+        row._group = groupName;
+        row._id = key;
+        groupRows.push(row);
+      }
+
+      if (groupRows.length > 0) {
+        groupedData.set(groupName, groupRows);
+        groupNameList.push(groupName);
+      }
     }
   });
+
+  groupedTableData.value = groupedData;
+  // 设置默认激活第一个 tab
+  if (groupNameList.length > 0) {
+    activeTab.value = groupNameList[0];
+  } else {
+    activeTab.value = "";
+  }
 };
 
 // 搜索
@@ -219,7 +276,8 @@ const handleReset = () => {
   };
   timeTrackingData.value = {};
   tableHeaders.value = [];
-  tableData.value = [];
+  groupedTableData.value = new Map();
+  activeTab.value = "";
 };
 
 // 检查是否包含多个值（逗号分隔）
@@ -292,14 +350,44 @@ onMounted(() => {
   flex: 1;
   overflow: hidden;
   padding: 0;
+  display: flex;
+  flex-direction: column;
 
-  :deep(.el-table) {
-    height: 100%;
-  }
+  .time-tracking-tabs {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 
-  :deep(.el-table__body-wrapper) {
-    max-height: 100%;
-    overflow-y: auto;
+    :deep(.el-tabs__content) {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    :deep(.el-tab-pane) {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .tab-table-container {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    :deep(.el-table) {
+      height: 100%;
+    }
+
+    :deep(.el-table__body-wrapper) {
+      max-height: 100%;
+      overflow-y: auto;
+    }
   }
 }
 

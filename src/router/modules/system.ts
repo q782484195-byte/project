@@ -16,9 +16,9 @@ export default {
       name: "SystemDepartment",
       component: () => import("@/views/system/department/index.vue"),
       meta: {
-        title: "部门",
+        title: "部门列表",
         showParent: true,
-        roles: ["Admin", "ProjectManager"] // 只有 Admin 角色可以访
+        roles: ["Admin", "ProjectManager", 'ProjectDirector'] // 只有 Admin 角色可以访
       }
     },
     {
@@ -26,9 +26,9 @@ export default {
       name: "SystemUser",
       component: () => import("@/views/system/user/index.vue"),
       meta: {
-        title: "用户",
+        title: "用户列表",
         showParent: true,
-        roles: ["Admin", "ProjectManager"] // Admin 和 DepartmentManager 角色可以访问
+        roles: ["Admin", "ProjectManager", 'ProjectDirector'] // Admin 和 DepartmentManager 角色可以访问
       }
     }
   ]

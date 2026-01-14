@@ -23,18 +23,21 @@
                 <span>基本信息</span>
               </template>
               <el-descriptions :column="2" border>
+                <!-- 第1行：任务名称（左）| 所属项目（右） -->
                 <el-descriptions-item label="任务名称">{{
                   task.任务名 || task.task_name || task.title || "-"
                   }}</el-descriptions-item>
                 <el-descriptions-item label="所属项目">{{
                   task.project_name || "-"
                   }}</el-descriptions-item>
+                <!-- 第2行：关联层级（左）| 创建人（右） -->
                 <el-descriptions-item label="关联层级">{{
                   task.requirement_name || "-"
                   }}</el-descriptions-item>
-                <el-descriptions-item label="负责人">{{
-                  task.当前处理人 || task.assignee || "-"
+                <el-descriptions-item label="创建人">{{
+                  task.creator || "-"
                   }}</el-descriptions-item>
+                <!-- 第3行：状态（左）| 负责人（右） -->
                 <el-descriptions-item label="状态">
                   <div style="display: flex; align-items: center; gap: 12px">
                     <el-tag :type="getStatusType(task.状态 || task.status) || undefined" size="small">
@@ -42,29 +45,32 @@
                     </el-tag>
                   </div>
                 </el-descriptions-item>
+                <el-descriptions-item label="当前处理人">{{
+                  task.当前处理人 || task.assignee || "-"
+                  }}</el-descriptions-item>
+                <!-- 第4行：进度（左）| 优先级（右） -->
+                <el-descriptions-item label="进度">
+                  <el-progress :percentage="task.进度 || task.progress || 0" />
+                </el-descriptions-item>
                 <el-descriptions-item label="优先级">
                   <el-tag :type="getPriorityType(task.优先级 || task.priority) || undefined
                     " size="small">
                     {{ task.优先级 || task.priority || "-" }}
                   </el-tag>
                 </el-descriptions-item>
-                <el-descriptions-item label="计划工时">{{
-                  task.预计工时 || task.estimated_time || 0
-                  }}
-                  天</el-descriptions-item>
-                <el-descriptions-item label="已用工时">{{
-                  task.已用工时 || task.actualHours || 0
-                  }}
-                  天</el-descriptions-item>
-                <el-descriptions-item label="进度">
-                  <el-progress :percentage="task.进度 || task.progress || 0" />
+                <!-- 独占一行的字段 -->
+                <el-descriptions-item v-if="task.task_deadline || task.task_dead_line" label="任务截止日期" :span="2">
+                  <span class="yellow-text">{{ task.task_deadline || task.task_dead_line || "-" }}</span>
                 </el-descriptions-item>
-                <el-descriptions-item v-if="task.create_time" label="创建时间">
-                  {{ task.create_time }}
+                <el-descriptions-item v-if="task.development_start_time" label="研发开始时间" :span="2">
+                  <span class="yellow-text">{{ task.development_start_time }}</span>
                 </el-descriptions-item>
-                <el-descriptions-item v-if="task.creator" label="创建人">{{
-                  task.creator
-                  }}</el-descriptions-item>
+                <el-descriptions-item v-if="task.development_end_time" label="研发结束时间" :span="2">
+                  <span class="yellow-text">{{ task.development_end_time }}</span>
+                </el-descriptions-item>
+                <el-descriptions-item label="驳回原因" :span="2">
+                  <span class="red-text">{{ task.rejection_reason || '' }}</span>
+                </el-descriptions-item>
               </el-descriptions>
             </el-card>
 
@@ -155,8 +161,8 @@
                   </el-button>
                 </div>
               </template>
-              <div v-loading="bugsLoading">
-                <el-table :data="bugList" :style="{ width: '100%' }" v-if="bugList.length > 0">
+              <div v-loading="bugsLoading" ref="bugTableContainerRef">
+                <el-table :data="bugList" :style="{ width: '100%' }" :height="bugTableHeight" v-if="bugList.length > 0">
                   <el-table-column prop="bug_name" label="BUG名称" min-width="200" />
                   <el-table-column prop="describe" label="BUG描述" min-width="300" show-overflow-tooltip />
                   <el-table-column prop="create_time" label="创建时间" width="180" />
@@ -203,7 +209,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import {
@@ -238,6 +244,32 @@ const bugsLoading = ref(false);
 const bugPage = ref(1);
 const bugPageSize = ref(10);
 const bugTotal = ref(0);
+
+// 表格高度相关
+const bugTableContainerRef = ref<HTMLElement>();
+const bugTableHeight = ref<number>(400);
+
+// 计算BUG表格高度
+const calculateBugTableHeight = () => {
+  nextTick(() => {
+    if (!bugTableContainerRef.value) return;
+
+    const viewportHeight = window.innerHeight;
+    const containerRect = bugTableContainerRef.value.getBoundingClientRect();
+    const containerTopToViewportBottom = viewportHeight - containerRect.top;
+    const cardHeaderHeight = 50; // card header高度
+    const cardPadding = 40;
+    const paginationHeight = 60;
+    const bottomPadding = 20;
+    const availableHeight = containerTopToViewportBottom - cardHeaderHeight - cardPadding - paginationHeight - bottomPadding;
+    bugTableHeight.value = Math.max(300, availableHeight);
+  });
+};
+
+// 窗口大小改变时重新计算
+const handleResize = () => {
+  calculateBugTableHeight();
+};
 
 // BUG记录对话框
 const bugDialogVisible = ref(false);
@@ -641,6 +673,12 @@ watch(
 
 onMounted(() => {
   loadTask();
+  calculateBugTableHeight();
+  window.addEventListener('resize', handleResize);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize);
 });
 </script>
 
@@ -799,6 +837,17 @@ onMounted(() => {
       color: #f56c6c;
       border-color: #f56c6c;
     }
+  }
+
+  // 基本信息颜色样式
+  .yellow-text {
+    color: #e6a23c;
+    font-weight: 500;
+  }
+
+  .red-text {
+    color: #f56c6c;
+    font-weight: 500;
   }
 }
 

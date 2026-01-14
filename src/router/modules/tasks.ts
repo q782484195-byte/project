@@ -19,7 +19,7 @@ export default {
         title: "任务列表",
         showLink: true,
         showParent: true,
-        roles: ["Admin", "ProjectManager", "Member", "DepartmentManager"]
+        roles: ["Admin", "ProjectManager", "Member", "DepartmentManager", 'ProjectDirector']
       }
     },
     {
@@ -29,7 +29,17 @@ export default {
       meta: {
         title: "工时统计",
         showLink: true,
-        roles: ["Admin", "ProjectManager", "DepartmentManager"]
+        roles: ["Admin", "ProjectManager", "DepartmentManager", 'ProjectDirector']
+      }
+    },
+    {
+      path: "/tasks/department-task",
+      name: "DepartmentTask",
+      component: () => import("@/views/tasks/department-task-statistics.vue"),
+      meta: {
+        title: "部门任务统计",
+        showLink: true,
+        roles: ["Admin", "ProjectManager", 'ProjectDirector']
       }
     },
     {
@@ -39,7 +49,7 @@ export default {
       meta: {
         title: "任务详情",
         showLink: false,
-        roles: ["Admin", "ProjectManager", "Member", "DepartmentManager"]
+        roles: ["Admin", "ProjectManager", "Member", "DepartmentManager", 'ProjectDirector']
       }
     }
   ]
