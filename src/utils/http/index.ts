@@ -12,6 +12,7 @@ import type {
 import { stringify } from "qs";
 import { getToken, formatToken } from "@/utils/auth";
 import { useUserStoreHook } from "@/store/modules/user";
+import { ElMessage } from "element-plus";
 
 // 相关配置请参考：www.axios-js.com/zh-cn/docs/#axios-request-config-1
 const defaultConfig: AxiosRequestConfig = {
@@ -79,24 +80,24 @@ class PureHttp {
         return whiteList.some(url => config.url.endsWith(url))
           ? config
           : new Promise(resolve => {
-              const data = getToken();
-              if (data) {
-                const now = new Date().getTime();
-                const expired = parseInt(data.expires) - now <= 0;
-                if (expired) {
-                  // token过期，直接跳转登录页面（refreshToken逻辑已注释）
-                  useUserStoreHook().logOut();
-                  resolve(config);
-                } else {
-                  config.headers["Authorization"] = formatToken(
-                    data.accessToken
-                  );
-                  resolve(config);
-                }
+            const data = getToken();
+            if (data) {
+              const now = new Date().getTime();
+              const expired = parseInt(data.expires) - now <= 0;
+              if (expired) {
+                // token过期，直接跳转登录页面（refreshToken逻辑已注释）
+                useUserStoreHook().logOut();
+                resolve(config);
               } else {
+                config.headers["Authorization"] = formatToken(
+                  data.accessToken
+                );
                 resolve(config);
               }
-            });
+            } else {
+              resolve(config);
+            }
+          });
       },
       error => {
         return Promise.reject(error);
@@ -127,6 +128,12 @@ class PureHttp {
         // 处理 401 未授权错误，跳转到登录页面
         if ($error.response?.status === 401) {
           useUserStoreHook().logOut();
+        }
+        // 处理 403 禁止访问错误，提示登录过期或没有权限
+        if ($error.response?.status === 403) {
+          ElMessage.error("登录过期或者没有权限");
+          // 可以选择是否跳转到登录页面
+          // useUserStoreHook().logOut();
         }
         // 所有的响应异常 区分来源为取消请求/非取消请求
         return Promise.reject($error);

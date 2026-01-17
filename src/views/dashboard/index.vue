@@ -25,6 +25,9 @@
                         }}</span>
                         <span v-if="report.task_name" class="report-divider">|</span>
                         <span v-if="report.task_name" class="report-task">{{ report.task_name }}</span>
+                        <el-tag v-if="report.state" :type="getReportStatusType(report.state)" size="small">状态: {{
+                          report.state }}</el-tag>
+
                       </div>
                     </div>
                   </div>
@@ -520,30 +523,56 @@ const getStatusTagType = (
   return typeMap[status] || "info";
 };
 
-const getStatusText = (status: TaskStatus) => {
-  const textMap: Partial<Record<TaskStatus, string>> = {
-    [TaskStatus.PENDING_ASSIGN_TO_DEPT_LEADER]: "待分配给部门主管",
-    [TaskStatus.PENDING_ASSIGN_TO_MEMBER]: "待指派给成员",
-    [TaskStatus.NOT_STARTED]: "任务未开始",
-    [TaskStatus.IN_PROGRESS]: "任务进行中",
-    [TaskStatus.PENDING_TEST]: "待测试",
-    [TaskStatus.TESTING]: "测试中",
-    [TaskStatus.TEST_COMPLETED]: "测试完毕",
-    [TaskStatus.PENDING_REVIEW]: "待审阅",
-    [TaskStatus.REVIEWING]: "审阅中",
-    [TaskStatus.REVIEW_COMPLETED]: "审阅完毕",
-    [TaskStatus.CANCELLED]: "已取消",
-    [TaskStatus.COMPLETED]: "已完成"
-  };
-  return textMap[status] || status;
-};
+// 获取汇报状态标签类型
+const getReportStatusType = (
+  status: string
+): "primary" | "success" | "warning" | "info" | "danger" => {
+  if (!status) return "info";
 
-// 获取进度条颜色
-const getProgressColor = (count: number) => {
-  if (count >= 10) return "#67c23a";
-  if (count >= 5) return "#409eff";
-  if (count >= 2) return "#e6a23c";
-  return "#909399";
+  // 处理中文状态
+  const statusMap: Record<string, "primary" | "success" | "warning" | "info" | "danger"> = {
+    "待分配给部门负责人": "warning",
+    "待分配给部门主管": "warning",
+    "待指派给成员": "warning",
+    "待开始": "info",
+    "任务未开始": "info",
+    "进行中": "warning",
+    "任务进行中": "warning",
+    "待测试": "info",
+    "测试中": "warning",
+    "测试完毕": "success",
+    "待审阅": "info",
+    "审阅中": "warning",
+    "审阅完毕": "success",
+    "已取消": "danger",
+    "取消": "danger",
+    "已完成": "success"
+  };
+
+  // 先检查中文状态
+  if (statusMap[status]) {
+    return statusMap[status];
+  }
+
+  // 检查英文状态（TaskStatus枚举值）
+  const taskStatusMap: Partial<
+    Record<TaskStatus, "primary" | "success" | "warning" | "info" | "danger">
+  > = {
+    [TaskStatus.PENDING_ASSIGN_TO_DEPT_LEADER]: "warning",
+    [TaskStatus.PENDING_ASSIGN_TO_MEMBER]: "warning",
+    [TaskStatus.NOT_STARTED]: "info",
+    [TaskStatus.IN_PROGRESS]: "warning",
+    [TaskStatus.PENDING_TEST]: "info",
+    [TaskStatus.TESTING]: "warning",
+    [TaskStatus.TEST_COMPLETED]: "success",
+    [TaskStatus.PENDING_REVIEW]: "info",
+    [TaskStatus.REVIEWING]: "warning",
+    [TaskStatus.REVIEW_COMPLETED]: "success",
+    [TaskStatus.CANCELLED]: "danger",
+    [TaskStatus.COMPLETED]: "success"
+  };
+
+  return taskStatusMap[status as TaskStatus] || "info";
 };
 
 const loadDashboardData = async () => {

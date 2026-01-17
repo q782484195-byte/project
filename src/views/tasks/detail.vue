@@ -26,17 +26,17 @@
                 <!-- 第1行：任务名称（左）| 所属项目（右） -->
                 <el-descriptions-item label="任务名称">{{
                   task.任务名 || task.task_name || task.title || "-"
-                  }}</el-descriptions-item>
+                }}</el-descriptions-item>
                 <el-descriptions-item label="所属项目">{{
                   task.project_name || "-"
-                  }}</el-descriptions-item>
+                }}</el-descriptions-item>
                 <!-- 第2行：关联层级（左）| 创建人（右） -->
                 <el-descriptions-item label="关联层级">{{
                   task.requirement_name || "-"
-                  }}</el-descriptions-item>
+                }}</el-descriptions-item>
                 <el-descriptions-item label="创建人">{{
                   task.creator || "-"
-                  }}</el-descriptions-item>
+                }}</el-descriptions-item>
                 <!-- 第3行：状态（左）| 负责人（右） -->
                 <el-descriptions-item label="状态">
                   <div style="display: flex; align-items: center; gap: 12px">
@@ -47,7 +47,7 @@
                 </el-descriptions-item>
                 <el-descriptions-item label="当前处理人">{{
                   task.当前处理人 || task.assignee || "-"
-                  }}</el-descriptions-item>
+                }}</el-descriptions-item>
                 <!-- 第4行：进度（左）| 优先级（右） -->
                 <el-descriptions-item label="进度">
                   <el-progress :percentage="task.进度 || task.progress || 0" />
@@ -107,6 +107,33 @@
                 <span>任务描述</span>
               </template>
               <el-empty description="暂无任务描述" :image-size="100" />
+            </el-card>
+
+            <!-- 汇报记录 -->
+            <el-card class="info-card" shadow="never">
+              <template #header>
+                <span>汇报记录</span>
+              </template>
+              <div v-loading="reportsLoading" ref="reportTableContainerRef">
+                <el-table :data="reportList" :style="{ width: '100%' }" :height="reportTableHeight"
+                  v-if="reportList.length > 0">
+                  <el-table-column prop="task_name" label="任务名称" />
+                  <el-table-column prop="任务进度" label="进度">
+                    <template #default="{ row }">
+                      <span>{{ row.任务进度 || '-' }}</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="state" label="状态" />
+                  <el-table-column prop="message" label="汇报内容" show-overflow-tooltip />
+
+                  <el-table-column prop="create_time" label="汇报时间" />
+                </el-table>
+                <el-empty v-else description="暂无汇报记录" :image-size="100" />
+                <el-pagination v-if="reportTotal > 0" v-model:current-page="reportPage"
+                  v-model:page-size="reportPageSize" :total="reportTotal" :page-sizes="[10, 20, 50, 100]"
+                  layout="total, sizes, prev, pager, next, jumper" @size-change="handleReportPageSizeChange"
+                  @current-change="handleReportPageChange" style="margin-top: 16px; justify-content: flex-end" />
+              </div>
             </el-card>
 
             <!-- 任务附件 -->
@@ -220,6 +247,7 @@ import {
 import { TaskStatus } from "@/types";
 import TaskStatusFlowDialog from "@/components/TaskStatusFlowDialog.vue";
 import { createBug, selectBugsByTask, type BugRecord } from "@/api/bug";
+import { selectReportList } from "@/api/project";
 import type { FormInstance, FormRules } from "element-plus";
 
 const route = useRoute();
@@ -245,9 +273,18 @@ const bugPage = ref(1);
 const bugPageSize = ref(10);
 const bugTotal = ref(0);
 
+// 汇报记录相关
+const reportList = ref<any[]>([]);
+const reportsLoading = ref(false);
+const reportPage = ref(1);
+const reportPageSize = ref(10);
+const reportTotal = ref(0);
+
 // 表格高度相关
 const bugTableContainerRef = ref<HTMLElement>();
 const bugTableHeight = ref<number>(400);
+const reportTableContainerRef = ref<HTMLElement>();
+const reportTableHeight = ref<number>(400);
 
 // 计算BUG表格高度
 const calculateBugTableHeight = () => {
@@ -266,9 +303,27 @@ const calculateBugTableHeight = () => {
   });
 };
 
+// 计算汇报表格高度
+const calculateReportTableHeight = () => {
+  nextTick(() => {
+    if (!reportTableContainerRef.value) return;
+
+    const viewportHeight = window.innerHeight;
+    const containerRect = reportTableContainerRef.value.getBoundingClientRect();
+    const containerTopToViewportBottom = viewportHeight - containerRect.top;
+    const cardHeaderHeight = 50; // card header高度
+    const cardPadding = 40;
+    const paginationHeight = 60;
+    const bottomPadding = 20;
+    const availableHeight = containerTopToViewportBottom - cardHeaderHeight - cardPadding - paginationHeight - bottomPadding;
+    reportTableHeight.value = Math.max(300, availableHeight);
+  });
+};
+
 // 窗口大小改变时重新计算
 const handleResize = () => {
   calculateBugTableHeight();
+  calculateReportTableHeight();
 };
 
 // BUG记录对话框
@@ -493,6 +548,9 @@ const loadTask = () => {
         task.value.状态 = task.value.status || "";
       }
 
+      // 加载汇报记录
+      loadReports();
+
       // 清理 sessionStorage（可选，如果希望数据只使用一次）
       // sessionStorage.removeItem(`task_${taskId.value}`)
     } catch (error) {
@@ -661,6 +719,56 @@ const handleBugPageChange = (page: number) => {
   loadBugs();
 };
 
+// 加载汇报记录
+const loadReports = async () => {
+  if (!task.value) return;
+  const currentTaskId = task.value._id || task.value.id;
+  if (!currentTaskId) return;
+
+  reportsLoading.value = true;
+  try {
+    const response = await selectReportList({
+      task_id: currentTaskId,
+      page: reportPage.value,
+      page_size: reportPageSize.value
+    });
+
+    if (response.code === 200) {
+      reportList.value = response.result || response.data || [];
+      reportTotal.value = (response as any).total_count || (response as any).total || reportList.value.length;
+      // 计算表格高度
+      nextTick(() => {
+        calculateReportTableHeight();
+      });
+    } else {
+      ElMessage.error(response.message || "加载汇报记录失败");
+      reportList.value = [];
+      reportTotal.value = 0;
+    }
+  } catch (error: any) {
+    console.error("加载汇报记录失败:", error);
+    ElMessage.error(
+      error?.response?.data?.message || error?.message || "加载汇报记录失败"
+    );
+    reportList.value = [];
+    reportTotal.value = 0;
+  } finally {
+    reportsLoading.value = false;
+  }
+};
+
+// 汇报记录分页处理
+const handleReportPageSizeChange = (size: number) => {
+  reportPageSize.value = size;
+  reportPage.value = 1;
+  loadReports();
+};
+
+const handleReportPageChange = (page: number) => {
+  reportPage.value = page;
+  loadReports();
+};
+
 // 监听activeTab变化，切换到BUG记录tab时加载数据
 watch(
   () => activeTab.value,
@@ -674,6 +782,7 @@ watch(
 onMounted(() => {
   loadTask();
   calculateBugTableHeight();
+  calculateReportTableHeight();
   window.addEventListener('resize', handleResize);
 });
 

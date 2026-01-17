@@ -5,17 +5,14 @@
 
       <el-form :model="searchForm" :inline="true" class="search-form">
         <el-form-item label="选择项目">
-          <el-select v-model="searchForm.projectId" placeholder="请选择项目" clearable style="width: 180px"
-            @change="handleProjectChange">
-            <el-option v-for="project in projects" :key="project.id" :label="project.name" :value="project.id" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="层级名称">
-          <el-input v-model="searchForm.taskName" placeholder="请输入层级名称（可选）" clearable style="width: 220px"
-            @keyup.enter="handleSearchAllTasks" @clear="handleSearchAllTasks" />
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="handleSearchAllTasks" :disabled="!searchForm.projectId">查询任务</el-button>
+          <div class="project-tags">
+            <el-tag v-for="project in projects" :key="project.id"
+              :type="searchForm.projectId === project.id ? 'primary' : 'info'"
+              :effect="searchForm.projectId === project.id ? 'dark' : 'plain'" class="project-tag"
+              @click="handleProjectTagClick(project.id)">
+              {{ project.name }}
+            </el-tag>
+          </div>
         </el-form-item>
       </el-form>
     </el-card>
@@ -166,7 +163,7 @@
         </el-form-item>
         <el-form-item label="任务截止期限" prop="task_assign_limit">
           <el-date-picker v-model="batchAssignForm.task_assign_limit" type="date" placeholder="请选择任务截止期限"
-            format="YYYY-MM-DD" value-format="YYYY-MM-DD" style="width: 100%" />
+            format="YYYY-MM-DD" value-format="YYYY-MM-DD" style="width: 100%" :disabled-date="disabledPastDate" />
         </el-form-item>
         <el-form-item label="指派超时提醒人" prop="notification_recipients">
           <el-tree-select v-model="batchAssignForm.notification_recipients" placeholder="请选择指派超时提醒人"
@@ -399,7 +396,7 @@ const canRecordBug = (status: string): boolean => {
   if (!status) return false;
   // 如果无法标准化，检查中文状态
   const testReviewStatuses = [
-    "第一轮测试", "第二轮测试", "第三轮测试", "任务进行中",
+    "第1轮测试", "第2轮测试", "第3轮测试", "第4轮测试", "第5轮测试", "第6轮测试", "第7轮测试", "第8轮测试", "任务进行中",
   ];
   return testReviewStatuses.includes(status);
 };
@@ -437,6 +434,22 @@ const loadProjects = async () => {
     projects.value = [];
   } finally {
     projectsLoading.value = false;
+  }
+};
+
+// 处理项目标签点击
+const handleProjectTagClick = (projectId: string) => {
+  // 如果点击的是已选中的项目，则取消选择
+  if (searchForm.value.projectId === projectId) {
+    searchForm.value.projectId = "";
+    currentProjectId.value = "";
+    tasks.value = {};
+    totalTasks.value = 0;
+    activeTab.value = "";
+  } else {
+    // 选择新项目并查询
+    searchForm.value.projectId = projectId;
+    handleProjectChange();
   }
 };
 
@@ -1037,6 +1050,14 @@ const batchAssignForm = reactive({
   task_assign_limit: '',
   notification_recipients: [] as string[]
 });
+
+// 禁用过去的日期
+const disabledPastDate = (time: Date): boolean => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return time.getTime() < today.getTime();
+};
+
 const batchAssignRules: FormRules = {
   time_limit: [
     { required: true, message: "请输入任务指派时限（小时）", trigger: "blur" },
@@ -1044,16 +1065,7 @@ const batchAssignRules: FormRules = {
   ],
   task_assign_limit: [
     { required: true, message: "请输入任务截止期限（天）", trigger: "blur" },
-    {
-      validator: (rule, value, callback) => {
-        if (value && new Date(value) < new Date()) {
-          callback(new Error("任务截止期限必须大于当前日期"));
-        } else {
-          callback();
-        }
-      },
-      trigger: "change"
-    }
+
   ],
   notification_recipients: [{ required: true, message: "请选择指派超时提醒人", trigger: "change" }]
 };
@@ -1066,7 +1078,8 @@ const reportForm = reactive({
   task_name: "",
   progress: 0,
   use_time: 0,
-  message: ""
+  message: "",
+  state: ""
 });
 const reportRules: FormRules = {
   recipient: [{ required: true, message: "请输入接收人", trigger: "blur" }],
@@ -1158,6 +1171,7 @@ const openReportDialog = (task: any) => {
   reportForm.recipient = task.creator || "";
   reportForm.cc_person = task.指派人 || task.assignee || "";
   reportForm.message = "";
+  reportForm.state = task.状态 || task.status || "";
   reportDialogVisible.value = true;
   if (!departmentUsers.value.length) {
     loadDepartmentUsers();
@@ -1183,7 +1197,8 @@ const handleReportSubmit = () => {
         task_name: reportForm.task_name,
         progress: reportForm.progress,
         message: reportForm.message,
-        use_time: 1
+        use_time: 1,
+        state: reportForm.state
       });
       if (response.code === 200) {
         ElMessage.success("汇报成功");
@@ -1391,6 +1406,65 @@ onUnmounted(() => {
 
   .assignee-text-dept {
     color: #67C23A;
+  }
+
+  .project-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .project-tag {
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    user-select: none;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    border: 1.5px solid transparent;
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+    }
+
+    &:active {
+      transform: translateY(0);
+    }
+  }
+
+  // 未选中状态（info + plain）
+  :deep(.project-tag.el-tag--info.el-tag--plain) {
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    color: #606266;
+    border-color: #dcdfe6;
+
+    &:hover {
+      background: linear-gradient(135deg, #ecf5ff 0%, #d9ecff 100%);
+      color: #409eff;
+      border-color: #b3d8ff;
+    }
+  }
+
+  // 选中状态（primary + dark）
+  :deep(.project-tag.el-tag--primary.el-tag--dark) {
+    background: linear-gradient(135deg, #409eff 0%, #66b1ff 100%);
+    color: #ffffff;
+    border-color: #409eff;
+    box-shadow: 0 4px 12px rgba(64, 158, 255, 0.35);
+    font-weight: 600;
+
+    &:hover {
+      background: linear-gradient(135deg, #66b1ff 0%, #409eff 100%);
+      box-shadow: 0 6px 20px rgba(64, 158, 255, 0.45);
+    }
   }
 
   // 隐藏不可选择行的 checkbox

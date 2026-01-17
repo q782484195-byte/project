@@ -26,7 +26,8 @@ const roleMap: Record<string, string> = {
   ProjectManager: "项目经理",
   DepartmentManager: "部门主管",
   Member: "普通成员",
-  ProjectDirector: "项目总监"
+  ProjectDirector: "项目总监",
+  BusinessDepartmentMembers: "业务部门成员"
 };
 
 const tableRef = ref();

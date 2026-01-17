@@ -25,6 +25,28 @@
           check-strictly default-expand-all :data="allUsersTree" :props="treeSelectProps" node-key="value"
           :render-after-expand="false" style="width: 100%" clearable />
       </el-form-item>
+      <el-form-item v-if="isFirstRoundTest" label="测试轮数" prop="testRounds">
+        <el-select v-model="form.testRounds" placeholder="请选择测试轮数" style="width: 100%">
+          <el-option v-for="round in testRoundOptions" :key="round" :label="`${round}轮`" :value="round" />
+        </el-select>
+      </el-form-item>
+      <el-form-item v-if="isCompleted" label="完成汇报" prop="completionReport">
+        <el-input v-model="form.completionReport" type="textarea" :rows="4" placeholder="请输入完成汇报内容" />
+      </el-form-item>
+      <el-form-item v-if="isCompleted" label="完成附件">
+        <el-upload v-model:file-list="form.attachmentList" multiple :auto-upload="false" :on-remove="handleFileRemove"
+          :on-change="handleFileChange" :before-upload="handleBeforeUpload">
+          <el-button type="primary">
+            <el-icon>
+              <Upload />
+            </el-icon>
+            选择文件
+          </el-button>
+          <template #tip>
+            <div class="el-upload__tip">可以上传多个文件</div>
+          </template>
+        </el-upload>
+      </el-form-item>
       <el-form-item v-if="needRejectionReason" label="驳回理由" prop="rejectionReason">
         <el-input v-model="form.rejectionReason" type="textarea" :rows="3" placeholder="请输入驳回理由" />
       </el-form-item>
@@ -44,10 +66,11 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive, watch, nextTick } from "vue";
-import type { FormInstance, FormRules } from "element-plus";
+import type { FormInstance, FormRules, UploadFile, UploadFiles } from "element-plus";
 import { ElMessage } from "element-plus";
+import { Upload } from "@element-plus/icons-vue";
 import { TaskStatus } from "@/types";
-import { updateTaskState } from "@/api/project";
+import { updateTaskState, updateTask, reportTaskProgress, uploadFile } from "@/api/project";
 import { selectAllUsers } from "@/api/system";
 import { sendWorkchatMessage } from "@/api/report";
 import { useUserStoreHook } from "@/store/modules/user";
@@ -70,9 +93,19 @@ const dialogVisible = computed({
 });
 
 const formRef = ref<FormInstance>();
-const form = reactive({
+interface FormData {
+  personName: string;
+  rejectionReason: string;
+  testRounds: number;
+  completionReport: string;
+  attachmentList: UploadFile[];
+}
+const form = reactive<FormData>({
   personName: "",
-  rejectionReason: ""
+  rejectionReason: "",
+  testRounds: 1,
+  completionReport: "",
+  attachmentList: []
 });
 const rules = computed<FormRules>(() => {
   const baseRules: FormRules = {};
@@ -80,6 +113,12 @@ const rules = computed<FormRules>(() => {
   if (props.task?.need_assign) {
     baseRules.personName = [
       { required: true, message: "负责人不能为空", trigger: ["blur", "change"] }
+    ];
+  }
+  // 如果选择的是第一轮测试，测试轮数必填
+  if (isFirstRoundTest.value) {
+    baseRules.testRounds = [
+      { required: true, message: "请选择测试轮数", trigger: ["blur", "change"] }
     ];
   }
   // 根据选中的状态对应的 need_reason 来决定驳回理由是否必填
@@ -193,15 +232,48 @@ const needRejectionReason = computed<boolean>(() => {
 
 const selectedNextState = ref<string>("");
 
+// 测试轮数选项（1-8）
+const testRoundOptions = [1, 2, 3, 4, 5, 6, 7, 8];
+
+// 判断选择的状态是否是"第一轮测试"
+const isFirstRoundTest = computed<boolean>(() => {
+  const targetState = nextOptions.value.length > 1
+    ? selectedNextState.value
+    : (nextOptions.value[0] || "");
+
+  // 检查是否是"第一轮测试"（可能是中文或英文）
+  return targetState === "第1轮测试" ||
+    targetState === "第1轮" ||
+    targetState === "first_round_test" ||
+    (targetState && targetState.includes("第1轮"));
+});
+
+// 判断选择的状态是否是"已完成"
+const isCompleted = computed<boolean>(() => {
+  const targetState = nextOptions.value.length > 1
+    ? selectedNextState.value
+    : (nextOptions.value[0] || "");
+
+  // 检查是否是"已完成"（可能是中文或英文）
+  return targetState === "已完成" ||
+    targetState === TaskStatus.COMPLETED ||
+    targetState === "completed" ||
+    (targetState && targetState.includes("已完成"));
+});
+
 const resetForm = () => {
   form.personName = "";
   form.rejectionReason = "";
+  form.testRounds = 1;
+  form.completionReport = "";
+  form.attachmentList = [];
   selectedNextState.value = "";
 };
 
 const initForm = () => {
   form.personName = "";
   form.rejectionReason = "";
+  form.testRounds = 1;
   if (nextOptions.value.length === 1) {
     selectedNextState.value = nextOptions.value[0];
   } else {
@@ -240,16 +312,41 @@ watch(
   }
 );
 
-// 监听选中的状态变化，清空驳回理由
+// 监听选中的状态变化，清空驳回理由和完成汇报
 watch(
   () => selectedNextState.value,
   () => {
     form.rejectionReason = "";
+    // 如果切换状态后不是已完成，清空完成汇报和附件
+    if (!isCompleted.value) {
+      form.completionReport = "";
+      form.attachmentList = [];
+    }
     nextTick(() => {
       formRef.value?.clearValidate("rejectionReason");
+      formRef.value?.clearValidate("completionReport");
     });
   }
 );
+
+// 文件上传处理
+const handleFileChange = (file: UploadFile, fileList: UploadFiles) => {
+  form.attachmentList = fileList;
+};
+
+const handleFileRemove = (file: UploadFile, fileList: UploadFiles) => {
+  form.attachmentList = fileList;
+};
+
+const handleBeforeUpload = (file: File) => {
+  // 可以在这里添加文件大小和类型验证
+  const isValidSize = file.size / 1024 / 1024 < 50; // 50MB
+  if (!isValidSize) {
+    ElMessage.error("文件大小不能超过 50MB");
+    return false;
+  }
+  return true;
+};
 
 const loadAllUsers = async () => {
   allUsersLoading.value = true;
@@ -391,13 +488,108 @@ const handleConfirm = () => {
       const needReason = needReasonArray.value[selectedIndex] === true;
       const rejectionReason = needReason ? form.rejectionReason.trim() : "";
 
-      const response = await updateTaskState({
+      // 如果选择的是已完成，需要先上传附件并更新任务，然后进行汇报
+      if (isCompleted.value) {
+        // 1. 上传附件
+        let attachmentUrls: string[] = [];
+        if (form.attachmentList.length > 0) {
+          try {
+            // 上传所有附件
+            const uploadPromises = form.attachmentList
+              .filter(file => file.raw)
+              .map(file => uploadFile({ file: file.raw as File }));
+
+            const uploadResults = await Promise.all(uploadPromises);
+            attachmentUrls = uploadResults
+              .filter(result => result.code === 200 && result.url)
+              .map(result => result.url);
+
+            if (uploadResults.some(result => result.code !== 200)) {
+              ElMessage.warning("部分文件上传失败，请重试");
+              return;
+            }
+          } catch (uploadError: any) {
+            console.error("上传附件失败:", uploadError);
+            ElMessage.error("上传附件失败，请重试");
+            return;
+          }
+        }
+
+        // 2. 如果有附件，调用 /task/update 更新附件（合并现有附件）
+        if (attachmentUrls.length > 0) {
+          try {
+            const taskName = props.task?.任务名 || props.task?.task_name || props.task?.title || "";
+            // 合并现有附件和新上传的附件
+            const existingAttachments = props.task?.attachment || [];
+            const allAttachments = Array.isArray(existingAttachments)
+              ? [...existingAttachments, ...attachmentUrls]
+              : attachmentUrls;
+
+            const updateResponse = await updateTask({
+              task_id: taskId,
+              task_name: taskName,
+              describe: props.task?.describe || [],
+              priority: props.task?.优先级 || props.task?.priority || "",
+              task_deadline: props.task?.task_deadline || "",
+              default_person: props.task?.default_person || "",
+              attachment: allAttachments
+            });
+
+            if (updateResponse.code !== 200) {
+              ElMessage.error(updateResponse.message || "更新附件失败");
+              return;
+            }
+          } catch (updateError: any) {
+            console.error("更新附件失败:", updateError);
+            ElMessage.error("更新附件失败，请重试");
+            return;
+          }
+        }
+
+        // 3. 调用 /task/report 进行汇报
+        if (form.completionReport.trim()) {
+          try {
+            const taskName = props.task?.任务名 || props.task?.task_name || props.task?.title || "";
+            const recipient = props.task?.creator || personName || userStore.username || "";
+            const reportResponse = await reportTaskProgress({
+              recipient: recipient,
+              cc_person: personName || "",
+              task_id: taskId,
+              task_name: taskName,
+              progress: 100,
+              message: form.completionReport.trim(),
+              use_time: 1,
+              state: currentState
+            });
+
+            if (reportResponse.code !== 200) {
+              ElMessage.error(reportResponse.message || "提交汇报失败");
+              return;
+            }
+          } catch (reportError: any) {
+            console.error("提交汇报失败:", reportError);
+            ElMessage.error("提交汇报失败，请重试");
+            return;
+          }
+        }
+      }
+
+      // 如果选择的是第一轮测试，需要传递测试轮数
+      const requestData: any = {
         task_id: taskId,
         current_state: currentState,
         next_state: targetState,
         person_name: personName || "",
         rejection_reason: rejectionReason
-      });
+      };
+
+      // 如果选择的是第一轮测试，添加测试轮数
+      if (isFirstRoundTest.value && form.testRounds) {
+        requestData.test_rounds = form.testRounds;
+      }
+
+      // 4. 最后调用 /task/update_state 更新状态
+      const response = await updateTaskState(requestData);
       if (response.code === 200) {
         ElMessage.success(response.message || "状态更新成功");
         emit("success", targetState, personName);

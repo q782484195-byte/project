@@ -61,7 +61,6 @@
         @click="openProjectDetail(project)">
         <div class="card-header">
           <div class="project-info">
-            <h3>{{ project.name }}</h3>
             <el-tag :type="getStatusTagType(project.status)">
               {{ getStatusText(project.status) }}
             </el-tag>
@@ -82,41 +81,56 @@
           </el-dropdown>
         </div>
 
-        <p class="project-description">{{ project.description }}</p>
+        <!-- 第一行：客户，项目名称，主板名称，分辨率 -->
+        <div class="project-row project-row-first">
+          <div class="field-item">
+            <span class="field-label">客户:</span>
+            <span class="field-value">{{ project.customer_name || "-" }}</span>
+          </div>
+          <div class="field-item">
+            <span class="field-label">项目名称:</span>
+            <span class="field-value">{{ project.name || "-" }}</span>
+          </div>
+          <div class="field-item">
+            <span class="field-label">主板名称:</span>
+            <span class="field-value">{{ project.motherboard_name || "-" }}</span>
+          </div>
+          <div class="field-item">
+            <span class="field-label">分辨率:</span>
+            <span class="field-value">{{ project.resolution || "-" }}</span>
+          </div>
+        </div>
 
-        <div class="project-progress">
+        <!-- 第二行：进度 -->
+        <div class="project-row project-row-progress">
           <div class="progress-info">
             <span>进度</span>
           </div>
           <el-progress :percentage="getProjectProgress(project)" :stroke-width="6" />
         </div>
 
-        <div class="project-meta">
-          <div class="meta-item">
-            <el-icon>
-              <User />
-            </el-icon>
-            <span>{{ project.creator || "-" }}</span>
+        <!-- 第三行：项目负责人，业务负责人 -->
+        <div class="project-row project-row-owners">
+          <div class="field-item">
+            <span class="field-label">项目负责人:</span>
+            <span class="field-value">{{ project.creator || "-" }}</span>
           </div>
-          <div class="meta-item">
+          <div class="field-item">
+            <span class="field-label">业务负责人:</span>
+            <span class="field-value">{{ project.business_owner || "-" }}</span>
+          </div>
+        </div>
+
+        <!-- 第四行：计划时间 -->
+        <div class="project-row project-row-time">
+          <div class="field-item">
             <el-icon>
               <Calendar />
             </el-icon>
-            <span>{{
+            <span class="field-label">计划时间:</span>
+            <span class="field-value">{{
               formatDateRange(project.startDate, project.endDate)
-              }}</span>
-          </div>
-          <div v-if="project.members" class="meta-item">
-            <el-icon>
-              <UserFilled />
-            </el-icon>
-            <span>{{ project.members.length }}人</span>
-          </div>
-          <div v-if="project.budget" class="meta-item">
-            <el-icon>
-              <Money />
-            </el-icon>
-            <span>¥{{ formatBudget(project.budget) }}</span>
+            }}</span>
           </div>
         </div>
       </div>
@@ -141,11 +155,7 @@ import { ElMessage, ElMessageBox } from "element-plus";
 import {
   Plus,
   MoreFilled,
-  User,
-  Calendar,
-  UserFilled,
-  Money,
-  ArrowDown
+  Calendar
 } from "@element-plus/icons-vue";
 import { hasPerms } from "@/utils/auth";
 import { useProjectStoreHook } from "@/store/modules/project";
@@ -328,6 +338,12 @@ const loadProjects = async () => {
           总进度: item.总进度 || item.progress || 0, // 优先使用后端返回的 总进度 字段
           attachment: item.attachment || [], // 保存附件数组
           project_proposal: item.project_proposal || [], // 保存立项文件数组
+          customer_name: item.customer_name || "", // 客户名称
+          product_type: item.product_type || "", // 产品类型
+          platform_name: item.platform_name || "", // 平台名称
+          motherboard_name: item.motherboard_name || "", // 主板名称
+          resolution: item.resolution || "", // 分辨率
+          business_owner: item.business_owner || "", // 业务负责人
           createdAt:
             item.create_time ||
             item.created_at ||
@@ -503,7 +519,7 @@ const formatDateRange = (startDate?: string, endDate?: string) => {
   return `${dayjs(startDate).format("MM-DD")} ~ ${dayjs(endDate).format("MM-DD")}`;
 };
 
-// 格式化预算
+// 格式化预算（已删除，保留以防其他地方使用）
 const formatBudget = (budget: number) => {
   return (budget / 10000).toFixed(1) + "w";
 };
@@ -643,81 +659,94 @@ onMounted(() => {
   .card-header {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
+    align-items: center;
     margin-bottom: 16px;
-    padding-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  }
+
+  .project-row {
+    margin-bottom: 16px;
+    padding-bottom: 12px;
     border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 
-    .project-info {
-      flex: 1;
+    &:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+      padding-bottom: 0;
+    }
 
-      h3 {
-        margin: 0 0 10px 0;
-        color: #303133;
+    .field-item {
+      display: flex;
+      align-items: center;
+      font-size: 15px;
+      color: #606266;
+      line-height: 1.6;
+      margin-bottom: 8px;
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+
+      .el-icon {
         font-size: 18px;
-        font-weight: 600;
-        letter-spacing: -0.3px;
-        line-height: 1.4;
+        color: #909399;
+        margin-right: 6px;
+      }
+
+      .field-label {
+        color: #909399;
+        margin-right: 8px;
+        font-weight: 500;
+        white-space: nowrap;
+        font-size: 15px;
+      }
+
+      .field-value {
+        color: #303133;
+        flex: 1;
+        font-size: 15px;
       }
     }
   }
 
-  .project-description {
-    color: #606266;
-    font-size: 14px;
-    line-height: 1.6;
-    margin: 16px 0;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+  .project-row-first {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 16px;
+
+    .field-item {
+      margin-bottom: 0;
+    }
   }
 
-  .project-progress {
-    margin: 20px 0;
-    padding: 16px;
-    background: #f8f9fa;
-    border-radius: 8px;
-
+  .project-row-progress {
     .progress-info {
       display: flex;
       justify-content: space-between;
       margin-bottom: 10px;
-      font-size: 13px;
+      font-size: 15px;
       color: #606266;
       font-weight: 500;
     }
   }
 
-  .project-meta {
+  .project-row-owners {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    margin: 20px 0;
-    padding-top: 16px;
-    border-top: 1px solid rgba(0, 0, 0, 0.06);
+    gap: 12px 16px;
 
-    .meta-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 13px;
-      color: #606266;
-
-      .el-icon {
-        font-size: 16px;
-        color: #909399;
-      }
+    .field-item {
+      margin-bottom: 0;
     }
   }
 
-  .project-members {
-    display: flex;
-    justify-content: flex-end;
-    margin-top: 16px;
-    padding-top: 16px;
-    border-top: 1px solid rgba(0, 0, 0, 0.06);
+  .project-row-time {
+    .field-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 0;
+    }
   }
 }
 

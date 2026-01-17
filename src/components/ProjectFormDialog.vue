@@ -5,6 +5,53 @@
         <el-input v-model="projectForm.name" placeholder="请输入项目名称" />
       </el-form-item>
 
+      <el-row :gutter="20">
+        <el-col :span="12">
+          <el-form-item label="客户名称" prop="customer_name">
+            <el-input v-model="projectForm.customer_name" placeholder="请输入客户名称" :disabled="isEdit" />
+          </el-form-item>
+        </el-col>
+        <el-col :span="12">
+          <el-form-item label="产品类型" prop="product_type">
+            <el-input v-model="projectForm.product_type" placeholder="请输入产品类型" :disabled="isEdit" />
+          </el-form-item>
+        </el-col>
+      </el-row>
+
+      <el-row :gutter="20">
+        <el-col :span="12">
+          <el-form-item label="平台名称" prop="platform_name">
+            <el-input v-model="projectForm.platform_name" placeholder="请输入平台名称" :disabled="isEdit" />
+          </el-form-item>
+        </el-col>
+        <el-col :span="12">
+          <el-form-item label="主板名称" prop="motherboard_name">
+            <el-input v-model="projectForm.motherboard_name" placeholder="请输入主板名称" :disabled="isEdit" />
+          </el-form-item>
+        </el-col>
+      </el-row>
+
+      <el-row :gutter="20">
+        <el-col :span="12">
+          <el-form-item label="分辨率" prop="resolution">
+            <el-input v-model="projectForm.resolution" placeholder="请输入分辨率" :disabled="isEdit" />
+          </el-form-item>
+        </el-col>
+        <el-col :span="12">
+          <el-form-item label="业务负责人" prop="business_owner">
+            <el-input v-model="projectForm.business_owner" placeholder="请输入业务负责人" :disabled="isEdit" />
+          </el-form-item>
+        </el-col>
+      </el-row>
+
+      <el-form-item label="项目负责人" prop="creator">
+        <el-select v-model="projectForm.creator" placeholder="请选择项目负责人" clearable filterable style="width: 100%"
+          :loading="projectManagersLoading">
+          <el-option v-for="manager in projectManagers" :key="manager.value" :label="manager.label"
+            :value="manager.value" />
+        </el-select>
+      </el-form-item>
+
       <!-- <el-form-item label="项目类型" prop="typeId">
         <el-select
           v-model="projectForm.typeId"
@@ -75,13 +122,13 @@
         <el-col :span="12">
           <el-form-item label="计划开始时间" prop="startDate" class="date-form-item">
             <el-date-picker v-model="projectForm.startDate" type="date" placeholder="选择计划开始时间" format="YYYY-MM-DD"
-              value-format="YYYY-MM-DD" style="width: 100%" />
+              value-format="YYYY-MM-DD" style="width: 100%" :disabled-date="disabledStartDate" />
           </el-form-item>
         </el-col>
         <el-col :span="12">
           <el-form-item label="计划结束时间" prop="endDate" class="date-form-item">
             <el-date-picker v-model="projectForm.endDate" type="date" placeholder="选择计划结束时间" format="YYYY-MM-DD"
-              value-format="YYYY-MM-DD" style="width: 100%" />
+              value-format="YYYY-MM-DD" style="width: 100%" :disabled-date="disabledEndDate" />
           </el-form-item>
         </el-col>
       </el-row>
@@ -118,6 +165,7 @@ import { useProjectTemplateStoreHook } from "@/store/modules/projectTemplate";
 import { getAllProjectTemplates } from "@/mock/projectTemplates";
 import { createProject, updateProject, uploadFile } from "@/api/project";
 import type { UpdateProjectParams } from "@/api/project";
+import { selectAllUsers } from "@/api/system";
 import RichTextEditor from "./RichTextEditor.vue";
 
 interface Props {
@@ -142,9 +190,18 @@ const richTextEditorRef = ref<InstanceType<typeof RichTextEditor>>();
 const fileList = ref<UploadFile[]>([]); // 附件文件列表
 const proposalFileList = ref<UploadFile[]>([]); // 立项文件列表
 const submitting = ref(false); // 提交状态
+const projectManagersLoading = ref(false); // 项目负责人列表加载状态
+const projectManagers = ref<Array<{ label: string; value: string }>>([]); // 项目负责人列表
 
 const projectForm = reactive({
   name: "",
+  customer_name: "",
+  product_type: "",
+  platform_name: "",
+  motherboard_name: "",
+  resolution: "",
+  business_owner: "",
+  creator: "", // 项目负责人
   describe: [] as DescribeContent[],
   typeId: "",
   templateId: "",
@@ -167,10 +224,78 @@ const rules: FormRules = {
           callback();
         }
       },
+      trigger: "change",
+    }
+  ],
+  startDate: [
+    {
+      validator: (rule: any, value: any, callback: any) => {
+        if (!value) {
+          callback();
+          return;
+        }
+        // 如果结束时间已选择，检查开始时间是否大于结束时间
+        if (projectForm.endDate) {
+          const startTime = new Date(value).getTime();
+          const endTime = new Date(projectForm.endDate).getTime();
+          if (startTime > endTime) {
+            callback(new Error("计划开始时间不能大于计划结束时间"));
+            return;
+          }
+        }
+        callback();
+      },
       trigger: "change"
     }
   ],
-  endDate: [{ required: true, message: "请选择计划结束时间", trigger: "change" }]
+  endDate: [
+    { required: true, message: "请选择计划结束时间", trigger: "change" },
+    {
+      validator: (rule: any, value: any, callback: any) => {
+        if (!value) {
+          callback(new Error("请选择计划结束时间"));
+          return;
+        }
+        // 如果开始时间已选择，检查结束时间是否小于开始时间
+        if (projectForm.startDate) {
+          const startTime = new Date(projectForm.startDate).getTime();
+          const endTime = new Date(value).getTime();
+          if (endTime < startTime) {
+            callback(new Error("计划结束时间不能小于计划开始时间"));
+            return;
+          }
+        }
+        callback();
+      },
+      trigger: "change"
+    }
+  ],
+  customer_name: [{ required: true, message: "请输入客户名称", trigger: "blur" }],
+  product_type: [{ required: true, message: "请输入产品类型", trigger: "blur" }],
+  platform_name: [{ required: true, message: "请输入平台名称", trigger: "blur" }],
+  motherboard_name: [{ required: true, message: "请输入主板名称", trigger: "blur" }],
+  resolution: [{ required: true, message: "请输入分辨率", trigger: "blur" }],
+  business_owner: [{ required: true, message: "请输入业务负责人", trigger: "blur" }],
+};
+
+// 禁用开始时间大于结束时间的日期
+const disabledStartDate = (time: Date): boolean => {
+  if (!projectForm.endDate) {
+    return false;
+  }
+  const endTime = new Date(projectForm.endDate);
+  endTime.setHours(23, 59, 59, 999);
+  return time.getTime() > endTime.getTime();
+};
+
+// 禁用结束时间小于开始时间的日期
+const disabledEndDate = (time: Date): boolean => {
+  if (!projectForm.startDate) {
+    return false;
+  }
+  const startTime = new Date(projectForm.startDate);
+  startTime.setHours(0, 0, 0, 0);
+  return time.getTime() < startTime.getTime();
 };
 
 const isEdit = computed(() => !!props.project);
@@ -195,6 +320,50 @@ const availableTemplates = computed(() => {
 // 处理项目类型变更
 const handleTypeChange = () => {
   projectForm.templateId = ""; // 清空模板选择
+};
+
+// 加载项目负责人列表
+const loadProjectManagers = async () => {
+  projectManagersLoading.value = true;
+  try {
+    const response = await selectAllUsers();
+    if (response.code === 200 && Array.isArray(response.result)) {
+      // 提取所有项目负责人（角色为ProjectManager的用户）
+      const managers: Array<{ label: string; value: string }> = [];
+
+      response.result.forEach((deptData: any) => {
+        const members = Object.values(deptData)[0] || [];
+        if (Array.isArray(members)) {
+          members.forEach((user: any) => {
+            const userRoles = Array.isArray(user.role) ? user.role : user.role ? [user.role] : [];
+            // 检查是否是项目负责人
+            if (userRoles.includes("ProjectManager")) {
+              const username = user.username || user.nickname || "";
+              if (username && !managers.find(m => m.value === username)) {
+                managers.push({
+                  label: username,
+                  value: username
+                });
+              }
+            }
+          });
+        }
+      });
+
+      projectManagers.value = managers;
+    } else {
+      projectManagers.value = [];
+      ElMessage.error("加载项目负责人列表失败");
+    }
+  } catch (error: any) {
+    console.error("加载项目负责人列表失败:", error);
+    ElMessage.error(
+      error?.response?.data?.message || error?.message || "加载项目负责人列表失败"
+    );
+    projectManagers.value = [];
+  } finally {
+    projectManagersLoading.value = false;
+  }
 };
 
 // 处理文件上传前（阻止自动上传）
@@ -332,17 +501,14 @@ watch(
         ];
       }
 
-      // 获取计划开始时间（支持多种字段名）
+      // 获取计划开始时间（只使用 plant_start_time）
       // 注意：日期格式需要标准化为 YYYY-MM-DD
-      let startDate =
-        project.startDate ||
-        (project as any).plant_start_time ||
-        (project as any).start_time ||
-        (project as any).start_date ||
-        "";
+      // 如果没有值，保持为空字符串，不自动填入
+      let startDate = (project as any).plant_start_time || "";
 
       // 标准化日期格式：将 "2025-11-6" 转换为 "2025-11-06"
-      if (startDate) {
+      // 只有当 startDate 有值且不为空时才进行格式化
+      if (startDate && startDate.trim() !== "") {
         const dateParts = startDate.split("-");
         if (dateParts.length === 3) {
           const year = dateParts[0];
@@ -350,6 +516,9 @@ watch(
           const day = dateParts[2].padStart(2, "0");
           startDate = `${year}-${month}-${day}`;
         }
+      } else {
+        // 如果没有值，保持为空字符串
+        startDate = "";
       }
 
       // 获取计划结束时间（支持多种字段名）
@@ -374,6 +543,13 @@ watch(
 
       Object.assign(projectForm, {
         name: project.name,
+        customer_name: (project as any).customer_name || "",
+        product_type: (project as any).product_type || "",
+        platform_name: (project as any).platform_name || "",
+        motherboard_name: (project as any).motherboard_name || "",
+        resolution: (project as any).resolution || "",
+        business_owner: (project as any).business_owner || "",
+        creator: project.creator || "", // 项目负责人
         describe: describeContent,
         typeId: project.typeId || "",
         templateId: project.templateId || "",
@@ -443,6 +619,13 @@ const handleClose = () => {
   // 重置表单
   Object.assign(projectForm, {
     name: "",
+    customer_name: "",
+    product_type: "",
+    platform_name: "",
+    motherboard_name: "",
+    resolution: "",
+    business_owner: "",
+    creator: "",
     describe: [],
     typeId: "",
     templateId: "",
@@ -474,15 +657,12 @@ const handleSubmit = async () => {
       return;
     }
 
-    // 验证日期（只验证结束时间，开始时间隐藏但保留参数）
+    // 验证日期（只验证结束时间）
     if (!projectForm.endDate) {
       ElMessage.warning("请选择计划结束时间");
       submitting.value = false;
       return;
     }
-
-    // 确保开始时间为空字符串（隐藏字段，但参数保留）
-    projectForm.startDate = "";
 
     // 验证立项文件
     if (!proposalFileList.value || proposalFileList.value.length === 0) {
@@ -609,6 +789,13 @@ const handleSubmit = async () => {
       const submitData: UpdateProjectParams = {
         project_id: props.project.id,
         project_name: projectForm.name,
+        customer_name: projectForm.customer_name,
+        product_type: projectForm.product_type,
+        platform_name: projectForm.platform_name,
+        motherboard_name: projectForm.motherboard_name,
+        resolution: projectForm.resolution,
+        business_owner: projectForm.business_owner,
+        creator: projectForm.creator,
         plant_start_time: projectForm.startDate,
         plant_end_time: projectForm.endDate,
         describe: describeUrls,
@@ -616,7 +803,6 @@ const handleSubmit = async () => {
         project_proposal: allProposalUrls
       };
 
-      // 调用真实 API
       try {
         const response = await updateProject(submitData);
 
@@ -670,14 +856,19 @@ const handleSubmit = async () => {
       // 新建模式 - 使用新的参数格式
       const submitData: CreateProjectParams = {
         project_name: projectForm.name,
+        customer_name: projectForm.customer_name,
+        product_type: projectForm.product_type,
+        platform_name: projectForm.platform_name,
+        motherboard_name: projectForm.motherboard_name,
+        resolution: projectForm.resolution,
+        business_owner: projectForm.business_owner,
+        creator: projectForm.creator,
         plant_start_time: projectForm.startDate,
         plant_end_time: projectForm.endDate,
         describe: describeUrls,
         attachment: allAttachmentUrls,
         project_proposal: allProposalUrls
       };
-
-      // 调用真实 API
 
       try {
         const response = await createProject(submitData);
@@ -748,6 +939,8 @@ onMounted(() => {
   // 加载项目类型和模板数据
   projectTypeStore.loadProjectTypes();
   projectTemplateStore.loadTemplates();
+  // 加载项目负责人列表
+  loadProjectManagers();
 });
 </script>
 

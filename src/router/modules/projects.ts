@@ -19,7 +19,7 @@ export default {
         title: "项目列表",
         showLink: true,
         showParent: true,
-        roles: ["Admin", "ProjectManager", "Member", "DepartmentManager", 'ProjectDirector']
+        roles: ["Admin", "ProjectManager", "Member", "DepartmentManager", 'ProjectDirector', 'BusinessDepartmentMembers']
       }
     },
     {
@@ -29,7 +29,7 @@ export default {
       meta: {
         title: "项目详情",
         showLink: false,
-        roles: ["Admin", "ProjectManager", "DepartmentManager", "Member", 'ProjectDirector']
+        roles: ["Admin", "ProjectManager", "DepartmentManager", "Member", 'ProjectDirector', 'BusinessDepartmentMembers']
       }
     },
     // {

@@ -33,6 +33,13 @@ export const uploadFile = (params: UploadFileParams) => {
 /** 创建项目参数 */
 export interface CreateProjectParams {
   project_name: string;
+  customer_name: string; // 客户名称
+  product_type: string; // 产品类型
+  platform_name: string; // 平台名称
+  motherboard_name: string; // 主板名称
+  resolution: string; // 分辨率
+  business_owner: string; // 业务负责人
+  creator?: string; // 项目负责人
   plant_start_time: string;
   plant_end_time: string;
   describe: string[]; // URL 字符串数组
@@ -84,6 +91,13 @@ export const createProject = (params: CreateProjectParams) => {
   return http.request<ApiResponse<any>>("post", "/project/add", {
     data: {
       project_name: params.project_name,
+      customer_name: params.customer_name || "",
+      product_type: params.product_type || "",
+      platform_name: params.platform_name || "",
+      motherboard_name: params.motherboard_name || "",
+      resolution: params.resolution || "",
+      business_owner: params.business_owner || "",
+      creator: params.creator || "",
       plant_start_time: params.plant_start_time,
       plant_end_time: params.plant_end_time,
       describe: params.describe,
@@ -100,6 +114,13 @@ export const updateProject = (params: UpdateProjectParams) => {
     data: {
       project_id: params.project_id,
       project_name: params.project_name,
+      customer_name: params.customer_name || "",
+      product_type: params.product_type || "",
+      platform_name: params.platform_name || "",
+      motherboard_name: params.motherboard_name || "",
+      resolution: params.resolution || "",
+      business_owner: params.business_owner || "",
+      creator: params.creator || "",
       plant_start_time: params.plant_start_time,
       plant_end_time: params.plant_end_time,
       describe: params.describe,
@@ -579,18 +600,26 @@ export interface UpdateTaskStateParams {
   next_state: string;
   person_name: string;
   rejection_reason?: string;
+  test_rounds?: number;
 }
 
 /** 更新任务状态 */
 export const updateTaskState = (params: UpdateTaskStateParams) => {
+  const requestData: any = {
+    task_id: params.task_id,
+    current_state: params.current_state,
+    next_state: params.next_state,
+    person_name: params.person_name,
+    rejection_reason: params.rejection_reason || ""
+  };
+
+  // 如果提供了测试轮数，添加到请求数据中
+  if (params.test_rounds !== undefined && params.test_rounds !== null) {
+    requestData.test_rounds = params.test_rounds;
+  }
+
   return http.request<ApiResponse<any>>("post", "/task/update_state", {
-    data: {
-      task_id: params.task_id,
-      current_state: params.current_state,
-      next_state: params.next_state,
-      person_name: params.person_name,
-      rejection_reason: params.rejection_reason || ""
-    }
+    data: requestData
   });
 };
 
@@ -673,6 +702,7 @@ export interface ReportTaskProgressParams {
   progress: number;
   message: string;
   use_time: number;
+  state: string;
 }
 
 /** 汇报任务进度 */
@@ -685,7 +715,8 @@ export const reportTaskProgress = (params: ReportTaskProgressParams) => {
       task_name: params.task_name,
       progress: params.progress,
       message: params.message,
-      use_time: params.use_time
+      use_time: params.use_time,
+      state: params.state
     }
   });
 };
@@ -765,6 +796,24 @@ export const updateDevelopmentTime = (params: UpdateDevelopmentTimeParams) => {
       task_id: params.task_id,
       development_start_time: params.development_start_time,
       development_end_time: params.development_end_time
+    }
+  });
+};
+
+/** 查询任务汇报列表参数 */
+export interface SelectReportListParams {
+  page?: number;
+  page_size?: number;
+  task_id?: string;
+}
+
+/** 查询任务汇报列表 */
+export const selectReportList = (params: SelectReportListParams) => {
+  return http.request<ApiResponse<any>>("post", "/task/select_report", {
+    data: {
+      page: params.page || 1,
+      page_size: params.page_size || 20,
+      task_id: params.task_id || ""
     }
   });
 };

@@ -276,7 +276,9 @@
                         </el-icon>
                         <div class="activity-text">
                           <div class="activity-main-content">{{ report.content }}</div>
-
+                          <div v-if="report.state" class="activity-details" style="margin-top: 8px;">
+                            <el-tag :type="getStatusType(report.state)" size="small">状态: {{ report.state }}</el-tag>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -293,7 +295,10 @@
                         </el-icon>
                         <div class="activity-text">
                           <div class="activity-main-content">{{ report.content }}</div>
-                          <div v-if="report.taskName || report.progress !== undefined" class="activity-details">
+                          <div v-if="report.taskName || report.progress !== undefined || report.state"
+                            class="activity-details" style="margin-top: 8px;">
+                            <el-tag v-if="report.state" :type="getStatusType(report.state)" size="small"
+                              style="margin-right: 8px;">状态: {{ report.state }}</el-tag>
                           </div>
                         </div>
                       </div>
@@ -678,8 +683,8 @@ const taskActivities = ref<Array<{ time: string; content: string; icon: string }
 const requirementActivities = ref<Array<{ time: string; content: string; icon: string }>>([]);
 const projectActivities = ref<Array<{ time: string; content: string; icon: string }>>([]);
 const activityTab = ref("activities"); // 动态tab切换
-const myReports = ref<Array<{ time: string; content: string; icon: string; taskName?: string; progress?: number }>>([]); // 我汇报的
-const receivedReports = ref<Array<{ time: string; content: string; icon: string; taskName?: string; progress?: number }>>([]); // 收到的汇报
+const myReports = ref<Array<{ time: string; content: string; icon: string; taskName?: string; progress?: number; state?: string }>>([]); // 我汇报的
+const receivedReports = ref<Array<{ time: string; content: string; icon: string; taskName?: string; progress?: number; state?: string }>>([]); // 收到的汇报
 
 // 检查是否可以查看收到的汇报（只有admin和部门主管可以查看）
 const canViewReceivedReports = computed(() => {
@@ -925,13 +930,14 @@ const handleActivityTabChange = (tabName: string) => {
 };
 
 // 将汇报记录转换为活动格式
-const convertReportsToActivities = (reports: ReportRecord[]): Array<{ time: string; content: string; icon: string; taskName?: string; progress?: number }> => {
+const convertReportsToActivities = (reports: ReportRecord[]): Array<{ time: string; content: string; icon: string; taskName?: string; progress?: number; state?: string }> => {
   return reports.map(report => {
     const time = report.create_time || report.createdAt || "";
     const projectName = report.project_name || "";
     const message = report.message || "";
     const taskName = report.task_name || report.任务名 || "";
     const progress = report.progress !== undefined ? report.progress : (report.进度 !== undefined ? report.进度 : undefined);
+    const state = report.state || "";
 
     // 构建内容，包含任务名和进度信息
     let content = message;
@@ -958,7 +964,8 @@ const convertReportsToActivities = (reports: ReportRecord[]): Array<{ time: stri
       content,
       icon: "Document",
       taskName: taskName || undefined,
-      progress: progress !== undefined && progress !== null ? progress : undefined
+      progress: progress !== undefined && progress !== null ? progress : undefined,
+      state: state || undefined
     };
   });
 };
@@ -1193,7 +1200,8 @@ const reportForm = reactive({
   task_name: "",
   progress: 0,
   use_time: 0,
-  message: ""
+  message: "",
+  state: ""
 });
 const reportRules: FormRules = {
   recipient: [{ required: true, message: "请输入接收人", trigger: "blur" }],
@@ -1284,7 +1292,7 @@ const canRecordBug = (status: string, type?: 'bug' | 'report'): boolean => {
   ];
   // 如果是进度汇报，添加进行中状态
   if (type === 'report') {
-    testReviewStatuses.push("任务进行中", "第一轮测试", "第二轮测试", "第三轮测试");
+    testReviewStatuses.push("任务进行中", "第1轮测试", "第2轮测试", "第3轮测试", "第4轮测试", "第5轮测试", "第6轮测试", "第7轮测试", "第8轮测试");
   }
   return testReviewStatuses.includes(status);
 
@@ -1517,6 +1525,7 @@ const openReportDialog = (task: any) => {
   reportForm.recipient = task.creator || "";
   reportForm.cc_person = task.指派人 || task.assignee || "";
   reportForm.message = "";
+  reportForm.state = task.状态 || task.status || "";
   reportDialogVisible.value = true;
   if (!departmentUsers.value.length) {
     loadDepartmentUsers();
@@ -1543,7 +1552,8 @@ const handleReportSubmit = () => {
         task_name: reportForm.task_name,
         progress: reportForm.progress,
         message: reportForm.message,
-        use_time: 1
+        use_time: 1,
+        state: reportForm.state
       });
       if (response.code === 200) {
         ElMessage.success("汇报成功");
@@ -1636,14 +1646,27 @@ const handleTaskSearchReset = () => {
   taskSearchForm.value.state = "";
 };
 
+// 获取组件的 DOM 元素
+const getElementFromRef = (ref: any): HTMLElement | null => {
+  if (!ref) return null;
+  // 如果是 DOM 元素，直接返回
+  if (ref instanceof HTMLElement) return ref;
+  // 如果是组件实例，尝试获取 $el
+  if (ref.$el && ref.$el instanceof HTMLElement) return ref.$el;
+  // 尝试获取 el 属性
+  if (ref.el && ref.el instanceof HTMLElement) return ref.el;
+  return null;
+};
+
 // 计算表格高度
 const calculateTableHeights = () => {
   nextTick(() => {
     const viewportHeight = window.innerHeight;
 
     // 计算待办任务表格高度
-    if (todoTasksCardRef.value) {
-      const cardRect = todoTasksCardRef.value.getBoundingClientRect();
+    const todoCardEl = getElementFromRef(todoTasksCardRef.value);
+    if (todoCardEl) {
+      const cardRect = todoCardEl.getBoundingClientRect();
       const cardTopToViewportBottom = viewportHeight - cardRect.top;
       const cardHeaderHeight = 50; // card header高度
       const cardPadding = 40; // card内部padding
@@ -1653,8 +1676,9 @@ const calculateTableHeights = () => {
     }
 
     // 计算所有任务表格高度
-    if (allTasksCardRef.value) {
-      const cardRect = allTasksCardRef.value.getBoundingClientRect();
+    const allTasksCardEl = getElementFromRef(allTasksCardRef.value);
+    if (allTasksCardEl) {
+      const cardRect = allTasksCardEl.getBoundingClientRect();
       const cardTopToViewportBottom = viewportHeight - cardRect.top;
       const cardHeaderHeight = 50;
       const cardPadding = 40;
@@ -1663,8 +1687,9 @@ const calculateTableHeights = () => {
     }
 
     // 计算项目表格高度
-    if (projectsCardRef.value) {
-      const cardRect = projectsCardRef.value.getBoundingClientRect();
+    const projectsCardEl = getElementFromRef(projectsCardRef.value);
+    if (projectsCardEl) {
+      const cardRect = projectsCardEl.getBoundingClientRect();
       const cardTopToViewportBottom = viewportHeight - cardRect.top;
       const cardHeaderHeight = 50;
       const cardPadding = 40;
@@ -1720,7 +1745,7 @@ onBeforeUnmount(() => {
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
 
     :deep(.el-card__body) {
-      padding: 24px;
+      padding: 18px;
     }
 
     .user-info {

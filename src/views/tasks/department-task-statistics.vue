@@ -51,8 +51,7 @@
                       <el-progress :percentage="row.进度 || 0" :status="row.进度 === 100 ? 'success' : undefined" />
                     </template>
                   </el-table-column>
-                  <el-table-column prop="预计工时" label="计划工时" />
-                  <el-table-column prop="已用工时" label="已用工时" />
+                  <el-table-column prop="task_deadline" label="任务截至日期" />
                   <el-table-column prop="create_time" label="创建时间" />
                 </el-table>
               </el-tab-pane>
@@ -87,7 +86,8 @@ const roleMap: Record<string, string> = {
   "ProjectManager": "项目经理",
   "ProjectDirector": "项目总监",
   "DepartmentManager": "部门负责人",
-  "Member": "普通成员"
+  "Member": "普通成员",
+  "BusinessDepartmentMembers": "业务部门成员"
 };
 
 // 格式化角色显示

@@ -150,6 +150,12 @@ export interface Project {
   template?: ProjectTemplate;
   attachment?: string[]; // 项目附件链接数组
   project_proposal?: string[]; // 立项文件链接数组
+  customer_name?: string; // 客户名称
+  product_type?: string; // 产品类型
+  platform_name?: string; // 平台名称
+  motherboard_name?: string; // 主板名称
+  resolution?: string; // 分辨率
+  business_owner?: string; // 业务负责人
   createdAt?: string;
   updatedAt?: string;
   总进度?: number; // 项目总进度（来自后端API）
