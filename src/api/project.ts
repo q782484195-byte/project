@@ -573,9 +573,10 @@ export interface UpdateTaskParams {
   task_name: string;
   describe: DescribeContent[];
   priority: string;
-  task_deadline: string;
+  task_deadline?: string;
   default_person?: string;
   attachment?: string[];
+  estimated_time?: number;
 }
 
 /** 更新任务 */
@@ -588,7 +589,8 @@ export const updateTask = (params: UpdateTaskParams) => {
       priority: params.priority,
       task_deadline: params.task_deadline,
       default_person: params.default_person,
-      attachment: params.attachment || []
+      attachment: params.attachment || [],
+      estimated_time: params.estimated_time
     }
   });
 };

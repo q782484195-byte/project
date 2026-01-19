@@ -20,16 +20,16 @@
           </el-radio-group>
         </template>
       </el-form-item>
-      <el-form-item v-if="props.task?.need_assign" label="分配给" prop="personName">
+      <el-form-item v-if="needAssign" label="分配给" prop="personName">
         <el-tree-select v-model="form.personName" placeholder="请选择分配给" :loading="allUsersLoading" filterable
           check-strictly default-expand-all :data="allUsersTree" :props="treeSelectProps" node-key="value"
           :render-after-expand="false" style="width: 100%" clearable />
       </el-form-item>
-      <el-form-item v-if="isFirstRoundTest" label="测试轮数" prop="testRounds">
+      <!-- <el-form-item v-if="isFirstRoundTest" label="测试轮数" prop="testRounds">
         <el-select v-model="form.testRounds" placeholder="请选择测试轮数" style="width: 100%">
           <el-option v-for="round in testRoundOptions" :key="round" :label="`${round}轮`" :value="round" />
         </el-select>
-      </el-form-item>
+      </el-form-item> -->
       <el-form-item v-if="isCompleted" label="完成汇报" prop="completionReport">
         <el-input v-model="form.completionReport" type="textarea" :rows="4" placeholder="请输入完成汇报内容" />
       </el-form-item>
@@ -49,6 +49,21 @@
       </el-form-item>
       <el-form-item v-if="needRejectionReason" label="驳回理由" prop="rejectionReason">
         <el-input v-model="form.rejectionReason" type="textarea" :rows="3" placeholder="请输入驳回理由" />
+      </el-form-item>
+      <el-form-item v-if="needDevelopmentTime" label="研发开始时间" prop="development_start_time">
+        <el-date-picker v-model="form.development_start_time" type="date" placeholder="请选择研发开始时间" format="YYYY-MM-DD"
+          value-format="YYYY-MM-DD" style="width: 100%" />
+      </el-form-item>
+      <el-form-item v-if="needDevelopmentTime" label="研发结束时间" prop="development_end_time">
+        <el-date-picker v-model="form.development_end_time" type="date" placeholder="请选择研发结束时间" format="YYYY-MM-DD"
+          value-format="YYYY-MM-DD" :disabled-date="(time: Date) => {
+            if (props.task?.task_deadline) {
+              const deadline = new Date(props.task.task_deadline);
+              deadline.setHours(23, 59, 59, 999);
+              return time.getTime() > deadline.getTime();
+            }
+            return false;
+          }" style="width: 100%" />
       </el-form-item>
     </el-form>
     <template #footer>
@@ -70,7 +85,7 @@ import type { FormInstance, FormRules, UploadFile, UploadFiles } from "element-p
 import { ElMessage } from "element-plus";
 import { Upload } from "@element-plus/icons-vue";
 import { TaskStatus } from "@/types";
-import { updateTaskState, updateTask, reportTaskProgress, uploadFile } from "@/api/project";
+import { updateTaskState, updateTask, reportTaskProgress, uploadFile, updateDevelopmentTime } from "@/api/project";
 import { selectAllUsers } from "@/api/system";
 import { sendWorkchatMessage } from "@/api/report";
 import { useUserStoreHook } from "@/store/modules/user";
@@ -99,20 +114,31 @@ interface FormData {
   testRounds: number;
   completionReport: string;
   attachmentList: UploadFile[];
+  development_start_time: string;
+  development_end_time: string;
 }
 const form = reactive<FormData>({
   personName: "",
   rejectionReason: "",
-  testRounds: 1,
+  testRounds: null,
   completionReport: "",
-  attachmentList: []
+  attachmentList: [],
+  development_start_time: "",
+  development_end_time: ""
 });
 const rules = computed<FormRules>(() => {
   const baseRules: FormRules = {};
   // 只有当 need_assign 为 true 时，personName 才必填
-  if (props.task?.need_assign) {
+  if (needAssign.value) {
     baseRules.personName = [
       { required: true, message: "负责人不能为空", trigger: ["blur", "change"] }
+    ];
+  }
+
+  // 如果选择的是已完成状态，完成汇报必填
+  if (isCompleted.value) {
+    baseRules.completionReport = [
+      { required: true, message: "请输入完成汇报内容", trigger: ["blur", "change"] }
     ];
   }
   // 如果选择的是第一轮测试，测试轮数必填
@@ -125,6 +151,47 @@ const rules = computed<FormRules>(() => {
   if (needRejectionReason.value) {
     baseRules.rejectionReason = [
       { required: true, message: "请输入驳回理由", trigger: ["blur", "change"] }
+    ];
+  }
+  // 如果当前状态是"工时审核未通过"，预计工时必填
+  if (needDevelopmentTime.value) {
+    baseRules.development_start_time = [
+      { required: true, message: "请选择研发开始时间", trigger: ["blur", "change"] }
+    ];
+    baseRules.development_end_time = [
+      { required: true, message: "请选择研发结束时间", trigger: ["blur", "change"] },
+      {
+        validator: (rule, value, callback) => {
+          if (!value) {
+            callback();
+            return;
+          }
+          const endTime = new Date(value).getTime();
+          // 检查是否晚于开始时间
+          if (form.development_start_time) {
+            const startTime = new Date(form.development_start_time).getTime();
+            if (endTime < startTime) {
+              callback(new Error("研发结束时间必须晚于开始时间"));
+              return;
+            }
+          }
+          // 检查是否超过任务截止日期
+          if (props.task?.task_deadline) {
+            const deadline = new Date(props.task.task_deadline);
+            deadline.setHours(23, 59, 59, 999);
+            const endDate = new Date(value);
+            endDate.setHours(0, 0, 0, 0);
+            const deadlineDate = new Date(props.task.task_deadline);
+            deadlineDate.setHours(0, 0, 0, 0);
+            if (endDate.getTime() > deadlineDate.getTime()) {
+              callback(new Error("开发结束日期不能超过任务截止日期"));
+              return;
+            }
+          }
+          callback();
+        },
+        trigger: "change"
+      }
     ];
   }
   return baseRules;
@@ -205,6 +272,42 @@ const needReasonArray = computed<boolean[]>(() => {
   return [];
 });
 
+
+// 从接口返回的 need_assign 字段获取是否需要分配给成员
+const needAssignArray = computed<boolean[]>(() => {
+  if (props.task?.need_assign && Array.isArray(props.task.need_assign)) {
+    return props.task.need_assign;
+  }
+  return [];
+});
+
+const selectedNextState = ref<string>("");
+
+// 根据选中的下一状态，判断是否需要显示分配给输入框
+const needAssign = computed<boolean>(() => {
+  if (nextOptions.value.length === 0 || needAssignArray.value.length === 0) {
+    return false;
+  }
+
+  // 如果只有一个选项，直接使用第一个 need_assign
+  if (nextOptions.value.length === 1) {
+    return needAssignArray.value[0] === true;
+  }
+
+  // 如果有多个选项，需要选中状态才能判断
+  if (!selectedNextState.value) {
+    return false;
+  }
+
+  // 根据选中的状态找到对应的 need_assign
+  const selectedIndex = nextOptions.value.indexOf(selectedNextState.value);
+  if (selectedIndex !== -1 && selectedIndex < needAssignArray.value.length) {
+    return needAssignArray.value[selectedIndex] === true;
+  }
+
+  return false;
+});
+
 // 根据选中的下一状态，判断是否需要显示驳回理由输入框
 const needRejectionReason = computed<boolean>(() => {
   if (nextOptions.value.length === 0 || needReasonArray.value.length === 0) {
@@ -229,8 +332,6 @@ const needRejectionReason = computed<boolean>(() => {
 
   return false;
 });
-
-const selectedNextState = ref<string>("");
 
 // 测试轮数选项（1-8）
 const testRoundOptions = [1, 2, 3, 4, 5, 6, 7, 8];
@@ -261,12 +362,20 @@ const isCompleted = computed<boolean>(() => {
     (targetState && targetState.includes("已完成"));
 });
 
+// 判断当前状态是否需要填写预计工时（工时审核未通过）
+const needDevelopmentTime = computed<boolean>(() => {
+  const status = currentStatus.value;
+  return status === "工时审核未通过";
+});
+
 const resetForm = () => {
   form.personName = "";
   form.rejectionReason = "";
   form.testRounds = 1;
   form.completionReport = "";
   form.attachmentList = [];
+  form.development_start_time = "";
+  form.development_end_time = "";
   selectedNextState.value = "";
 };
 
@@ -274,13 +383,17 @@ const initForm = () => {
   form.personName = "";
   form.rejectionReason = "";
   form.testRounds = 1;
+  form.completionReport = "";
+  form.attachmentList = [];
+  form.development_start_time = "";
+  form.development_end_time = "";
   if (nextOptions.value.length === 1) {
     selectedNextState.value = nextOptions.value[0];
   } else {
     selectedNextState.value = "";
   }
   // 只有当 need_assign 为 true 时才加载用户列表
-  if (props.task?.need_assign && !allUsersRawData.value.length) {
+  if (needAssign.value && !allUsersRawData.value.length) {
     loadAllUsers();
   }
   nextTick(() => {
@@ -461,8 +574,27 @@ const handleConfirm = () => {
     confirmLoading.value = true;
     emit("flow-start", taskId);
     try {
+      // 如果当前状态是"工时审核未通过"，先提交预计工时
+      if (needDevelopmentTime.value) {
+        if (!form.development_start_time || !form.development_end_time) {
+          ElMessage.error("请填写研发开始时间和结束时间");
+          confirmLoading.value = false;
+          return;
+        }
+        const developmentTimeResponse = await updateDevelopmentTime({
+          task_id: taskId,
+          development_start_time: form.development_start_time,
+          development_end_time: form.development_end_time
+        });
+        if (developmentTimeResponse.code !== 200) {
+          ElMessage.error(developmentTimeResponse.message || "预计工时提交失败");
+          confirmLoading.value = false;
+          return;
+        }
+      }
+
       // 如果 need_assign 为 false，可以不传 person_name 或传空字符串
-      const personName = props.task?.need_assign ? form.personName.trim() : "";
+      const personName = needAssign.value ? form.personName.trim() : "";
 
       // 从用户信息映射中获取选中成员的完整信息
       const selectedUser = userInfoMap.value.get(personName);

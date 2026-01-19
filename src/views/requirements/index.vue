@@ -700,8 +700,6 @@ onUnmounted(() => {
 
 <style scoped lang="scss">
 .requirements-page {
-  padding: 20px;
-
   .page-header {
     display: flex;
     justify-content: space-between;

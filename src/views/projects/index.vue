@@ -130,7 +130,7 @@
             <span class="field-label">计划时间:</span>
             <span class="field-value">{{
               formatDateRange(project.startDate, project.endDate)
-            }}</span>
+              }}</span>
           </div>
         </div>
       </div>
@@ -543,7 +543,6 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .projects-page {
-  padding: 24px;
   background: linear-gradient(135deg, #f5f7fa 0%, #fafbfc 100%);
   min-height: calc(100vh - 60px);
 }

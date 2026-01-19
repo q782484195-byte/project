@@ -81,26 +81,35 @@
               </el-table-column>
               <el-table-column prop="task_deadline" label="任务截止日期" width="150" />
               <el-table-column prop="create_time" label="创建时间" width="180" />
-              <el-table-column label="操作" width="260" fixed="right">
+              <el-table-column label="操作" width="80" fixed="right">
                 <template #default="{ row }">
-                  <el-button type="primary" link size="small" @click="handleView(row)">查看</el-button>
-                  <el-button type="primary" link size="small" @click="handleEdit(row)" v-perms="['task:update']"
-                    v-if="((userStore.username === (row.当前处理人 || row.current_handler)) || isAdmin || isProjectManager) && row.状态 !== '已完成'">编辑</el-button>
-                  <el-button type="primary" link size="small" @click="handleChangeAssignee(row)"
-                    v-perms="['task:update_current_assignee']"
-                    v-if="isPendingAssignStatus(row.状态 || row.status)">更改负责人</el-button>
-                  <el-button type="danger" link size="small" @click="handleCloseTask(row)"
-                    v-perms="['task:close']">关闭</el-button>
-                  <!-- <el-button v-if="(row.当前处理人 || row.current_handler) === userStore.username" type="primary" link
-                    size="small"
-                    :disabled="!row.next_state || !Array.isArray(row.next_state) || row.next_state.length === 0"
-                    v-perms="['task:update_state']" :loading="statusFlowButtonLoadingTaskId === (row._id || row.id)"
-                    @click="openStatusFlowDialog(row)">
-                    分配
-                  </el-button> -->
-                  <el-button type="success" link size="small" @click="openReportDialog(row)"
-                    v-if="(row.当前处理人 || row.current_handler) === userStore.username && canRecordBug(row.状态 || row.status)"
-                    v-perms="['task:report']">进度汇报</el-button>
+                  <el-dropdown trigger="click" @command="(command) => handleDropdownCommand(command, row)">
+                    <el-button type="primary" link size="small" circle class="more-icon-btn">
+                      <el-icon :size="18">
+                        <MoreFilled />
+                      </el-icon>
+                    </el-button>
+                    <template #dropdown>
+                      <el-dropdown-menu>
+                        <el-dropdown-item command="view">查看</el-dropdown-item>
+                        <el-dropdown-item command="edit"
+                          v-if="((userStore.username === (row.当前处理人 || row.current_handler)) || isAdmin || isProjectManager) && row.状态 !== '已完成' && hasPerms(['task:update'])">
+                          编辑
+                        </el-dropdown-item>
+                        <el-dropdown-item command="changeAssignee"
+                          v-if="isPendingAssignStatus(row.状态 || row.status) && hasPerms(['task:update_current_assignee'])">
+                          更改负责人
+                        </el-dropdown-item>
+                        <el-dropdown-item command="close" v-if="hasPerms(['task:close'])" divided>
+                          <span style="color: var(--el-color-danger)">关闭</span>
+                        </el-dropdown-item>
+                        <el-dropdown-item command="report"
+                          v-if="(row.当前处理人 || row.current_handler) === userStore.username && canRecordBug(row.状态 || row.status) && hasPerms(['task:report'])">
+                          <span style="color: var(--el-color-success)">进度汇报</span>
+                        </el-dropdown-item>
+                      </el-dropdown-menu>
+                    </template>
+                  </el-dropdown>
                 </template>
               </el-table-column>
             </el-table>
@@ -213,7 +222,8 @@ import { ref, computed, onMounted, onUnmounted, watch, reactive, nextTick, toRaw
 import { useRouter, useRoute } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import type { FormInstance, FormRules } from "element-plus";
-import { Plus, Search, Share } from "@element-plus/icons-vue";
+import { Plus, Search, Share, MoreFilled } from "@element-plus/icons-vue";
+import { hasPerms } from "@/utils/auth";
 import {
   selectProjects,
   selectProjectTasks,
@@ -840,6 +850,27 @@ const handleBatchAssignSubmit = async () => {
 };
 
 // 查看任务
+// 处理下拉菜单命令
+const handleDropdownCommand = (command: string, row: any) => {
+  switch (command) {
+    case 'view':
+      handleView(row);
+      break;
+    case 'edit':
+      handleEdit(row);
+      break;
+    case 'changeAssignee':
+      handleChangeAssignee(row);
+      break;
+    case 'close':
+      handleCloseTask(row);
+      break;
+    case 'report':
+      openReportDialog(row);
+      break;
+  }
+};
+
 const handleView = (task: any) => {
   // 使用 sessionStorage 临时存储任务数据
   const taskId = task.id || task._id;
@@ -1343,6 +1374,25 @@ const handleResize = () => {
 };
 
 onMounted(async () => {
+  // 打印权限列表（调试用）
+  console.log('=== v-perms 权限列表 ===');
+  console.log('用户权限列表:', userStore.permissions);
+  console.log('权限列表长度:', userStore.permissions?.length || 0);
+  console.log('所有权限:', JSON.stringify(userStore.permissions, null, 2));
+  console.log('当前按钮需要的权限:');
+  console.log('  - task:update_current_assignee');
+  console.log('  - task:close');
+  console.log('  - task:update');
+  console.log('  - task:bulk_assignment');
+  console.log('  - task:add');
+  console.log('  - task:update_state');
+  console.log('  - task:report');
+  console.log('权限检查结果:');
+  console.log('  - task:update_current_assignee:', userStore.permissions?.includes('task:update_current_assignee'));
+  console.log('  - task:close:', userStore.permissions?.includes('task:close'));
+  console.log('  - task:update:', userStore.permissions?.includes('task:update'));
+  console.log('==================');
+
   // 先加载项目列表
   await loadProjects();
   // 从路由参数中恢复搜索条件（内部会处理 create 参数）
@@ -1473,6 +1523,13 @@ onUnmounted(() => {
       .el-checkbox.is-disabled {
         display: none;
       }
+    }
+  }
+
+  // 放大三个点图标
+  .more-icon-btn {
+    :deep(.el-icon) {
+      font-size: 18px;
     }
   }
 }

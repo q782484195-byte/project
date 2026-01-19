@@ -126,23 +126,33 @@
                 <el-table-column prop="development_start_time" label="研发开始时间" show-overflow-tooltip width="100" />
                 <el-table-column prop="development_end_time" label="研发结束时间" show-overflow-tooltip width="100" />
                 <el-table-column prop="assignment_time" label="任务分配时间" show-overflow-tooltip width="180" />
-                <el-table-column label="操作" width="150" fixed="right">
+                <el-table-column label="操作" width="80" fixed="right">
                   <template #default="{ row }">
-                    <el-button type="primary" link size="small" @click="viewTask(row)">查看</el-button>
-                    <el-button v-if="(row.当前处理人 || row.current_handler) === userStore.username" type="primary" link
-                      size="small"
-                      :disabled="!row.next_state || !Array.isArray(row.next_state) || row.next_state.length === 0"
-                      :loading="statusFlowButtonLoadingTaskId === (row._id || row.id)"
-                      @click="openStatusFlowDialog(row)">
-                      分配
-                    </el-button>
-                    <el-button type="success" link size="small" @click="openReportDialog(row)"
-                      v-if="(row.当前处理人 || row.current_handler) === userStore.username && canRecordBug(row.状态 || row.status, 'report')"
-                      v-perms="['task:report']">进度汇报</el-button>
-                    <el-button v-perms="['bug:record']"
-                      v-if="(row.当前处理人 || row.current_handler) === userStore.username && canRecordBug(row.状态 || row.status, 'bug')"
-                      type="warning" link size="small" :loading="bugButtonLoadingTaskId === (row._id || row.id)"
-                      @click="openBugDialog(row)">记录BUG</el-button>
+                    <el-dropdown trigger="click" @command="(command) => handleTodoTaskDropdownCommand(command, row)">
+                      <el-button type="primary" link size="small" circle class="more-icon-btn">
+                        <el-icon :size="18">
+                          <MoreFilled />
+                        </el-icon>
+                      </el-button>
+                      <template #dropdown>
+                        <el-dropdown-menu>
+                          <el-dropdown-item command="view">查看</el-dropdown-item>
+                          <el-dropdown-item command="assign"
+                            v-if="(row.当前处理人 || row.current_handler) === userStore.username">
+                            分配
+                          </el-dropdown-item>
+                          <el-dropdown-item command="report"
+                            v-if="(row.当前处理人 || row.current_handler) === userStore.username && canRecordBug(row.状态 || row.status, 'report') && hasPerms(['task:report'])">
+                            <span style="color: var(--el-color-success)">进度汇报</span>
+                          </el-dropdown-item>
+                          <el-dropdown-item command="bug"
+                            v-if="(row.当前处理人 || row.current_handler) === userStore.username && canRecordBug(row.状态 || row.status, 'bug') && hasPerms(['bug:record'])"
+                            divided>
+                            <span style="color: var(--el-color-warning)">记录BUG</span>
+                          </el-dropdown-item>
+                        </el-dropdown-menu>
+                      </template>
+                    </el-dropdown>
                   </template>
                 </el-table-column>
               </el-table>
@@ -383,25 +393,33 @@
                 {{ row.development_end_time || "-" }}
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="280" fixed="right">
+            <el-table-column label="操作" width="80" fixed="right">
               <template #default="{ row }">
-                <el-button type="primary" size="small" link @click="viewTask(row)">
-                  查看
-                </el-button>
-                <el-button v-if="(row.当前处理人 || row.current_handler) === userStore.username" type="primary" link
-                  size="small"
-                  :disabled="!row.next_state || !Array.isArray(row.next_state) || row.next_state.length === 0"
-                  :loading="statusFlowButtonLoadingTaskId === (row._id || row.id)" @click="openStatusFlowDialog(row)">
-                  分配
-                </el-button>
-                <el-button
-                  v-if="(row.当前处理人 || row.current_handler) === userStore.username && canRecordBug(row.状态 || row.status, 'bug')"
-                  type="warning" link size="small" :loading="bugButtonLoadingTaskId === (row._id || row.id)"
-                  @click="openBugDialog(row)">记录BUG</el-button>
-                <el-button type="success" link size="small" @click="openReportDialog(row)"
-                  v-if="(row.当前处理人 || row.current_handler) === userStore.username && canRecordBug(row.状态 || row.status, 'report')"
-                  v-perms="['task:report']">进度汇报
-                </el-button>
+                <el-dropdown trigger="click" @command="(command) => handleAllTaskDropdownCommand(command, row)">
+                  <el-button type="primary" link size="small" circle class="more-icon-btn">
+                    <el-icon :size="18">
+                      <MoreFilled />
+                    </el-icon>
+                  </el-button>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item command="view">查看</el-dropdown-item>
+                      <el-dropdown-item command="assign"
+                        v-if="(row.当前处理人 || row.current_handler) === userStore.username">
+                        分配
+                      </el-dropdown-item>
+                      <el-dropdown-item command="bug"
+                        v-if="(row.当前处理人 || row.current_handler) === userStore.username && canRecordBug(row.状态 || row.status, 'bug')">
+                        <span style="color: var(--el-color-warning)">记录BUG</span>
+                      </el-dropdown-item>
+                      <el-dropdown-item command="report"
+                        v-if="(row.当前处理人 || row.current_handler) === userStore.username && canRecordBug(row.状态 || row.status, 'report') && hasPerms(['task:report'])"
+                        divided>
+                        <span style="color: var(--el-color-success)">进度汇报</span>
+                      </el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
               </template>
             </el-table-column>
           </el-table>
@@ -470,11 +488,20 @@
             <el-table-column prop="plant_start_time" label="计划开始时间" width="160" />
             <el-table-column prop="plant_end_time" label="计划计划结束时间" width="160" />
             <el-table-column prop="create_time" label="创建时间" width="160" />
-            <el-table-column label="操作" width="100" fixed="right">
+            <el-table-column label="操作" width="80" fixed="right">
               <template #default="{ row }">
-                <el-button type="primary" size="small" link @click="viewProject(row)">
-                  查看
-                </el-button>
+                <el-dropdown trigger="click" @command="(command) => handleProjectDropdownCommand(command, row)">
+                  <el-button type="primary" link size="small" circle class="more-icon-btn">
+                    <el-icon :size="18">
+                      <MoreFilled />
+                    </el-icon>
+                  </el-button>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item command="view">查看</el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
               </template>
             </el-table-column>
           </el-table>
@@ -552,11 +579,11 @@
           <span>{{ developmentTimeForm.task_name || "-" }}</span>
         </el-form-item>
         <el-form-item label="研发开始时间" prop="development_start_time">
-          <el-date-picker v-model="developmentTimeForm.development_start_time" type="datetime" placeholder="请选择研发开始时间"
+          <el-date-picker v-model="developmentTimeForm.development_start_time" type="date" placeholder="请选择研发开始时间"
             format="YYYY-MM-DD" value-format="YYYY-MM-DD" style="width: 100%" />
         </el-form-item>
         <el-form-item label="研发结束时间" prop="development_end_time">
-          <el-date-picker v-model="developmentTimeForm.development_end_time" type="datetime" placeholder="请选择研发结束时间"
+          <el-date-picker v-model="developmentTimeForm.development_end_time" type="date" placeholder="请选择研发结束时间"
             format="YYYY-MM-DD" value-format="YYYY-MM-DD" :disabled-date="(time: Date) => {
               if (developmentTimeForm.task_deadline) {
                 const deadline = new Date(developmentTimeForm.task_deadline);
@@ -582,12 +609,13 @@
 import { ref, computed, reactive, onMounted, onBeforeUnmount, onUnmounted, nextTick } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useUserStoreHook } from "@/store/modules/user";
+import { hasPerms } from "@/utils/auth";
 import { selectMyTasks, selectRequirements, selectProjects, getTaskStatistics, selectPendingTasks, selectUserRequirements, flattenRequirementData, reportTaskProgress, updateDevelopmentTime } from "@/api/project";
 import { createBug } from "@/api/bug";
 import { selectDepartmentUsers, type DepartmentUserItem } from "@/api/system";
 import { selectSelfReports, selectReports, type ReportRecord } from "@/api/report";
 import { ElMessage } from "element-plus";
-import { User, Clock, Document, DataLine } from "@element-plus/icons-vue";
+import { User, Clock, Document, DataLine, MoreFilled } from "@element-plus/icons-vue";
 import type { TaskListItem, RequirementListItem, ProjectListItem } from "@/api/project";
 import { TaskStatus } from "@/types";
 import TaskStatusFlowDialog from "@/components/TaskStatusFlowDialog.vue";
@@ -903,6 +931,51 @@ const generateProjectActivities = (projs: ProjectListItem[]) => {
 };
 
 // 查看任务
+// 处理待办任务表格下拉菜单命令
+const handleTodoTaskDropdownCommand = (command: string, row: any) => {
+  switch (command) {
+    case 'view':
+      viewTask(row);
+      break;
+    case 'assign':
+      openStatusFlowDialog(row);
+      break;
+    case 'report':
+      openReportDialog(row);
+      break;
+    case 'bug':
+      openBugDialog(row);
+      break;
+  }
+};
+
+// 处理所有任务表格下拉菜单命令
+const handleAllTaskDropdownCommand = (command: string, row: any) => {
+  switch (command) {
+    case 'view':
+      viewTask(row);
+      break;
+    case 'assign':
+      openStatusFlowDialog(row);
+      break;
+    case 'bug':
+      openBugDialog(row);
+      break;
+    case 'report':
+      openReportDialog(row);
+      break;
+  }
+};
+
+// 处理项目表格下拉菜单命令
+const handleProjectDropdownCommand = (command: string, row: any) => {
+  switch (command) {
+    case 'view':
+      viewProject(row);
+      break;
+  }
+};
+
 const viewTask = (task: TaskListItem) => {
   // 使用 sessionStorage 临时存储任务数据
   const taskId = task._id || task.id;
@@ -1327,7 +1400,7 @@ const developmentTimeRules: FormRules = {
         // 检查是否晚于开始时间
         if (developmentTimeForm.development_start_time) {
           const startTime = new Date(developmentTimeForm.development_start_time).getTime();
-          if (endTime <= startTime) {
+          if (endTime < startTime) {
             callback(new Error("研发结束时间必须晚于开始时间"));
             return;
           }
@@ -1579,8 +1652,11 @@ const handleReportSubmit = () => {
 // 状态分配成功回调
 const handleStatusFlowSuccess = (nextState: string, personName: string) => {
   if (!statusFlowTask.value) return;
+  
+  // 更新任务状态
   statusFlowTask.value.状态 = nextState;
   statusFlowTask.value.status = nextState;
+  
   // 刷新工作台的待办任务列表
   loadTodoTasks(todoTasksPage.value);
   // 刷新任务tab的列表
@@ -2113,7 +2189,6 @@ onBeforeUnmount(() => {
           }
         }
       }
-
     }
   }
 
@@ -2126,6 +2201,13 @@ onBeforeUnmount(() => {
     text-overflow: ellipsis;
     white-space: nowrap;
     width: 100%;
+  }
+
+  // 放大三个点图标
+  .more-icon-btn {
+    :deep(.el-icon) {
+      font-size: 18px;
+    }
   }
 }
 </style>
