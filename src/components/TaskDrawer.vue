@@ -7,6 +7,14 @@
           <el-input v-model="taskForm.task_name" placeholder="请输入任务名称" maxlength="100" show-word-limit
             :disabled="isEdit && !canEditAllFields" />
         </el-form-item>
+        <el-form-item label="所属层级" prop="requirement_id">
+          <el-select v-model="taskForm.requirement_id" placeholder="选择层级" clearable style="width: 100%"
+            :disabled="isEdit || !taskForm.project_id || requirementsLoading" :loading="requirementsLoading"
+            @change="handleRequirementChange">
+            <el-option v-for="requirement in requirements" :key="requirement.id" :label="requirement.requirement_name"
+              :value="requirement.id" />
+          </el-select>
+        </el-form-item>
         <el-form-item v-if="showDefaultPersonField" label="默认部门负责人" prop="default_person" ">
           <el-tree-select v-model="taskForm.default_person" placeholder="请选择默认部门负责人"
           :loading="departmentLeadersLoading" filterable check-strictly default-expand-all :data="departmentLeadersTree"
@@ -24,14 +32,7 @@
           </el-select>
         </el-form-item>
 
-        <el-form-item label="所属层级" prop="requirement_id">
-          <el-select v-model="taskForm.requirement_id" placeholder="选择层级" clearable style="width: 100%"
-            :disabled="isEdit || !taskForm.project_id || requirementsLoading" :loading="requirementsLoading"
-            @change="handleRequirementChange">
-            <el-option v-for="requirement in requirements" :key="requirement.id" :label="requirement.requirement_name"
-              :value="requirement.id" />
-          </el-select>
-        </el-form-item>
+
 
         <el-form-item label="优先级" prop="priority">
           <el-select v-model="taskForm.priority" placeholder="选择优先级" clearable style="width: 30%"
@@ -86,7 +87,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, reactive } from "vue";
+import { ref, computed, watch, reactive, nextTick } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { Upload } from "@element-plus/icons-vue";
 import type {
@@ -372,6 +373,31 @@ const loadRequirements = async (projectId: string) => {
           };
         }
       );
+
+      // 层级列表加载完成后，如果是新建模式且有传入的 requirementId，尝试设置
+      if (!props.task && props.requirementId) {
+        await nextTick();
+        console.log("层级列表加载完成，尝试设置 requirementId:", {
+          requirementId: props.requirementId,
+          requirementName: props.requirementName,
+          requirementsCount: requirements.value.length,
+          requirements: requirements.value.map((r: any) => ({ id: r.id, name: r.requirement_name }))
+        });
+
+        const matchedRequirement = requirements.value.find(
+          (r: any) => r.id === props.requirementId || r._id === props.requirementId || String(r.id) === String(props.requirementId)
+        );
+
+        if (matchedRequirement) {
+          console.log("找到匹配的层级:", matchedRequirement);
+          taskForm.requirement_id = matchedRequirement.id;
+          taskForm.requirement_name = matchedRequirement.requirement_name || props.requirementName || "";
+        } else {
+          console.log("未找到匹配的层级，使用传入的值");
+          taskForm.requirement_id = props.requirementId;
+          taskForm.requirement_name = props.requirementName || "";
+        }
+      }
     } else {
       ElMessage.error(response.message || "加载层级列表失败");
       requirements.value = [];
@@ -670,16 +696,20 @@ watch(
       } else {
         // 新建模式：如果传入了项目ID和需求ID，自动填充
         resetForm();
+        console.log("新建模式，props:", {
+          projectId: props.projectId,
+          requirementId: props.requirementId,
+          requirementName: props.requirementName
+        });
+
         if (props.projectId) {
           taskForm.project_id = props.projectId;
-          // 加载该项目的层级列表
-          loadRequirements(props.projectId).then(() => {
-            // 层级列表加载完成后再设置需求ID
-            if (props.requirementId) {
-              taskForm.requirement_id = props.requirementId;
-              taskForm.requirement_name = props.requirementName || "";
-            }
-          });
+          // 加载该项目的层级列表（loadRequirements 内部会处理 requirementId 的设置）
+          loadRequirements(props.projectId);
+        } else if (props.requirementId) {
+          // 如果没有项目ID但有需求ID，先设置需求信息（后续选择项目时会加载层级列表）
+          taskForm.requirement_id = props.requirementId;
+          taskForm.requirement_name = props.requirementName || "";
         }
       }
     } else {
@@ -687,6 +717,37 @@ watch(
     }
   },
   { immediate: true }
+);
+
+// 监听 requirementId 和层级列表变化，在新建模式下自动设置
+watch(
+  () => ({
+    requirementId: props.requirementId,
+    requirementName: props.requirementName,
+    projectId: props.projectId,
+    requirementsLength: requirements.value.length,
+    hasTask: !!props.task
+  }),
+  ({ requirementId, requirementName, projectId, requirementsLength, hasTask }) => {
+    // 只在新建模式下处理（没有 task）
+    if (!hasTask && requirementId && projectId && requirementsLength > 0) {
+      // 尝试在层级列表中查找匹配的层级
+      const matchedRequirement = requirements.value.find(
+        (r: any) => r.id === requirementId || r._id === requirementId || String(r.id) === String(requirementId)
+      );
+
+      if (matchedRequirement) {
+        // 如果找到了匹配的层级，使用层级列表中的 ID 和名称
+        taskForm.requirement_id = matchedRequirement.id;
+        taskForm.requirement_name = matchedRequirement.requirement_name || requirementName || "";
+      } else {
+        // 如果没有找到匹配的层级，使用传入的值
+        taskForm.requirement_id = requirementId;
+        taskForm.requirement_name = requirementName || "";
+      }
+    }
+  },
+  { immediate: false }
 );
 
 // 处理文件上传前（阻止自动上传）

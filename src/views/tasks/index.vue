@@ -36,93 +36,93 @@
             新建任务
           </el-button>
         </div>
-        <el-tabs v-model="activeTab" v-if="Object.keys(tasks).length > 0">
-          <el-tab-pane v-for="(taskList, taskType) in tasks" :key="taskType" :label="`${taskType} (${taskList.length})`"
-            :name="taskType">
-            <el-table :data="filteredTasks" :style="{ width: '100%' }" :height="tableHeight" row-key="rowKey"
-              @selection-change="handleSelectionChange">
-              <el-table-column type="selection" width="55" :selectable="isRowSelectable" />
-              <el-table-column prop="任务名" label="任务名称" width="140">
-                <template #default="{ row }">
-                  {{ row.任务名 || row.task_name || row.title || "-" }}
+        <!-- 多层 tab 结构（递归组件） -->
+        <NestedTabs v-if="Object.keys(tasks).length > 0" :data="tasks" :level="0" :active-tabs="activeTabs"
+          :table-height="tableHeight" :loading="tabLoading" :processed-cache="processedTasksCache"
+          @update:active-tabs="activeTabs = $event" @selection-change="handleSelectionChange">
+          <el-table-column type="selection" width="55" :selectable="isRowSelectable" />
+          <el-table-column prop="任务名" label="任务名称" width="140">
+            <template #default="{ row }">
+              {{ row.任务名 || row.task_name || row.title || "-" }}
+            </template>
+          </el-table-column>
+          <!-- <el-table-column prop="requirement_name" label="关联层级" width="140" /> -->
+          <el-table-column prop="当前处理人" label="当前处理人/部门" width="220">
+            <template #default="{ row }">
+              <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                <el-tag type="success" size="small">
+                  <span class="assignee-text-dept" style="color: #67C23A;">{{ row.部门 || "-" }}</span>
+                </el-tag>
+                <el-tag type="primary" size="small">
+                  <span class="assignee-text">{{ row.当前处理人 || row.assignee || "-" }}</span>
+                </el-tag>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column prop="状态" label="状态">
+            <template #default="{ row }">
+              <el-tag :type="getStatusType(row.状态 || row.status) || undefined" size="small" effect="light">
+                {{ row.状态 || row.status || "-" }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="优先级" label="优先级">
+            <template #default="{ row }">
+              <el-tag :type="getPriorityType(row.优先级 || row.priority) || undefined" size="small">
+                {{ row.优先级 || row.priority || "-" }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="进度" label="进度">
+            <template #default="{ row }">
+              <el-progress :percentage="row.进度 || 0" :status="row.进度 === 100 ? 'success' : undefined" />
+            </template>
+          </el-table-column>
+          <el-table-column prop="task_deadline" label="任务截止日期" width="150" />
+          <el-table-column prop="create_time" label="创建时间" width="180" />
+          <el-table-column label="操作" width="80" fixed="right">
+            <template #default="{ row }">
+              <el-dropdown trigger="click" @command="(command) => handleDropdownCommand(command, row)">
+                <el-button type="primary" link size="small" circle class="more-icon-btn">
+                  <el-icon :size="18">
+                    <MoreFilled />
+                  </el-icon>
+                </el-button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item command="view">查看</el-dropdown-item>
+                    <el-dropdown-item command="edit"
+                      v-if="((userStore.username === (row.当前处理人 || row.current_handler)) || isAdmin || isProjectManager) && row.状态 !== '已完成' && hasPerms(['task:update'])">
+                      编辑
+                    </el-dropdown-item>
+                    <el-dropdown-item command="changeAssignee"
+                      v-if="isPendingAssignStatus(row.状态 || row.status) && hasPerms(['task:update_current_assignee'])">
+                      更改负责人
+                    </el-dropdown-item>
+                    <el-dropdown-item command="close" v-if="hasPerms(['task:close'])" divided>
+                      <span style="color: var(--el-color-danger)">关闭</span>
+                    </el-dropdown-item>
+                    <el-dropdown-item command="complete" v-if="row.状态 !== '已完成'" divided>
+                      <span style="color: var(--el-color-success)">完成</span>
+                    </el-dropdown-item>
+                    <el-dropdown-item command="report"
+                      v-if="(row.当前处理人 || row.current_handler) === userStore.username && canRecordBug(row.状态 || row.status) && hasPerms(['task:report'])">
+                      <span style="color: var(--el-color-success)">进度汇报</span>
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
                 </template>
-              </el-table-column>
-              <el-table-column prop="requirement_name" label="关联层级" width="140" />
-              <el-table-column prop="当前处理人" label="当前处理人/部门" width="220">
-                <template #default="{ row }">
-                  <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                    <el-tag type="success" size="small">
-                      <span class="assignee-text-dept" style="color: #67C23A;">{{ row.部门 || "-" }}</span>
-                    </el-tag>
-                    <el-tag type="primary" size="small">
-                      <span class="assignee-text">{{ row.当前处理人 || row.assignee || "-" }}</span>
-                    </el-tag>
-                  </div>
-                </template>
-              </el-table-column>
-              <el-table-column prop="状态" label="状态" width="150">
-                <template #default="{ row }">
-                  <el-tag :type="getStatusType(row.状态 || row.status) || undefined" size="small" effect="light">
-                    {{ row.状态 || row.status || "-" }}
-                  </el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column prop="优先级" label="优先级">
-                <template #default="{ row }">
-                  <el-tag :type="getPriorityType(row.优先级 || row.priority) || undefined" size="small">
-                    {{ row.优先级 || row.priority || "-" }}
-                  </el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column prop="进度" label="进度" width="150">
-                <template #default="{ row }">
-                  <el-progress :percentage="row.进度 || 0" :status="row.进度 === 100 ? 'success' : undefined" />
-                </template>
-              </el-table-column>
-              <el-table-column prop="task_deadline" label="任务截止日期" width="150" />
-              <el-table-column prop="create_time" label="创建时间" width="180" />
-              <el-table-column label="操作" width="80" fixed="right">
-                <template #default="{ row }">
-                  <el-dropdown trigger="click" @command="(command) => handleDropdownCommand(command, row)">
-                    <el-button type="primary" link size="small" circle class="more-icon-btn">
-                      <el-icon :size="18">
-                        <MoreFilled />
-                      </el-icon>
-                    </el-button>
-                    <template #dropdown>
-                      <el-dropdown-menu>
-                        <el-dropdown-item command="view">查看</el-dropdown-item>
-                        <el-dropdown-item command="edit"
-                          v-if="((userStore.username === (row.当前处理人 || row.current_handler)) || isAdmin || isProjectManager) && row.状态 !== '已完成' && hasPerms(['task:update'])">
-                          编辑
-                        </el-dropdown-item>
-                        <el-dropdown-item command="changeAssignee"
-                          v-if="isPendingAssignStatus(row.状态 || row.status) && hasPerms(['task:update_current_assignee'])">
-                          更改负责人
-                        </el-dropdown-item>
-                        <el-dropdown-item command="close" v-if="hasPerms(['task:close'])" divided>
-                          <span style="color: var(--el-color-danger)">关闭</span>
-                        </el-dropdown-item>
-                        <el-dropdown-item command="report"
-                          v-if="(row.当前处理人 || row.current_handler) === userStore.username && canRecordBug(row.状态 || row.status) && hasPerms(['task:report'])">
-                          <span style="color: var(--el-color-success)">进度汇报</span>
-                        </el-dropdown-item>
-                      </el-dropdown-menu>
-                    </template>
-                  </el-dropdown>
-                </template>
-              </el-table-column>
-            </el-table>
-          </el-tab-pane>
-        </el-tabs>
+              </el-dropdown>
+            </template>
+          </el-table-column>
+        </NestedTabs>
         <el-empty v-else description="暂无任务数据" :image-size="100" />
       </div>
     </el-card>
 
     <!-- 新建/编辑任务抽屉 -->
     <TaskDrawer v-model:visible="showTaskDrawer" :project-id="currentProjectId || searchForm.projectId"
-      :requirement-id="undefined" :requirement-name="undefined" :task="currentTask" :projects="projectOptions"
-      @refresh="handleTaskRefresh" />
+      :requirement-id="currentRequirementId" :requirement-name="currentRequirementName" :task="currentTask"
+      :projects="projectOptions" @refresh="handleTaskRefresh" />
 
     <TaskStatusFlowDialog v-model:visible="statusFlowDialogVisible" :task="statusFlowTask"
       @success="handleStatusFlowSuccess" @flow-start="handleStatusFlowStart" @flow-end="handleStatusFlowEnd" />
@@ -227,6 +227,7 @@ import { hasPerms } from "@/utils/auth";
 import {
   selectProjects,
   selectProjectTasks,
+  selectAllRequirementsAndTasksTwo,
   reportTaskProgress,
   updateTaskState,
   bulkAssignment,
@@ -238,8 +239,8 @@ import type { Project } from "@/types";
 import { TaskStatus } from "@/types";
 import TaskStatusFlowDialog from "@/components/TaskStatusFlowDialog.vue";
 import TaskDrawer from "@/components/TaskDrawer.vue";
+import NestedTabs from "@/components/NestedTabs.vue";
 import { useUserStoreHook } from "@/store/modules/user";
-import { storageLocal } from "@pureadmin/utils";
 
 const router = useRouter();
 const route = useRoute();
@@ -256,17 +257,24 @@ const searchForm = ref({
 
 const loading = ref(false);
 
-const tasks = ref<Record<string, any[]>>({});
+// 保持嵌套结构：可能是2层或3层，动态检测
+const tasks = ref<Record<string, any>>({});
 const totalTasks = ref(0);
-const activeTab = ref<string>("");
+// 动态管理多层 tab 的选中状态
+const activeTabs = ref<string[]>([]); // 数组，每个元素代表一层选中的 tab
+const activeTab = ref<string>(""); // 兼容旧代码，格式：任务类型/需求名称/...
 const projects = ref<Project[]>([]);
 const projectsLoading = ref(false);
 const showTaskDrawer = ref(false);
 const currentTask = ref<any>(null);
 const currentProjectId = ref<string>("");
 const hasOpenedCreateDrawer = ref(false); // 标志，用于避免重复打开新建抽屉
+const currentRequirementId = ref<string | undefined>(undefined);
+const currentRequirementName = ref<string | undefined>(undefined);
 const batchAssignLoading = ref(false);
 const selectedTasks = ref<any[]>([]); // 选中的任务列表
+const tabLoading = ref(false); // tab 切换时的加载状态
+const currentTabData = ref<any[]>([]); // 当前 tab 的数据（用于延迟加载）
 
 // 表格高度相关
 const pageRef = ref<HTMLElement>();
@@ -288,21 +296,189 @@ const CACHE_KEY = "tasks-list-params";
 
 
 
-// 任务列表（根据选中的 tab 返回对应的任务列表）
-const filteredTasks = computed(() => {
-  if (!activeTab.value || !tasks.value[activeTab.value]) {
-    return [];
-  }
-  return tasks.value[activeTab.value].map((task: any, index: number) => {
-    const taskId = task._id || task.id;
-    const rowKey = taskId ? String(taskId) : `task_${index}_${Date.now()}`;
-    return {
-      ...task,
-      原始状态: task.状态 || task.status,
-      rowKey: rowKey
+// 缓存处理后的任务数据，避免重复计算
+const processedTasksCache = ref<Record<string, any[]>>({});
+
+// 处理单个任务数据（提取为函数，便于复用）
+const processTask = (task: any, index: number) => {
+  const taskId = task._id || task.id;
+  const rowKey = taskId ? String(taskId) : `task_${index}_${Date.now()}`;
+  return {
+    ...task,
+    原始状态: task.状态 || task.status,
+    rowKey: rowKey
+  };
+};
+
+// 异步处理任务数据（分批处理，避免阻塞 UI）
+const processTasksAsync = async (taskList: any[]): Promise<any[]> => {
+  return new Promise((resolve) => {
+    // 如果数据量小，直接处理
+    if (taskList.length <= 100) {
+      const processed = taskList.map((task: any, index: number) => processTask(task, index));
+      resolve(processed);
+      return;
+    }
+
+    // 数据量大时，分批处理
+    const batchSize = 50;
+    const processed: any[] = [];
+    let index = 0;
+
+    const processBatch = () => {
+      const end = Math.min(index + batchSize, taskList.length);
+      for (let i = index; i < end; i++) {
+        processed.push(processTask(taskList[i], i));
+      }
+      index = end;
+
+      if (index < taskList.length) {
+        // 使用 requestIdleCallback 或 setTimeout 延迟下一批处理
+        if (typeof requestIdleCallback !== 'undefined') {
+          requestIdleCallback(processBatch, { timeout: 100 });
+        } else {
+          setTimeout(processBatch, 0);
+        }
+      } else {
+        resolve(processed);
+      }
     };
+
+    processBatch();
   });
-});
+};
+
+// 注意：getProcessedTasks 已废弃，现在使用 loadTabDataForNested
+// 保留此注释以避免类型错误
+
+// 任务列表（使用 ref 存储，避免 computed 阻塞）
+const filteredTasks = ref<any[]>([]);
+
+// 判断节点是否有 task_list（是否为最后一层）
+const hasTaskList = (node: any): boolean => {
+  return node && typeof node === 'object' && Array.isArray(node.task_list);
+};
+
+// 判断节点是否是中间层（有子节点但不是 task_list）
+const isIntermediateNode = (node: any): boolean => {
+  if (!node || typeof node !== 'object' || Array.isArray(node.task_list)) {
+    return false;
+  }
+  // 检查是否有子节点（排除 task_list 和其他非节点属性）
+  const excludeKeys = ['_id', '需求名', 'describe', '状态', '优先级', 'project_id', 'project_name', 'creator', 'attachment', 'create_time', '进度'];
+  const keys = Object.keys(node).filter(key => !excludeKeys.includes(key));
+  return keys.length > 0;
+};
+
+// 计算某个节点的总任务数（递归）
+const getTotalTaskCount = (node: any): number => {
+  if (!node || typeof node !== 'object') return 0;
+
+  // 如果直接有 task_list，返回数量
+  if (Array.isArray(node.task_list)) {
+    return node.task_list.length;
+  }
+
+  // 否则递归计算所有子节点的任务数
+  const values = Object.values(node) as any[];
+  return values.reduce((sum: number, child: any) => {
+    if (child && typeof child === 'object') {
+      if (Array.isArray(child.task_list)) {
+        return sum + child.task_list.length;
+      } else {
+        const childCount: number = getTotalTaskCount(child);
+        return sum + childCount;
+      }
+    }
+    return sum;
+  }, 0);
+};
+
+// 根据路径获取最终的任务列表
+const getTaskListByPath = (path: string[]): any[] => {
+  let current: any = tasks.value;
+  for (const key of path) {
+    if (!current || typeof current !== 'object' || !current[key]) {
+      return [];
+    }
+    current = current[key];
+  }
+
+  // 如果当前节点有 task_list，返回它
+  if (Array.isArray(current?.task_list)) {
+    return current.task_list;
+  }
+
+  return [];
+};
+
+// 处理 tab 切换（动态层级）
+const handleTabChange = async (level: number, value: string) => {
+  // 更新对应层级的选中状态
+  activeTabs.value[level] = value;
+  // 清空后续层级
+  activeTabs.value = activeTabs.value.slice(0, level + 1);
+
+  // 构建路径
+  const path = activeTabs.value.filter(Boolean);
+  activeTab.value = path.join('/');
+
+  // 获取任务列表
+  const taskList = getTaskListByPath(path);
+
+  if (taskList.length > 0) {
+    // 有任务列表，加载数据
+    await loadTaskListData(path, taskList);
+  } else {
+    // 没有任务列表，清空表格
+    filteredTasks.value = [];
+  }
+};
+
+// 加载任务列表数据
+const loadTaskListData = async (path: string[], taskList: any[]) => {
+  if (!Array.isArray(taskList) || taskList.length === 0) {
+    filteredTasks.value = [];
+    return;
+  }
+
+  // 构建缓存 key
+  const cacheKey = path.join('/');
+  const cached = processedTasksCache.value[cacheKey];
+
+  // 检查缓存
+  if (cached && cached.length === taskList.length && taskList.length > 0) {
+    const firstTask = taskList[0];
+    const firstCached = cached[0];
+    if (firstTask && firstCached &&
+      (firstTask._id || firstTask.id) === (firstCached._id || firstCached.id)) {
+      filteredTasks.value = cached;
+      return;
+    }
+  }
+
+  // 没有缓存，异步加载数据
+  tabLoading.value = true;
+
+  // 使用 nextTick 确保 tab 先切换，UI 先响应
+  await nextTick();
+
+  try {
+    // 异步处理数据
+    const processed = await processTasksAsync(taskList);
+    processedTasksCache.value[cacheKey] = processed;
+    filteredTasks.value = processed;
+  } catch (error) {
+    console.error("加载任务数据失败:", error);
+    filteredTasks.value = [];
+  } finally {
+    // 延迟隐藏 loading，确保用户能看到加载状态
+    await nextTick();
+    tabLoading.value = false;
+  }
+};
+
+// 注意：loadTabData 已废弃，现在使用 loadTabDataForNested
 
 // 获取状态类型
 const getStatusType = (
@@ -455,6 +631,7 @@ const handleProjectTagClick = (projectId: string) => {
     currentProjectId.value = "";
     tasks.value = {};
     totalTasks.value = 0;
+    activeTabs.value = [];
     activeTab.value = "";
   } else {
     // 选择新项目并查询
@@ -485,38 +662,63 @@ const handleSearchAllTasks = async () => {
   }
   loading.value = true;
   try {
-    const response = await selectProjectTasks({
-      project_id: searchForm.value.projectId,
-      requirement_name: searchForm.value.taskName?.trim() || ""
+    const response = await selectAllRequirementsAndTasksTwo({
+      project_id: searchForm.value.projectId
     });
     if (response.code === 200 && response.result) {
-      // 处理新的数据格式：对象，键是任务类型，值是任务数组
+      // 保持嵌套数据结构，不扁平化
+      let totalCount = 0;
+
       if (typeof response.result === 'object' && !Array.isArray(response.result)) {
+        // 直接使用原始嵌套结构
         tasks.value = response.result;
-        // 设置默认选中的 tab（第一个有数据的 tab）
-        const taskTypes = Object.keys(tasks.value);
-        if (taskTypes.length > 0 && !activeTab.value) {
-          activeTab.value = taskTypes[0];
-        }
-        // 计算总任务数
-        totalTasks.value = Object.values(tasks.value).reduce((sum: number, taskList: any) => {
-          return sum + (Array.isArray(taskList) ? taskList.length : 0);
+
+        // 递归计算总任务数
+        const countTasks = (node: any): number => {
+          if (!node || typeof node !== 'object') return 0;
+          if (Array.isArray(node.task_list)) {
+            return node.task_list.length;
+          }
+          const values = Object.values(node) as any[];
+          return values.reduce((sum: number, child: any) => {
+            const childCount: number = countTasks(child);
+            return sum + childCount;
+          }, 0);
+        };
+
+        const resultValues = Object.values(response.result) as any[];
+        totalCount = resultValues.reduce((sum: number, group: any) => {
+          const groupCount: number = countTasks(group);
+          return sum + groupCount;
         }, 0);
       } else {
-        // 兼容旧的数据格式（数组）
-        const taskList = Array.isArray(response.result) ? response.result : [];
-        tasks.value = {
-          "全部任务": taskList
-        };
-        activeTab.value = "全部任务";
-        totalTasks.value = taskList.length;
+        tasks.value = {};
       }
+
+      // 清除缓存，因为数据已更新
+      processedTasksCache.value = {};
+
+      // 设置默认选中的第一层 tab
+      const taskTypes = Object.keys(tasks.value);
+      if (taskTypes.length > 0) {
+        activeTabs.value = [taskTypes[0]];
+        activeTab.value = taskTypes[0];
+      } else {
+        activeTabs.value = [];
+        activeTab.value = "";
+      }
+
+      // 计算总任务数
+      totalTasks.value = totalCount;
     } else {
       ElMessage.error(response.message || "查询任务列表失败");
       tasks.value = {};
       totalTasks.value = 0;
+      activeTabs.value = [];
       activeTab.value = "";
       selectedTasks.value = [];
+      // 清除缓存
+      processedTasksCache.value = {};
     }
   } catch (error: any) {
     console.error("查询任务列表失败:", error);
@@ -527,6 +729,8 @@ const handleSearchAllTasks = async () => {
     totalTasks.value = 0;
     activeTab.value = "";
     selectedTasks.value = [];
+    // 清除缓存
+    processedTasksCache.value = {};
   } finally {
     loading.value = false;
   }
@@ -545,9 +749,80 @@ const handleTaskRefresh = () => {
   handleSearchAllTasks();
 };
 
+// 根据 activeTabs 获取当前选中层级的 requirement_id 和 requirement_name
+const getCurrentRequirementInfo = () => {
+  if (!activeTabs.value || activeTabs.value.length === 0 || !tasks.value) {
+
+    return { requirementId: undefined, requirementName: undefined };
+  }
+
+  try {
+    // 根据 activeTabs 路径遍历 tasks 数据
+    let currentData = tasks.value;
+    let requirementId = undefined;
+    let requirementName = undefined;
+    let lastNodeWithId = null; // 记录最后一个有 _id 的节点
+
+
+    // 遍历 activeTabs，找到当前选中的层级节点
+    for (let i = 0; i < activeTabs.value.length; i++) {
+      const tabKey = activeTabs.value[i];
+
+      if (!tabKey || !currentData || typeof currentData !== 'object' || !currentData[tabKey]) {
+        break;
+      }
+      const currentNode = currentData[tabKey];
+
+
+      // 如果当前节点有 task_list，说明这是最后一层，从任务列表中获取 requirement_id
+      if (Array.isArray(currentNode.task_list) && currentNode.task_list.length > 0) {
+        // 从第一个任务中获取 requirement_id
+        const firstTask = currentNode.task_list[0];
+        if (firstTask && (firstTask.requirement_id || firstTask.requirementId)) {
+          requirementId = firstTask.requirement_id || firstTask.requirementId;
+          requirementName = currentNode.需求名 || currentNode.requirement_name || firstTask.requirement_name || requirementName;
+        } else if (currentNode.需求名) {
+          // 如果任务中没有 requirement_id，至少保存需求名
+          requirementName = currentNode.需求名 || currentNode.requirement_name || requirementName;
+        }
+        break;
+      }
+      // 如果当前节点有 _id（且不为空）或 需求名，说明这是一个层级节点
+      if (currentNode._id && currentNode._id.trim() !== "") {
+        requirementId = currentNode._id || currentNode.id || requirementId;
+        requirementName = currentNode.需求名 || currentNode.requirement_name || requirementName;
+        lastNodeWithId = currentNode;
+      } else if (currentNode.需求名) {
+        // 即使 _id 为空，也保存需求名
+        requirementName = currentNode.需求名 || currentNode.requirement_name || requirementName;
+      }
+
+      // 继续下一层
+      currentData = currentNode;
+    }
+
+    console.log("最终返回的层级信息:", { requirementId, requirementName });
+    return { requirementId, requirementName };
+  } catch (error) {
+    console.error("获取当前层级信息失败:", error);
+    return { requirementId: undefined, requirementName: undefined };
+  }
+};
+
 // 新建任务
 const handleCreate = () => {
   currentTask.value = null;
+
+  // 获取当前选中的层级信息
+  const { requirementId, requirementName } = getCurrentRequirementInfo();
+
+  // 调试信息
+  console.log("当前选中的层级信息:", { requirementId, requirementName, activeTabs: activeTabs.value });
+
+  // 将层级信息保存到临时变量，用于传递给 TaskDrawer
+  currentRequirementId.value = requirementId;
+  currentRequirementName.value = requirementName;
+
   showTaskDrawer.value = true;
 };
 
@@ -865,9 +1140,56 @@ const handleDropdownCommand = (command: string, row: any) => {
     case 'close':
       handleCloseTask(row);
       break;
+    case 'complete':
+      handleCompleteTask(row);
+      break;
     case 'report':
       openReportDialog(row);
       break;
+  }
+};
+
+const handleCompleteTask = async (task: any) => {
+  const taskId = task.id || task._id;
+  if (!taskId) {
+    ElMessage.error("任务ID不存在");
+    return;
+  }
+
+  const currentState = task.状态 || task.status || "";
+  if (!currentState) {
+    ElMessage.error("无法获取任务当前状态");
+    return;
+  }
+
+  try {
+    await ElMessageBox.confirm("确定将该任务标记为已完成吗？", "提示", {
+      confirmButtonText: "确定",
+      cancelButtonText: "取消",
+      type: "warning"
+    });
+
+    const response = await updateTaskState({
+      task_id: taskId,
+      current_state: currentState,
+      next_state: TaskStatus.COMPLETED,
+      person_name: ""
+    });
+
+    if (response?.code === 200) {
+      ElMessage.success("完成任务成功");
+      // 刷新任务列表
+      await handleSearchAllTasks();
+    } else {
+      ElMessage.error(response?.message || "完成任务失败");
+    }
+  } catch (error: any) {
+    // 用户取消或请求异常
+    if (error === "cancel" || error === "close") return;
+    console.error("完成任务失败:", error);
+    ElMessage.error(
+      error?.response?.data?.message || error?.message || "完成任务失败，请检查网络连接"
+    );
   }
 };
 
@@ -1292,12 +1614,26 @@ watch(
   }
 );
 
-// 监听 tab 切换，清空选中状态
+// 监听 activeTabs 变化，加载对应的任务数据
 watch(
-  () => activeTab.value,
-  () => {
+  () => activeTabs.value,
+  async (newTabs, oldTabs) => {
+    // 立即清空选中状态
     selectedTasks.value = [];
-  }
+
+    if (newTabs.length > 0) {
+      // 根据路径获取任务列表
+      const taskList = getTaskListByPath(newTabs);
+      if (taskList.length > 0) {
+        await loadTaskListData(newTabs, taskList);
+      } else {
+        filteredTasks.value = [];
+      }
+    } else {
+      filteredTasks.value = [];
+    }
+  },
+  { immediate: false }
 );
 
 // 监听 create 参数，自动打开新建任务抽屉
@@ -1359,8 +1695,8 @@ const calculateTableHeight = () => {
     const viewportHeight = window.innerHeight;
     const containerRect = containerRef.value.getBoundingClientRect();
     const containerTopToViewportBottom = viewportHeight - containerRect.top;
-    const tabsHeaderHeight = 65;
-    const cardPadding = 65;
+    const tabsHeaderHeight = 40;
+    const cardPadding = 120;
     const bottomPadding = 20;
     const availableHeight = containerTopToViewportBottom - tabsHeaderHeight - cardPadding - bottomPadding;
 
@@ -1375,24 +1711,6 @@ const handleResize = () => {
 
 onMounted(async () => {
   // 打印权限列表（调试用）
-  console.log('=== v-perms 权限列表 ===');
-  console.log('用户权限列表:', userStore.permissions);
-  console.log('权限列表长度:', userStore.permissions?.length || 0);
-  console.log('所有权限:', JSON.stringify(userStore.permissions, null, 2));
-  console.log('当前按钮需要的权限:');
-  console.log('  - task:update_current_assignee');
-  console.log('  - task:close');
-  console.log('  - task:update');
-  console.log('  - task:bulk_assignment');
-  console.log('  - task:add');
-  console.log('  - task:update_state');
-  console.log('  - task:report');
-  console.log('权限检查结果:');
-  console.log('  - task:update_current_assignee:', userStore.permissions?.includes('task:update_current_assignee'));
-  console.log('  - task:close:', userStore.permissions?.includes('task:close'));
-  console.log('  - task:update:', userStore.permissions?.includes('task:update'));
-  console.log('==================');
-
   // 先加载项目列表
   await loadProjects();
   // 从路由参数中恢复搜索条件（内部会处理 create 参数）

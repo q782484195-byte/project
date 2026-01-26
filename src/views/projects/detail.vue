@@ -164,13 +164,22 @@
           <el-descriptions :column="1" border>
             <el-descriptions-item label="项目名称">{{
               project.name
-              }}</el-descriptions-item>
+            }}</el-descriptions-item>
             <el-descriptions-item label="状态">
-              <el-select v-model="currentStatus" :loading="statusUpdating" size="small" style="width: 120px"
-                @change="handleStatusChange">
-                <el-option label="未开始" value="未开始" />
-                <el-option label="进行中" value="进行中" />
-                <el-option label="已完成" value="已完成" />
+              <el-select 
+                v-model="currentStatus" 
+                :loading="statusUpdating" 
+                :disabled="currentStatus === '已完成'"
+                size="small" 
+                style="width: 120px"
+                @change="handleStatusChange"
+              >
+                <el-option 
+                  v-for="option in availableStatusOptions" 
+                  :key="option.value" 
+                  :label="option.label" 
+                  :value="option.value" 
+                />
               </el-select>
             </el-descriptions-item>
             <el-descriptions-item label="项目负责人">
@@ -181,13 +190,13 @@
             </el-descriptions-item>
             <el-descriptions-item label="计划开始时间">{{
               formatDate(project.startDate)
-              }}</el-descriptions-item>
+            }}</el-descriptions-item>
             <el-descriptions-item label="计划结束时间">{{
               formatDate(project.endDate)
-              }}</el-descriptions-item>
+            }}</el-descriptions-item>
             <el-descriptions-item v-if="project.createdAt" label="创建时间">{{
               formatDate(project.createdAt)
-              }}</el-descriptions-item>
+            }}</el-descriptions-item>
           </el-descriptions>
         </el-card>
 
@@ -394,6 +403,29 @@ const loading = ref(false);
 const currentStatus = ref<string>("");
 const statusUpdating = ref(false);
 const projectHistory = ref<string[]>([]);
+
+// 根据当前状态计算可选的下一状态
+const availableStatusOptions = computed(() => {
+  const status = currentStatus.value || project.value?.status || "";
+  
+  if (status === "未开始") {
+    // 如果当前是"未开始"，只能选择"进行中"
+    return [{ label: "进行中", value: "进行中" }];
+  } else if (status === "进行中") {
+    // 如果当前是"进行中"，只能选择"已完成"
+    return [{ label: "已完成", value: "已完成" }];
+  } else if (status === "已完成") {
+    // 如果当前是"已完成"，不能再更改状态
+    return [{ label: "已完成", value: "已完成" }];
+  }
+  
+  // 默认情况：如果状态未知，允许选择所有状态
+  return [
+    { label: "未开始", value: "未开始" },
+    { label: "进行中", value: "进行中" },
+    { label: "已完成", value: "已完成" }
+  ];
+});
 // 树形需求节点类型
 interface RequirementTreeNode {
   id: string;
@@ -1163,34 +1195,59 @@ const handleStatusChange = async (newStatus: string) => {
     return;
   }
 
-  if (newStatus === project.value.status) {
+  const oldStatus = project.value.status || currentStatus.value || "进行中";
+  if (newStatus === oldStatus) {
     return;
   }
 
-  statusUpdating.value = true;
-  try {
-    const response = await updateProjectState({
-      project_id: project.value.id
-    });
+  // 先恢复旧状态，避免选择器值提前改变
+  currentStatus.value = oldStatus;
 
-    if (response.code === 200) {
-      ElMessage.success("状态更新成功");
-      if (project.value) {
-        project.value.status = newStatus as any;
+  try {
+    // 弹出确认框
+    await ElMessageBox.confirm(
+      `确定要将项目状态从"${oldStatus}"更改为"${newStatus}"吗？`,
+      "确认状态变更",
+      {
+        confirmButtonText: "确定",
+        cancelButtonText: "取消",
+        type: "warning"
       }
-      currentStatus.value = newStatus;
-    } else {
-      ElMessage.error(response.message || "状态更新失败");
-      currentStatus.value = project.value.status || "进行中";
+    );
+
+    // 用户确认后执行状态更新
+    statusUpdating.value = true;
+    try {
+      const response = await updateProjectState({
+        project_id: project.value.id
+      });
+
+      if (response.code === 200) {
+        ElMessage.success("状态更新成功");
+        if (project.value) {
+          project.value.status = newStatus as any;
+        }
+        currentStatus.value = newStatus;
+      } else {
+        ElMessage.error(response.message || "状态更新失败");
+        currentStatus.value = oldStatus;
+      }
+    } catch (error: any) {
+      console.error("更新状态失败:", error);
+      ElMessage.error(
+        error?.response?.data?.message || error?.message || "状态更新失败"
+      );
+      currentStatus.value = oldStatus;
+    } finally {
+      statusUpdating.value = false;
     }
   } catch (error: any) {
-    console.error("更新状态失败:", error);
-    ElMessage.error(
-      error?.response?.data?.message || error?.message || "状态更新失败"
-    );
-    currentStatus.value = project.value.status || "进行中";
-  } finally {
-    statusUpdating.value = false;
+    // 用户取消或关闭对话框，保持旧状态（已经恢复了）
+    if (error === "cancel" || error === "close") {
+      return;
+    }
+    // 其他错误
+    console.error("确认对话框错误:", error);
   }
 };
 

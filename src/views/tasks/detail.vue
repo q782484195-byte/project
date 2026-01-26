@@ -26,17 +26,17 @@
                 <!-- 第1行：任务名称（左）| 所属项目（右） -->
                 <el-descriptions-item label="任务名称">{{
                   task.任务名 || task.task_name || task.title || "-"
-                }}</el-descriptions-item>
+                  }}</el-descriptions-item>
                 <el-descriptions-item label="所属项目">{{
                   task.project_name || "-"
-                }}</el-descriptions-item>
+                  }}</el-descriptions-item>
                 <!-- 第2行：关联层级（左）| 创建人（右） -->
                 <el-descriptions-item label="关联层级">{{
                   task.requirement_name || "-"
-                }}</el-descriptions-item>
-                <el-descriptions-item label="创建人">{{
+                  }}</el-descriptions-item>
+                <el-descriptions-item label="项目负责人">{{
                   task.creator || "-"
-                }}</el-descriptions-item>
+                  }}</el-descriptions-item>
                 <!-- 第3行：状态（左）| 负责人（右） -->
                 <el-descriptions-item label="状态">
                   <div style="display: flex; align-items: center; gap: 12px">
@@ -47,7 +47,7 @@
                 </el-descriptions-item>
                 <el-descriptions-item label="当前处理人">{{
                   task.当前处理人 || task.assignee || "-"
-                }}</el-descriptions-item>
+                  }}</el-descriptions-item>
                 <!-- 第4行：进度（左）| 优先级（右） -->
                 <el-descriptions-item label="进度">
                   <el-progress :percentage="task.进度 || task.progress || 0" />
@@ -247,7 +247,7 @@ import {
 import { TaskStatus } from "@/types";
 import TaskStatusFlowDialog from "@/components/TaskStatusFlowDialog.vue";
 import { createBug, selectBugsByTask, type BugRecord } from "@/api/bug";
-import { selectReportList } from "@/api/project";
+import { selectReportList, selectTaskInfo } from "@/api/project";
 import type { FormInstance, FormRules } from "element-plus";
 
 const route = useRoute();
@@ -483,16 +483,6 @@ const getNextStatus = (currentStatus: string): string | null => {
   return statusFlow[currentStatus] || null;
 };
 
-const openStatusFlowDialog = () => {
-  if (!task.value) return;
-  const nextState = getNextStatus(task.value.状态 || task.value.status);
-  if (!nextState) {
-    ElMessage.warning("当前状态无法分配");
-    return;
-  }
-  statusFlowDialogVisible.value = true;
-};
-
 const handleStatusFlowDialogSuccess = (
   nextState: string,
   personName: string
@@ -505,7 +495,6 @@ const handleStatusFlowDialogSuccess = (
     task.value.指派人 = personName;
     task.value.assignee = personName;
   }
-  sessionStorage.setItem(`task_${taskId.value}`, JSON.stringify(task.value));
 };
 
 const handleStatusFlowStart = () => {
@@ -516,20 +505,28 @@ const handleStatusFlowEnd = () => {
   statusFlowLoading.value = false;
 };
 
-// 加载任务详情（从 sessionStorage 获取）
-const loadTask = () => {
+// 加载任务详情（调用 API）
+const loadTask = async () => {
   if (!taskId.value) {
     ElMessage.error("任务ID不存在");
     router.push({ name: "TasksList" });
     return;
   }
 
-  // 从 sessionStorage 中获取任务数据
-  const taskDataStr = sessionStorage.getItem(`task_${taskId.value}`);
+  loading.value = true;
+  try {
+    const response = await selectTaskInfo({
+      task_id: taskId.value
+    });
 
-  if (taskDataStr) {
-    try {
-      task.value = JSON.parse(taskDataStr);
+    if (response.code === 200) {
+      task.value = response.result || response.data || null;
+
+      if (!task.value) {
+        ElMessage.error("未找到任务详情");
+        router.push({ name: "TasksList" });
+        return;
+      }
 
       // 如果 URL 中有 project_id，且任务数据中没有 project_id，则使用 URL 中的
       if (projectId.value && !task.value.project_id) {
@@ -550,17 +547,18 @@ const loadTask = () => {
 
       // 加载汇报记录
       loadReports();
-
-      // 清理 sessionStorage（可选，如果希望数据只使用一次）
-      // sessionStorage.removeItem(`task_${taskId.value}`)
-    } catch (error) {
-      console.error("解析任务数据失败:", error);
-      ElMessage.error("任务数据格式错误");
+    } else {
+      ElMessage.error(response.message || "获取任务详情失败");
       router.push({ name: "TasksList" });
     }
-  } else {
-    ElMessage.error("未找到任务数据，请从任务列表页面进入");
+  } catch (error: any) {
+    console.error("获取任务详情失败:", error);
+    ElMessage.error(
+      error?.response?.data?.message || error?.message || "获取任务详情失败"
+    );
     router.push({ name: "TasksList" });
+  } finally {
+    loading.value = false;
   }
 };
 
@@ -570,6 +568,11 @@ const goBack = () => {
   if (from.value === "workspace") {
     // 从工作台进入的，返回到工作台
     router.push({ name: "Workspace" });
+  }
+
+  else if (from.value === "dashboard") {
+    // 从dashboard进入的，返回到dashboard
+    router.push({ name: "Dashboard" });
   } else {
     // 从任务列表进入的，返回到任务列表
     // 构建查询参数，传递项目ID和需求ID

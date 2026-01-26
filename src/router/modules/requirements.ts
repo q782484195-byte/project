@@ -19,7 +19,7 @@ export default {
         title: "层级列表",
         showLink: true,
         showParent: true,
-        roles: ["Admin", "ProjectManager", "DepartmentManager", "Member"]
+        roles: ["Admin", "ProjectManager"]
       }
     },
     {
@@ -29,7 +29,7 @@ export default {
       meta: {
         title: "需求详情",
         showLink: false,
-        roles: ["Admin", "ProjectManager", "Member", "DepartmentManager"]
+        roles: ["Admin", "ProjectManager"]
       }
     }
   ]

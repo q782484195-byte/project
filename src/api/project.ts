@@ -200,6 +200,16 @@ export const selectAllRequirementsAndTasks = (params: SelectAllRequirementsAndTa
   );
 };
 
+/** 查询项目下所有需求和任务 */
+export const selectAllRequirementsAndTasksTwo = (params: SelectAllRequirementsAndTasksParams) => {
+  return http.request<ApiResponse<RequirementWithTasksItem[]>>(
+    "post",
+    "/project/select_all_two",
+    {
+      data: params
+    }
+  );
+};
 /** 上传项目附件参数 */
 export interface UploadAttachmentParams {
   project_id: string;
@@ -752,6 +762,15 @@ export const selectPendingTasks = (params: SelectPendingTasksParams) => {
   });
 };
 
+
+/** 查询任务详情 */
+export const selectTaskInfo = (params: any) => {
+  return http.request<ApiResponse<any>>("post", "/task/info", {
+    data: params
+  });
+};
+
+
 /** 查询待办任务列表 */
 export const selectStatisticsTaskState = () => {
   return http.request<ApiResponse<any>>("get", "/project/statistics_task_state");
@@ -766,6 +785,7 @@ export const selectProjectSelectAll = (params: any) => {
     }
   });
 };
+
 
 /** 项目时间追踪参数 */
 export interface TimeTrackingParams {
@@ -816,6 +836,15 @@ export const selectReportList = (params: SelectReportListParams) => {
       page: params.page || 1,
       page_size: params.page_size || 20,
       task_id: params.task_id || ""
+    }
+  });
+};
+
+/** 查询需求类型 */
+export const selectRequirementType = (params: any) => {
+  return http.request<ApiResponse<any>>("post", "/project/select_requirement_type", {
+    data: {
+      project_id: params.project_id
     }
   });
 };

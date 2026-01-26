@@ -54,3 +54,8 @@ export const getLogin = (data?: object) => {
 export const refreshTokenApi = (data?: object) => {
   return http.request<RefreshTokenResult>("post", "/refresh-token", { data });
 };
+
+/** 更新密码 */
+export const updatePassword = (data: { old_password?: string; new_password: string }) => {
+  return http.request<any>("post", "/user/update_password", { data });
+};

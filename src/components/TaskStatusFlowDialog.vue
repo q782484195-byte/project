@@ -33,6 +33,9 @@
       <el-form-item v-if="isCompleted" label="完成汇报" prop="completionReport">
         <el-input v-model="form.completionReport" type="textarea" :rows="4" placeholder="请输入完成汇报内容" />
       </el-form-item>
+      <el-form-item v-if="isTestFailure" label="失败汇报" prop="failureReport">
+        <el-input v-model="form.failureReport" type="textarea" :rows="4" placeholder="请输入失败汇报内容" />
+      </el-form-item>
       <el-form-item v-if="isCompleted" label="完成附件">
         <el-upload v-model:file-list="form.attachmentList" multiple :auto-upload="false" :on-remove="handleFileRemove"
           :on-change="handleFileChange" :before-upload="handleBeforeUpload">
@@ -113,6 +116,7 @@ interface FormData {
   rejectionReason: string;
   testRounds: number;
   completionReport: string;
+  failureReport: string;
   attachmentList: UploadFile[];
   development_start_time: string;
   development_end_time: string;
@@ -122,6 +126,7 @@ const form = reactive<FormData>({
   rejectionReason: "",
   testRounds: null,
   completionReport: "",
+  failureReport: "",
   attachmentList: [],
   development_start_time: "",
   development_end_time: ""
@@ -139,6 +144,12 @@ const rules = computed<FormRules>(() => {
   if (isCompleted.value) {
     baseRules.completionReport = [
       { required: true, message: "请输入完成汇报内容", trigger: ["blur", "change"] }
+    ];
+  }
+  // 如果下一状态包含"轮测试失败"，失败汇报必填
+  if (isTestFailure.value) {
+    baseRules.failureReport = [
+      { required: true, message: "请输入失败汇报内容", trigger: ["blur", "change"] }
     ];
   }
   // 如果选择的是第一轮测试，测试轮数必填
@@ -219,6 +230,9 @@ const userStore = useUserStoreHook();
 // 根据当前状态动态过滤用户列表
 const allUsersTree = computed<TreeNode[]>(() => {
   if (!allUsersRawData.value.length) return [];
+  // 依赖 selectedNextState 和 nextOptions，确保状态变化时重新计算
+  selectedNextState.value;
+  nextOptions.value;
   return buildTreeData(allUsersRawData.value);
 });
 
@@ -362,6 +376,16 @@ const isCompleted = computed<boolean>(() => {
     (targetState && targetState.includes("已完成"));
 });
 
+// 判断下一状态是否包含"轮测试失败"
+const isTestFailure = computed<boolean>(() => {
+  const targetState = nextOptions.value.length > 1
+    ? selectedNextState.value
+    : (nextOptions.value[0] || "");
+
+  // 检查是否包含"轮测试失败"
+  return targetState && targetState.includes("轮测试失败");
+});
+
 // 判断当前状态是否需要填写预计工时（工时审核未通过）
 const needDevelopmentTime = computed<boolean>(() => {
   const status = currentStatus.value;
@@ -373,6 +397,7 @@ const resetForm = () => {
   form.rejectionReason = "";
   form.testRounds = 1;
   form.completionReport = "";
+  form.failureReport = "";
   form.attachmentList = [];
   form.development_start_time = "";
   form.development_end_time = "";
@@ -384,6 +409,7 @@ const initForm = () => {
   form.rejectionReason = "";
   form.testRounds = 1;
   form.completionReport = "";
+  form.failureReport = "";
   form.attachmentList = [];
   form.development_start_time = "";
   form.development_end_time = "";
@@ -392,10 +418,8 @@ const initForm = () => {
   } else {
     selectedNextState.value = "";
   }
-  // 只有当 need_assign 为 true 时才加载用户列表
-  if (needAssign.value && !allUsersRawData.value.length) {
-    loadAllUsers();
-  }
+  // 每次打开对话框都加载用户列表
+  loadAllUsers();
   nextTick(() => {
     formRef.value?.clearValidate();
   });
@@ -435,9 +459,14 @@ watch(
       form.completionReport = "";
       form.attachmentList = [];
     }
+    // 如果切换状态后不是测试失败，清空失败汇报
+    if (!isTestFailure.value) {
+      form.failureReport = "";
+    }
     nextTick(() => {
       formRef.value?.clearValidate("rejectionReason");
       formRef.value?.clearValidate("completionReport");
+      formRef.value?.clearValidate("failureReport");
     });
   }
 );
@@ -492,6 +521,19 @@ const buildTreeData = (data: Array<Record<string, any>>): TreeNode[] => {
   const currentUserRoles = userStore.roles || [];
   const isPendingAssignToMember = normalizedStatus.value === TaskStatus.PENDING_ASSIGN_TO_MEMBER;
 
+  // 获取下一状态
+  const targetNextState = nextOptions.value.length > 1
+    ? selectedNextState.value
+    : (nextOptions.value[0] || "");
+
+  // 判断下一状态是否是"待验收"
+  const isPendingAcceptance = targetNextState === "待验收" ||
+    targetNextState === "PENDING_ACCEPTANCE" ||
+    (targetNextState && (
+      targetNextState.includes("待验收") ||
+      targetNextState.includes("验收")
+    ));
+
   // 判断当前用户的角色类型
   const isCurrentUserDepartmentManager = currentUserRoles.includes("DepartmentManager");
   const isCurrentUserMember = currentUserRoles.includes("Member");
@@ -509,18 +551,24 @@ const buildTreeData = (data: Array<Record<string, any>>): TreeNode[] => {
           const userValue = user.username || user.nickname;
           const userRoles = Array.isArray(user.role) ? user.role : user.role ? [user.role] : [];
           const isUserProjectManager = userRoles.includes("ProjectManager");
+          const isUserDepartmentManager = userRoles.includes("DepartmentManager");
+
+          // 如果下一状态是"待验收"，可以分配给部门负责人（ProjectManager）
+          // 这个规则优先于其他过滤规则
+          if (isPendingAcceptance && isUserProjectManager) {
+            return true;
+          }
 
           // 规则1：如果当前用户是部门负责人，不能分配给其他项目负责人
-          if (isCurrentUserDepartmentManager && isUserProjectManager) {
+          // 但如果下一状态是"待验收"，允许分配（已在上面处理）
+          if (isCurrentUserDepartmentManager && isUserProjectManager && !isPendingAcceptance) {
             return false;
           }
 
           // 规则2：如果当前用户是普通成员，不能分配给项目负责人（但允许分配给自己）
-          if (isCurrentUserMember) {
-            // 不能分配给项目负责人
-            if (isUserProjectManager) {
-              return false;
-            }
+          // 但如果下一状态是"待验收"，允许分配（已在上面处理）
+          if (isCurrentUserMember && isUserProjectManager && !isPendingAcceptance) {
+            return false;
           }
 
           // 如果当前状态是"待指派给成员"，允许分配
@@ -683,9 +731,10 @@ const handleConfirm = () => {
           try {
             const taskName = props.task?.任务名 || props.task?.task_name || props.task?.title || "";
             const recipient = props.task?.creator || personName || userStore.username || "";
+            const assignee = props.task?.指派人 || "";
             const reportResponse = await reportTaskProgress({
               recipient: recipient,
-              cc_person: personName || "",
+              cc_person: assignee,
               task_id: taskId,
               task_name: taskName,
               progress: 100,
@@ -703,6 +752,34 @@ const handleConfirm = () => {
             ElMessage.error("提交汇报失败，请重试");
             return;
           }
+        }
+      }
+
+      // 如果下一状态包含"轮测试失败"，需要调用汇报接口
+      if (isTestFailure.value && form.failureReport.trim()) {
+        try {
+          const taskName = props.task?.任务名 || props.task?.task_name || props.task?.title || "";
+          const recipient = props.task?.creator || personName || userStore.username || "";
+          const assignee = props.task?.指派人 || props.task?.当前处理人 || props.task?.assignee || "";
+          const reportResponse = await reportTaskProgress({
+            recipient: recipient,
+            cc_person: assignee,
+            task_id: taskId,
+            task_name: taskName,
+            progress: props.task?.进度 || props.task?.progress || 0,
+            message: form.failureReport.trim(),
+            use_time: 1,
+            state: currentState
+          });
+
+          if (reportResponse.code !== 200) {
+            ElMessage.error(reportResponse.message || "提交失败汇报失败");
+            return;
+          }
+        } catch (reportError: any) {
+          console.error("提交失败汇报失败:", reportError);
+          ElMessage.error("提交失败汇报失败，请重试");
+          return;
         }
       }
 

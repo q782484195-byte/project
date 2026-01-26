@@ -15,9 +15,7 @@
         label-width="100px" label-position="left">
         <el-form-item label="层级类型" prop="requirementType">
           <el-select v-model="requirementForm.requirementType" placeholder="请选择层级类型" clearable style="width: 100%">
-            <el-option label="软件任务" value="软件任务" />
-            <el-option label="硬件任务" value="硬件任务" />
-            <el-option label="结构任务" value="结构任务" />
+            <el-option v-for="type in requirementTypes" :key="type" :label="type" :value="type" />
           </el-select>
         </el-form-item>
         <el-form-item v-if="!isEdit" label="层级标题" prop="title">
@@ -105,7 +103,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, reactive } from "vue";
+import { ref, computed, watch, reactive, onMounted } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { Upload, Delete, Plus } from "@element-plus/icons-vue";
 import type {
@@ -123,6 +121,7 @@ import {
   updateRequirement,
   uploadFile,
   loadRequirementFromJson,
+  selectRequirementType,
   type LoadRequirementFromJsonParams,
   type UpdateRequirementParams
 } from "@/api/project";
@@ -177,6 +176,9 @@ const createMode = ref<"manual" | "import">("manual"); // 创建模式：manual-
 
 // 编辑模式下的多个层级标题
 const levelTitles = ref<Array<{ title: string }>>([{ title: "" }]);
+
+// 层级类型列表
+const requirementTypes = ref<string[]>([]);
 
 const requirementForm = reactive<
   Partial<Requirement> & {
@@ -249,6 +251,29 @@ const addLevelTitle = () => {
 const removeLevelTitle = (index: number) => {
   if (levelTitles.value.length > 1) {
     levelTitles.value.splice(index, 1);
+  }
+};
+
+// 获取层级类型列表
+const fetchRequirementTypes = async () => {
+  if (!props.projectId) {
+    requirementTypes.value = [];
+    return;
+  }
+
+  try {
+    const response = await selectRequirementType({
+      project_id: props.projectId
+    });
+
+    if (response.code === 200 && response.result && Array.isArray(response.result)) {
+      requirementTypes.value = response.result;
+    } else {
+      requirementTypes.value = [];
+    }
+  } catch (error: any) {
+    console.error("获取层级类型失败:", error);
+    requirementTypes.value = [];
   }
 };
 
@@ -364,6 +389,27 @@ watch(
     }
   },
   { immediate: true }
+);
+
+// 监听 projectId 变化，获取层级类型
+watch(
+  () => props.projectId,
+  (newProjectId) => {
+    if (newProjectId && drawerVisible.value) {
+      fetchRequirementTypes();
+    }
+  },
+  { immediate: true }
+);
+
+// 监听 drawer 打开，获取层级类型
+watch(
+  () => drawerVisible.value,
+  (visible) => {
+    if (visible && props.projectId) {
+      fetchRequirementTypes();
+    }
+  }
 );
 
 // 处理文件上传前（阻止自动上传）
@@ -749,6 +795,13 @@ const handleImportJson = () => {
   };
   input.click();
 };
+
+// 组件挂载时，如果 drawer 已打开且有 projectId，获取层级类型
+onMounted(() => {
+  if (drawerVisible.value && props.projectId) {
+    fetchRequirementTypes();
+  }
+});
 </script>
 
 <style scoped lang="scss">

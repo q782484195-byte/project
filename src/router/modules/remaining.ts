@@ -44,5 +44,25 @@ export default [
         component: () => import("@/layout/redirect.vue")
       }
     ]
+  },
+  // 个人资料页面
+  {
+    path: "/profile",
+    component: Layout,
+    meta: {
+      title: "个人资料",
+      showLink: false
+    },
+    children: [
+      {
+        path: "/profile",
+        name: "Profile",
+        component: () => import("@/views/profile/index.vue"),
+        meta: {
+          title: "个人资料",
+          showLink: false
+        }
+      }
+    ]
   }
 ] satisfies Array<RouteConfigsTable>;

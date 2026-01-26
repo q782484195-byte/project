@@ -86,7 +86,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import { ElMessage, ElMessageBox } from "element-plus";
+import { ElMessage, ElMessageBox, ElCard } from "element-plus";
 import { Plus } from "@element-plus/icons-vue";
 import {
   selectRequirements,
@@ -124,7 +124,7 @@ const hasOpenedCreateDrawer = ref(false); // 标志，用于避免重复打开�
 
 // 表格高度相关
 const pageRef = ref<HTMLElement>();
-const requirementsCardRef = ref<HTMLElement>();
+const requirementsCardRef = ref<InstanceType<typeof ElCard>>();
 const tableHeight = ref<number>(680);
 
 // 缓存键名
@@ -624,10 +624,10 @@ watch(
 // 计算表格高度
 const calculateTableHeight = () => {
   nextTick(() => {
-    if (!requirementsCardRef.value) return;
+    if (!requirementsCardRef.value || !requirementsCardRef.value.$el) return;
 
     const viewportHeight = window.innerHeight;
-    const cardRect = requirementsCardRef.value.getBoundingClientRect();
+    const cardRect = requirementsCardRef.value.$el.getBoundingClientRect();
     const cardTopToViewportBottom = viewportHeight - cardRect.top;
     const cardHeaderHeight = 0; // card没有header
     const cardPadding = 40;

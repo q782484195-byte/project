@@ -11,7 +11,8 @@
           </template>
           <div v-loading="reportsLoading" class="report-container">
             <div v-if="reports.length > 0" class="report-list">
-              <div v-for="(report, index) in reports" :key="report._id || index" class="report-item">
+              <div v-for="(report, index) in reports" :key="report._id || index" class="report-item"
+                @click="handleReportClick(report)">
                 <div class="report-header">
                   <div class="report-title-section">
                     <el-icon class="report-icon">
@@ -41,7 +42,7 @@
                       <el-tag v-if="report.creator" type="success" size="small">创建人: {{ report.creator }}</el-tag>
                     </div>
                     <div v-if="report.任务进度 !== undefined && report.任务进度 !== null" class="report-progress">
-                      <span class="progress-label">任务进度:</span>
+                      <span class="progress-label">阶段进度:</span>
                       <el-progress :percentage="Number(report.任务进度) || 0" :stroke-width="8" :show-text="true" />
                     </div>
                   </div>
@@ -86,6 +87,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick, onBeforeUnmount } from "vue";
+import { useRouter } from "vue-router";
 import * as echarts from "echarts/core";
 import { BarChart, PieChart } from "echarts/charts";
 import { CanvasRenderer } from "echarts/renderers";
@@ -120,7 +122,7 @@ use([
 
 const projectStore = useProjectStoreHook();
 const userStore = useUserStoreHook();
-
+const router = useRouter();
 const stats = ref<Statistics>({
   totalProjects: 0,
   activeProjects: 0,
@@ -473,7 +475,7 @@ const updateTaskStatusChart = () => {
           },
           {
             value: statusCount.reviewing,
-            name: "审阅相关",
+            name: "验收相关",
             itemStyle: { color: "#909399" }
           },
           {
@@ -653,6 +655,17 @@ const handleReportsPageChange = (page: number) => {
 // 处理汇报每页数量改变
 const handleReportsPageSizeChange = () => {
   loadReports(1);
+};
+
+// 处理汇报点击
+const handleReportClick = (report: ReportRecord) => {
+  router.push({
+    name: "TaskDetail",
+    params: { id: report.task_id },
+    query: {
+      from: "dashboard"
+    }
+  });
 };
 
 onMounted(async () => {
