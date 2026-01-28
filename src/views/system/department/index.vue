@@ -362,4 +362,48 @@ onMounted(() => {
     cursor: default !important;
   }
 }
+
+// 移动端适配 (640px)
+@media (max-width: 640px) {
+  .department-management-page {
+    padding: 12px;
+
+    .page-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 16px;
+
+      h2 {
+        font-size: 18px;
+      }
+
+      .header-actions {
+        width: 100%;
+        flex-direction: column;
+        gap: 8px;
+
+        .el-button {
+          width: 100%;
+        }
+      }
+    }
+
+    :deep(.el-table) {
+      .el-table__body-wrapper {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .el-table__header-wrapper {
+        overflow-x: auto;
+      }
+
+      .el-table__cell {
+        padding: 8px 4px;
+        font-size: 12px;
+      }
+    }
+  }
+}
 </style>

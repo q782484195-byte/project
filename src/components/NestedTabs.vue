@@ -393,4 +393,71 @@ html.dark {
     }
   }
 }
+
+// 移动端适配 (640px)
+@media (max-width: 640px) {
+  .nested-tabs-container {
+    .nested-tabs {
+      :deep(.el-tabs__header) {
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+
+        &::-webkit-scrollbar {
+          display: none;
+        }
+      }
+
+      :deep(.el-tabs__nav) {
+        white-space: nowrap;
+      }
+
+      :deep(.el-tabs__item) {
+        padding: 8px 12px;
+        font-size: 13px;
+        white-space: nowrap;
+      }
+
+      :deep(.el-tabs__content) {
+        padding: 8px 0;
+      }
+    }
+
+    .tab-label {
+      font-size: 13px;
+
+      .tab-name {
+        max-width: 80px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .tab-count {
+        font-size: 11px;
+        padding: 2px 6px;
+      }
+    }
+
+    .table-wrapper {
+      :deep(.el-table) {
+        .el-table__body-wrapper {
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+
+        .el-table__header-wrapper {
+          overflow-x: auto;
+        }
+
+        .el-table__cell {
+          padding: 8px 4px;
+          font-size: 12px;
+        }
+      }
+    }
+  }
+}
 </style>

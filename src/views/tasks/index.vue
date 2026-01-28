@@ -1696,7 +1696,7 @@ const calculateTableHeight = () => {
     const containerRect = containerRef.value.getBoundingClientRect();
     const containerTopToViewportBottom = viewportHeight - containerRect.top;
     const tabsHeaderHeight = 40;
-    const cardPadding = 120;
+    const cardPadding = 70;
     const bottomPadding = 20;
     const availableHeight = containerTopToViewportBottom - tabsHeaderHeight - cardPadding - bottomPadding;
 
@@ -1848,6 +1848,93 @@ onUnmounted(() => {
   .more-icon-btn {
     :deep(.el-icon) {
       font-size: 18px;
+    }
+  }
+}
+
+// 移动端适配 (640px)
+@media (max-width: 640px) {
+  .tasks-page {
+    padding: 12px;
+
+    .page-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 16px;
+
+      h2 {
+        font-size: 18px;
+      }
+
+      .header-actions {
+        width: 100%;
+        flex-direction: column;
+        gap: 8px;
+
+        .el-button {
+          width: 100%;
+        }
+      }
+    }
+
+    .search-card {
+      margin-bottom: 12px;
+
+      :deep(.el-card__body) {
+        padding: 12px;
+      }
+    }
+
+    .search-form {
+      :deep(.el-form-item) {
+        width: 100%;
+        margin-right: 0;
+        margin-bottom: 12px;
+      }
+
+      .project-tags {
+        width: 100%;
+        gap: 8px;
+
+        .project-tag {
+          padding: 8px 12px;
+          font-size: 13px;
+          min-height: 32px;
+        }
+      }
+    }
+
+    .table-header-actions {
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 12px;
+
+      .el-button {
+        width: 100%;
+        margin: 0;
+      }
+    }
+
+    .tasks-table-container {
+      min-height: 400px;
+
+      :deep(.el-table) {
+        .el-table__body-wrapper {
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+
+        .el-table__header-wrapper {
+          overflow-x: auto;
+        }
+
+        .el-table__cell {
+          padding: 8px 4px;
+          font-size: 12px;
+          white-space: nowrap;
+        }
+      }
     }
   }
 }

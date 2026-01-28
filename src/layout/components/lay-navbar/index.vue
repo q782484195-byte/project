@@ -126,4 +126,42 @@ const goToProfile = () => {
     min-width: 100%;
   }
 }
+
+// 移动端适配
+@media (max-width: 640px) {
+  .navbar {
+    height: 44px;
+
+    .hamburger-container {
+      line-height: 44px;
+      padding: 0 12px;
+    }
+
+    .vertical-header-right {
+      min-width: auto;
+      height: 44px;
+      gap: 4px;
+
+      .el-dropdown-link {
+        height: 44px;
+        padding: 8px;
+
+        p {
+          display: none; // 移动端隐藏用户名
+        }
+
+        img {
+          width: 28px;
+          height: 28px;
+        }
+      }
+
+      .set-icon {
+        width: 36px;
+        height: 36px;
+        padding: 8px;
+      }
+    }
+  }
+}
 </style>

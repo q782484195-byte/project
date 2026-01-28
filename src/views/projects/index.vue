@@ -58,66 +58,106 @@
     <!-- 卡片视图 -->
     <div v-if="viewMode === 'card'" v-loading="loading" class="projects-grid">
       <div v-for="project in filteredProjects" :key="project.id" class="project-card"
-        @click="openProjectDetail(project)">
+        @click="openProjectDetail(project, $event)">
         <div class="card-header">
           <div class="project-info">
             <el-tag :type="getStatusTagType(project.status)">
               {{ getStatusText(project.status) }}
             </el-tag>
           </div>
-          <el-dropdown trigger="hover" @command="handleCommand($event, project)" @click.stop>
-            <el-button type="text">
-              <el-icon>
-                <MoreFilled />
-              </el-icon>
-            </el-button>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item v-if="hasPerms(['project:update'])" command="edit">编辑项目</el-dropdown-item>
-                <el-dropdown-item v-if="hasPerms(['project:delete_project'])" command="delete"
-                  divided>删除项目</el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
+          <div class="more-button-wrapper" v-if="hasPerms(['project:update']) || hasPerms(['project:delete_project'])">
+            <el-dropdown :key="`dropdown-${project.id}-${dropdownTrigger}`" :trigger="dropdownTrigger"
+              placement="bottom-end" @command="handleCommand($event, project)" :teleported="true" :hide-on-click="true">
+              <span class="more-button-trigger" @click.stop>
+                <el-button type="text" class="more-button">
+                  <el-icon>
+                    <MoreFilled />
+                  </el-icon>
+                </el-button>
+              </span>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item v-if="hasPerms(['project:update'])" command="edit">编辑项目</el-dropdown-item>
+                  <el-dropdown-item v-if="hasPerms(['project:delete_project'])" command="delete"
+                    divided>删除项目</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
         </div>
 
-        <!-- 第一行：客户，项目名称，主板名称，分辨率 -->
-        <div class="project-row project-row-first">
-          <div class="field-item">
-            <span class="field-label">客户:</span>
-            <span class="field-value">{{ project.customer_name || "-" }}</span>
-          </div>
+        <!-- 第一行：项目名称（单独一行，突出显示） -->
+        <div class="project-row project-row-name">
           <div class="field-item">
             <span class="field-label">项目名称:</span>
-            <span class="field-value">{{ project.name || "-" }}</span>
+            <el-tooltip :content="project.name || '-'" placement="top">
+              <span class="field-value project-name-value">{{ project.name || "-" }}</span>
+            </el-tooltip>
+          </div>
+        </div>
+
+        <!-- 第二行：客户名称，产品类型 -->
+        <div class="project-row project-row-first">
+          <div class="field-item">
+            <span class="field-label">客户名称:</span>
+            <el-tooltip :content="project.customer_name || '-'" placement="top">
+              <span class="field-value">{{ project.customer_name || "-" }}</span>
+            </el-tooltip>
+          </div>
+          <div class="field-item">
+            <span class="field-label">产品类型:</span>
+            <el-tooltip :content="project.product_type || '-'" placement="top">
+              <span class="field-value">{{ project.product_type || "-" }}</span>
+            </el-tooltip>
+          </div>
+        </div>
+
+        <!-- 第三行：平台名称，主板名称 -->
+        <div class="project-row project-row-second">
+          <div class="field-item">
+            <span class="field-label">平台名称:</span>
+            <el-tooltip :content="project.platform_name || '-'" placement="top">
+              <span class="field-value">{{ project.platform_name || "-" }}</span>
+            </el-tooltip>
           </div>
           <div class="field-item">
             <span class="field-label">主板名称:</span>
-            <span class="field-value">{{ project.motherboard_name || "-" }}</span>
-          </div>
-          <div class="field-item">
-            <span class="field-label">分辨率:</span>
-            <span class="field-value">{{ project.resolution || "-" }}</span>
+            <el-tooltip :content="project.motherboard_name || '-'" placement="top">
+              <span class="field-value">{{ project.motherboard_name || "-" }}</span>
+            </el-tooltip>
           </div>
         </div>
 
-        <!-- 第二行：进度 -->
+        <!-- 第四行：分辨率，业务负责人 -->
+        <div class="project-row project-row-third">
+          <div class="field-item">
+            <span class="field-label">分辨率:</span>
+            <el-tooltip :content="project.resolution || '-'" placement="top">
+              <span class="field-value">{{ project.resolution || "-" }}</span>
+            </el-tooltip>
+          </div>
+          <div class="field-item">
+            <span class="field-label">业务负责人:</span>
+            <el-tooltip :content="project.business_owner || '-'" placement="top">
+              <span class="field-value">{{ project.business_owner || "-" }}</span>
+            </el-tooltip>
+          </div>
+        </div>
+
+        <!-- 第五行：进度 -->
         <div class="project-row project-row-progress">
           <div class="progress-info">
             <span>进度</span>
           </div>
           <el-progress :percentage="getProjectProgress(project)" :stroke-width="6" />
         </div>
-
         <!-- 第三行：项目负责人，业务负责人 -->
         <div class="project-row project-row-owners">
           <div class="field-item">
             <span class="field-label">项目负责人:</span>
-            <span class="field-value">{{ project.creator || "-" }}</span>
-          </div>
-          <div class="field-item">
-            <span class="field-label">业务负责人:</span>
-            <span class="field-value">{{ project.business_owner || "-" }}</span>
+            <el-tooltip :content="project.creator || '-'" placement="top">
+              <span class="field-value">{{ project.creator || "-" }}</span>
+            </el-tooltip>
           </div>
         </div>
 
@@ -128,9 +168,11 @@
               <Calendar />
             </el-icon>
             <span class="field-label">计划时间:</span>
-            <span class="field-value">{{
-              formatDateRange(project.startDate, project.endDate)
+            <el-tooltip :content="formatDateRange(project.startDate, project.endDate) || '-'" placement="top">
+              <span class="field-value">{{
+                formatDateRange(project.startDate, project.endDate)
               }}</span>
+            </el-tooltip>
           </div>
         </div>
       </div>
@@ -149,7 +191,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, watch, nextTick, onBeforeUnmount } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import {
@@ -159,6 +201,7 @@ import {
 } from "@element-plus/icons-vue";
 import { hasPerms } from "@/utils/auth";
 import { useProjectStoreHook } from "@/store/modules/project";
+import { useAppStoreHook } from "@/store/modules/app";
 import { type Project } from "@/types";
 import { mockProjects } from "@/mock/projects";
 import ProjectFormDialog from "@/components/ProjectFormDialog.vue";
@@ -172,6 +215,7 @@ import {
 
 const projectStore = useProjectStoreHook();
 const router = useRouter();
+const appStore = useAppStoreHook();
 
 const searchKeyword = ref("");
 const statusFilter = ref<string>("");
@@ -179,6 +223,29 @@ const viewMode = ref<"card" | "table">("card");
 const currentPage = ref(1);
 const pageSize = ref(20);
 const loading = ref(false);
+
+// 响应式窗口宽度
+const windowWidth = ref(window.innerWidth);
+
+// 监听窗口大小变化
+const handleResize = () => {
+  windowWidth.value = window.innerWidth;
+};
+
+onMounted(() => {
+  window.addEventListener("resize", handleResize);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener("resize", handleResize);
+});
+
+// 根据设备类型决定下拉菜单的触发方式
+const dropdownTrigger = computed(() => {
+  // 使用响应式窗口宽度判断
+  const isMobile = windowWidth.value <= 640;
+  return isMobile ? "click" : "hover";
+});
 
 const selectedProject = ref<Project | null>(null);
 const editingProject = ref<Project | null>(null);
@@ -394,7 +461,14 @@ const getProjectProgress = (project: Project & Record<string, unknown>) => {
 };
 
 // 打开项目详情（跳转到详情页）
-const openProjectDetail = (project: Project) => {
+const openProjectDetail = (project: Project, event?: Event) => {
+  // 如果点击的是三个点按钮区域，不跳转
+  if (event?.target) {
+    const target = event.target as HTMLElement;
+    if (target.closest('.more-button-wrapper') || target.closest('.more-button-trigger') || target.closest('.more-button')) {
+      return;
+    }
+  }
   router.push({
     name: "ProjectDetail",
     params: { id: project.id }
@@ -499,11 +573,12 @@ const handleProjectUpdated = (updatedProject: Project) => {
 // 获取状态标签类型
 const getStatusTagType = (
   status?: string
-): "success" | "primary" | "info" | "warning" | undefined => {
-  const typeMap: Record<string, "success" | "primary" | "info" | "warning"> = {
+): "success" | "primary" | "info" | "warning" | "danger" | undefined => {
+  const typeMap: Record<string, "success" | "primary" | "info" | "warning" | "danger"> = {
     未开始: "warning",
     进行中: "success",
-    已完成: "primary"
+    已完成: "primary",
+    延期: 'danger'
   };
   return status ? typeMap[status] : undefined;
 };
@@ -519,10 +594,6 @@ const formatDateRange = (startDate?: string, endDate?: string) => {
   return `${dayjs(startDate).format("MM-DD")} ~ ${dayjs(endDate).format("MM-DD")}`;
 };
 
-// 格式化预算（已删除，保留以防其他地方使用）
-const formatBudget = (budget: number) => {
-  return (budget / 10000).toFixed(1) + "w";
-};
 
 // 监听搜索和筛选变化，重新加载数据
 watch(
@@ -562,6 +633,7 @@ onMounted(() => {
     font-weight: 600;
     letter-spacing: -0.5px;
   }
+
 
   .header-actions {
     display: flex;
@@ -629,7 +701,10 @@ onMounted(() => {
     0 1px 3px rgba(0, 0, 0, 0.08);
   border: 1px solid rgba(0, 0, 0, 0.04);
   position: relative;
-  overflow: hidden;
+  overflow: visible; // 改为 visible 确保下拉菜单不被裁剪
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
 
   &::before {
     content: "";
@@ -662,6 +737,40 @@ onMounted(() => {
     margin-bottom: 16px;
     padding-bottom: 12px;
     border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+
+    .more-button-wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      position: relative;
+
+      // 确保下拉菜单在PC端正确显示
+      :deep(.el-dropdown__popper) {
+        z-index: 2000 !important;
+      }
+    }
+
+    .more-button-trigger {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .more-button {
+      min-width: 32px;
+      min-height: 32px;
+      padding: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+
+      &:hover {
+        background-color: rgba(64, 158, 255, 0.1);
+      }
+    }
   }
 
   .project-row {
@@ -705,21 +814,45 @@ onMounted(() => {
         color: #303133;
         flex: 1;
         font-size: 15px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        min-width: 0;
+        max-width: 100%;
       }
     }
   }
 
-  .project-row-first {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px 16px;
+  .project-row-name {
+    .field-item {
+      margin-bottom: 0;
+
+      .project-name-value {
+        font-weight: 600;
+        font-size: 16px;
+        color: #303133;
+      }
+    }
+  }
+
+  .project-row-first,
+  .project-row-second,
+  .project-row-third {
+    display: flex;
+    gap: 16px;
 
     .field-item {
       margin-bottom: 0;
+      width: 50%;
+      flex: 0 0 50%;
+      box-sizing: border-box;
     }
   }
 
   .project-row-progress {
+    width: 100%;
+    box-sizing: border-box;
+
     .progress-info {
       display: flex;
       justify-content: space-between;
@@ -727,24 +860,17 @@ onMounted(() => {
       font-size: 15px;
       color: #606266;
       font-weight: 500;
+      min-width: 0; // 允许收缩
     }
-  }
 
-  .project-row-owners {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px 16px;
+    :deep(.el-progress) {
+      width: 100%;
+      max-width: 100%;
 
-    .field-item {
-      margin-bottom: 0;
-    }
-  }
-
-  .project-row-time {
-    .field-item {
-      display: flex;
-      align-items: center;
-      margin-bottom: 0;
+      .el-progress-bar {
+        width: 100%;
+        max-width: 100%;
+      }
     }
   }
 }
@@ -854,11 +980,6 @@ onMounted(() => {
     gap: 16px;
     align-items: stretch;
 
-    .header-actions {
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
   }
 
   .projects-grid {
@@ -868,6 +989,187 @@ onMounted(() => {
 
   .project-card {
     padding: 16px;
+  }
+}
+
+// 移动端适配 (640px)
+@media (max-width: 640px) {
+  .projects-page {
+    padding: 12px;
+    width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden; // 防止横向滚动
+  }
+
+  .page-header {
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+    margin-bottom: 16px;
+
+    h2 {
+      font-size: 18px;
+    }
+
+    .header-actions {
+      .el-input {
+        width: 100% !important;
+      }
+
+      .el-select {
+        width: 100% !important;
+      }
+
+      .el-button {
+        width: 100%;
+      }
+    }
+  }
+
+  .stats-row {
+    margin-bottom: 16px !important;
+
+    .el-col {
+      margin-bottom: 12px;
+    }
+  }
+
+  .stat-card {
+    padding: 16px 12px;
+
+    .stat-number {
+      font-size: 24px;
+    }
+
+    .stat-label {
+      font-size: 13px;
+    }
+  }
+
+  .projects-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .project-card {
+    padding: 12px;
+    border-radius: 8px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden; // 防止内容横向溢出
+
+    .card-header {
+      margin-bottom: 12px;
+
+      h3 {
+        font-size: 16px;
+      }
+
+      .more-button-wrapper {
+        z-index: 200;
+        position: relative;
+      }
+
+      .more-button-trigger {
+        min-width: 44px;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        touch-action: manipulation; // 优化移动端触摸
+        -webkit-tap-highlight-color: transparent; // 移除移动端点击高亮
+      }
+
+      .more-button {
+        min-width: 44px;
+        min-height: 44px;
+        padding: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        :deep(.el-icon) {
+          font-size: 20px;
+        }
+      }
+
+      // 确保下拉菜单在移动端正确显示
+      :deep(.el-dropdown__popper) {
+        z-index: 3000 !important;
+      }
+    }
+
+    .project-row {
+      width: 100%;
+      box-sizing: border-box;
+      overflow-x: hidden;
+
+      .field-item {
+        min-width: 0; // 允许 flex 子元素收缩
+        overflow-wrap: break-word;
+        word-break: break-word;
+
+        .field-label {
+          white-space: normal; // 允许换行
+          flex-shrink: 0;
+        }
+
+        .field-value {
+          min-width: 0; // 允许文本换行
+          overflow-wrap: break-word;
+          word-break: break-word;
+        }
+      }
+    }
+
+    .project-row-first,
+    .project-row-second,
+    .project-row-third {
+      grid-template-columns: 1fr; // 移动端改为单列布局
+      gap: 8px;
+    }
+
+    .project-row-progress {
+      :deep(.el-progress) {
+        width: 100%;
+        max-width: 100%;
+
+        .el-progress-bar {
+          width: 100%;
+          max-width: 100%;
+        }
+      }
+    }
+
+    .card-content {
+      font-size: 13px;
+    }
+
+    .card-footer {
+      margin-top: 12px;
+      padding-top: 12px;
+      flex-direction: column;
+      gap: 8px;
+      align-items: stretch;
+
+      .card-actions {
+        width: 100%;
+        flex-direction: column;
+        gap: 8px;
+
+        .el-button {
+          width: 100%;
+        }
+      }
+    }
+  }
+
+  .pagination {
+    margin-top: 16px;
+    padding: 0 8px;
   }
 }
 </style>

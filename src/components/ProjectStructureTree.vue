@@ -907,6 +907,41 @@ const treeNodeComponent = TreeNode;
 
   .node-connector {
     left: -10px;
+  }
+}
+
+// 移动端适配 (640px)
+@media (max-width: 640px) {
+  .structure-tree {
+    .tree-wrapper {
+      padding: 12px;
+    }
+  }
+
+  .node-content {
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    padding: 12px;
+    font-size: 13px;
+
+    .node-title {
+      font-size: 14px;
+    }
+
+    .node-meta {
+      font-size: 11px;
+      margin-top: 6px;
+    }
+  }
+
+  .children {
+    margin-left: 20px;
+    padding-left: 8px;
+  }
+
+  .node-connector {
+    left: -8px;
     width: 10px;
   }
 }

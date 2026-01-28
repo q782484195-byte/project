@@ -848,3 +848,22 @@ export const selectRequirementType = (params: any) => {
     }
   });
 };
+
+
+/** 查询项目概览数据 */
+export const selectProjectOverview = () => {
+  return http.request<ApiResponse<any[]>>("get", "/project/overview");
+};
+
+
+
+/** 查询项目记录数据 */
+export const selectProjectRecord = (params: any) => {
+  return http.request<ApiResponse<any[]>>("post", "/project/record/select", {
+    data: {
+      day: params.day
+    }
+  });
+};
+
+

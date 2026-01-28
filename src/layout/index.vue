@@ -222,9 +222,18 @@ const LayHeader = defineComponent({
   height: 100%;
   background: #000;
   opacity: 0.3;
+  transition: opacity 0.3s;
 }
 
 .re-screen {
   margin-top: 12px;
+}
+
+// 移动端适配
+@media (max-width: 640px) {
+  .app-mask {
+    opacity: 0.5;
+    backdrop-filter: blur(2px);
+  }
 }
 </style>

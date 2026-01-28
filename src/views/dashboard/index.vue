@@ -1145,4 +1145,57 @@ onBeforeUnmount(() => {
     }
   }
 }
+
+// 移动端适配 (640px)
+@media (max-width: 640px) {
+  .dashboard {
+    padding: 12px;
+  }
+
+  .stat-card {
+    padding: 16px 12px;
+    margin-bottom: 12px;
+
+    .stat-number {
+      font-size: 24px;
+    }
+
+    .stat-label {
+      font-size: 13px;
+    }
+  }
+
+  .chart {
+    height: 220px;
+  }
+
+  :deep(.el-card) {
+    margin-bottom: 12px;
+
+    .el-card__header {
+      padding: 12px 16px;
+      font-size: 14px;
+    }
+
+    .el-card__body {
+      padding: 12px;
+    }
+  }
+
+  :deep(.el-table) {
+    .el-table__body-wrapper {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .el-table__header-wrapper {
+      overflow-x: auto;
+    }
+
+    .el-table__cell {
+      padding: 8px 4px;
+      font-size: 12px;
+    }
+  }
+}
 </style>

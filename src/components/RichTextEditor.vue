@@ -500,4 +500,31 @@ onBeforeUnmount(() => {
     }
   }
 }
+
+// 移动端适配 (640px)
+@media (max-width: 640px) {
+  .rich-text-editor {
+    :deep(.ProseMirror) {
+      padding: 12px;
+      font-size: 14px;
+      min-height: 200px;
+    }
+
+    :deep(.editor-toolbar) {
+      padding: 8px;
+      flex-wrap: wrap;
+      gap: 4px;
+
+      .toolbar-group {
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+
+      button {
+        padding: 6px 8px;
+        font-size: 12px;
+      }
+    }
+  }
+}
 </style>

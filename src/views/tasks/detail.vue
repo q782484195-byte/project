@@ -7,9 +7,10 @@
         </el-icon>
         返回
       </el-button>
-      <h2>
+      <h2 class="page-title">
         {{ task?.任务名 || task?.task_name || task?.title || "任务详情" }}
       </h2>
+
     </div>
 
     <div v-loading="loading" class="detail-content">
@@ -21,22 +22,29 @@
             <el-card class="info-card" shadow="never">
               <template #header>
                 <span>基本信息</span>
+                <el-button v-if="canOpenStatusFlow" type="primary" :loading="statusFlowLoading" class="ml-16"
+                  @click="openStatusFlowDialog">
+                  <el-icon>
+                    <Share />
+                  </el-icon>
+                  分配
+                </el-button>
               </template>
               <el-descriptions :column="2" border>
                 <!-- 第1行：任务名称（左）| 所属项目（右） -->
                 <el-descriptions-item label="任务名称">{{
                   task.任务名 || task.task_name || task.title || "-"
-                  }}</el-descriptions-item>
+                }}</el-descriptions-item>
                 <el-descriptions-item label="所属项目">{{
                   task.project_name || "-"
-                  }}</el-descriptions-item>
+                }}</el-descriptions-item>
                 <!-- 第2行：关联层级（左）| 创建人（右） -->
                 <el-descriptions-item label="关联层级">{{
                   task.requirement_name || "-"
-                  }}</el-descriptions-item>
+                }}</el-descriptions-item>
                 <el-descriptions-item label="项目负责人">{{
                   task.creator || "-"
-                  }}</el-descriptions-item>
+                }}</el-descriptions-item>
                 <!-- 第3行：状态（左）| 负责人（右） -->
                 <el-descriptions-item label="状态">
                   <div style="display: flex; align-items: center; gap: 12px">
@@ -47,7 +55,7 @@
                 </el-descriptions-item>
                 <el-descriptions-item label="当前处理人">{{
                   task.当前处理人 || task.assignee || "-"
-                  }}</el-descriptions-item>
+                }}</el-descriptions-item>
                 <!-- 第4行：进度（左）| 优先级（右） -->
                 <el-descriptions-item label="进度">
                   <el-progress :percentage="task.进度 || task.progress || 0" />
@@ -242,7 +250,8 @@ import { ElMessage } from "element-plus";
 import {
   ArrowLeft,
   Document as DocumentIcon,
-  Download
+  Download,
+  Share
 } from "@element-plus/icons-vue";
 import { TaskStatus } from "@/types";
 import TaskStatusFlowDialog from "@/components/TaskStatusFlowDialog.vue";
@@ -483,7 +492,7 @@ const getNextStatus = (currentStatus: string): string | null => {
   return statusFlow[currentStatus] || null;
 };
 
-const handleStatusFlowDialogSuccess = (
+const handleStatusFlowDialogSuccess = async (
   nextState: string,
   personName: string
 ) => {
@@ -495,6 +504,8 @@ const handleStatusFlowDialogSuccess = (
     task.value.指派人 = personName;
     task.value.assignee = personName;
   }
+  // 分配完成后刷新详情
+  await loadTask();
 };
 
 const handleStatusFlowStart = () => {
@@ -503,6 +514,24 @@ const handleStatusFlowStart = () => {
 
 const handleStatusFlowEnd = () => {
   statusFlowLoading.value = false;
+};
+
+// 是否可进行分配（有下一状态且非终态）
+const canOpenStatusFlow = computed(() => {
+  const t = task.value;
+  if (!t) return false;
+  const status = t.状态 || t.status || "";
+  if (status === TaskStatus.COMPLETED || status === TaskStatus.CANCELLED || status === "已完成" || status === "已取消") {
+    return false;
+  }
+  const nextState = t.next_state;
+  return Array.isArray(nextState) && nextState.length > 0;
+});
+
+// 打开分配/状态流转弹窗
+const openStatusFlowDialog = () => {
+  if (!task.value) return;
+  statusFlowDialogVisible.value = true;
 };
 
 // 加载任务详情（调用 API）
@@ -802,10 +831,21 @@ onUnmounted(() => {
     gap: 12px;
     margin-bottom: 20px;
 
-    h2 {
+    .page-title {
+      flex: 1;
       margin: 0;
       font-size: 24px;
       font-weight: 600;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
     }
 
     .back-button {
@@ -818,6 +858,20 @@ onUnmounted(() => {
       .detail-tabs {
         .info-card {
           margin-bottom: 20px;
+
+          // 基本信息卡片头部：标题在左，分配按钮在右侧靠边
+          :deep(.el-card__header) {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+          }
+
+          .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+          }
         }
 
         .task-description {
@@ -966,5 +1020,119 @@ onUnmounted(() => {
 // 全局样式：图片预览器
 :global(.el-image-viewer__wrapper) {
   z-index: 3000;
+}
+
+// 移动端适配 (640px)
+@media (max-width: 640px) {
+  .task-detail-page {
+    padding: 12px;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 16px;
+
+    h2 {
+      font-size: 18px;
+      width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .back-button {
+      font-size: 14px;
+      padding: 4px 8px;
+    }
+  }
+
+  .detail-content {
+    .main-card {
+      :deep(.el-card__body) {
+        padding: 12px;
+      }
+    }
+
+    .detail-tabs {
+      :deep(.el-tabs__header) {
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+
+        &::-webkit-scrollbar {
+          display: none;
+        }
+      }
+
+      :deep(.el-tabs__nav) {
+        white-space: nowrap;
+      }
+
+      :deep(.el-tabs__item) {
+        padding: 8px 12px;
+        font-size: 13px;
+        white-space: nowrap;
+      }
+
+      :deep(.el-tabs__content) {
+        padding: 12px 0;
+      }
+    }
+
+    .info-card {
+      margin-bottom: 12px;
+
+      :deep(.el-card__header) {
+        padding: 12px 16px;
+        font-size: 14px;
+      }
+
+      :deep(.el-card__body) {
+        padding: 16px 12px;
+      }
+    }
+
+    :deep(.el-descriptions) {
+      .el-descriptions__table {
+        .el-descriptions__label {
+          width: 100px;
+          font-size: 13px;
+        }
+
+        .el-descriptions__content {
+          font-size: 13px;
+        }
+      }
+    }
+
+    :deep(.el-table) {
+      .el-table__body-wrapper {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .el-table__header-wrapper {
+        overflow-x: auto;
+      }
+
+      .el-table__cell {
+        padding: 8px 4px;
+        font-size: 12px;
+      }
+    }
+
+    .task-description {
+      .description-image {
+        .description-image-el {
+          max-width: 100% !important;
+          max-height: 300px;
+        }
+      }
+    }
+  }
 }
 </style>

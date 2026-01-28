@@ -15,10 +15,10 @@
               :value="requirement.id" />
           </el-select>
         </el-form-item>
-        <el-form-item v-if="showDefaultPersonField" label="默认部门负责人" prop="default_person" ">
-          <el-tree-select v-model="taskForm.default_person" placeholder="请选择默认部门负责人"
-          :loading="departmentLeadersLoading" filterable check-strictly default-expand-all :data="departmentLeadersTree"
-          :props="treeSelectProps" node-key="value" :render-after-expand="false" style="width: 100%" clearable />
+        <el-form-item v-if="showDefaultPersonField" label="默认部门负责人" prop="default_person">
+          <el-tree-select v-model="taskForm.default_person" placeholder="请选择默认部门负责人" :loading="departmentLeadersLoading"
+            filterable check-strictly default-expand-all :data="departmentLeadersTree" :props="treeSelectProps"
+            node-key="value" :render-after-expand="false" style="width: 100%" clearable />
         </el-form-item>
         <el-form-item label="任务描述" prop="describe">
           <RichTextEditor ref="richTextEditorRef" v-model="taskForm.describe" :disable-image-upload="true"
@@ -284,6 +284,9 @@ const rules: FormRules = {
   priority: [{ required: true, message: "请选择优先级", trigger: "change" }],
   task_deadline: [
     { required: true, message: "请选择任务截止日期", trigger: "change" }
+  ],
+  default_person: [
+    { required: true, message: "请选择默认部门负责人", trigger: "change" }
   ]
 };
 
@@ -299,7 +302,8 @@ const userRoles = computed(() => userStore.roles || []);
 const username = computed(() => userStore.username || "");
 const isAdmin = computed(() => userRoles.value.includes("Admin"));
 const isProjectManager = computed(() => userRoles.value.includes("ProjectManager"));
-const canEditAllFields = computed(() => isAdmin.value || isProjectManager.value);
+const isProjectDirector = computed(() => userRoles.value.includes("ProjectDirector"));
+const canEditAllFields = computed(() => isAdmin.value || isProjectManager.value || isProjectDirector.value);
 const currentHandler = computed(() => {
   const task = props.task || {};
   return task.current_handler || task.当前处理人 || task.assignee || "";

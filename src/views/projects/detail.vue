@@ -23,8 +23,16 @@
     <div v-loading="loading" class="detail-content">
       <!-- 项目统计信息 - Tab 形式 -->
       <el-card v-if="project" class="statistics-card">
+        <!-- 移动端提示 -->
+        <div v-if="isMobile" class="mobile-tip">
+          <el-alert type="info" :closable="false" show-icon>
+            <template #title>
+              <span>请前往电脑端查看"项目统计"和"项目总览"</span>
+            </template>
+          </el-alert>
+        </div>
         <el-tabs v-model="activeTab" class="statistics-tabs">
-          <el-tab-pane label="项目统计" name="statistics">
+          <el-tab-pane v-if="!isMobile" label="项目统计" name="statistics">
             <div v-if="projectStatistics" class="statistics-content">
               <div class="statistics-header">
                 <el-button type="primary" :loading="importingRequirement" v-perms="['requirement:update']"
@@ -85,7 +93,7 @@
               <el-skeleton :rows="3" animated />
             </div>
           </el-tab-pane>
-          <el-tab-pane label="项目总览" name="overview">
+          <el-tab-pane v-if="!isMobile" label="项目总览" name="overview">
             <ProjectStructureTree :tree-data="structureTreeData" :loading="structureTreeLoading"
               :root-title="project?.name || '项目结构'" />
           </el-tab-pane>
@@ -164,22 +172,12 @@
           <el-descriptions :column="1" border>
             <el-descriptions-item label="项目名称">{{
               project.name
-            }}</el-descriptions-item>
+              }}</el-descriptions-item>
             <el-descriptions-item label="状态">
-              <el-select 
-                v-model="currentStatus" 
-                :loading="statusUpdating" 
-                :disabled="currentStatus === '已完成'"
-                size="small" 
-                style="width: 120px"
-                @change="handleStatusChange"
-              >
-                <el-option 
-                  v-for="option in availableStatusOptions" 
-                  :key="option.value" 
-                  :label="option.label" 
-                  :value="option.value" 
-                />
+              <el-select v-model="currentStatus" :loading="statusUpdating" :disabled="currentStatus === '已完成'"
+                size="small" style="width: 120px" @change="handleStatusChange">
+                <el-option v-for="option in availableStatusOptions" :key="option.value" :label="option.label"
+                  :value="option.value" />
               </el-select>
             </el-descriptions-item>
             <el-descriptions-item label="项目负责人">
@@ -190,13 +188,13 @@
             </el-descriptions-item>
             <el-descriptions-item label="计划开始时间">{{
               formatDate(project.startDate)
-            }}</el-descriptions-item>
+              }}</el-descriptions-item>
             <el-descriptions-item label="计划结束时间">{{
               formatDate(project.endDate)
-            }}</el-descriptions-item>
+              }}</el-descriptions-item>
             <el-descriptions-item v-if="project.createdAt" label="创建时间">{{
               formatDate(project.createdAt)
-            }}</el-descriptions-item>
+              }}</el-descriptions-item>
           </el-descriptions>
         </el-card>
 
@@ -347,7 +345,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, nextTick } from "vue";
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import type { Project, Task, Requirement } from "@/types";
 import {
@@ -407,7 +405,7 @@ const projectHistory = ref<string[]>([]);
 // 根据当前状态计算可选的下一状态
 const availableStatusOptions = computed(() => {
   const status = currentStatus.value || project.value?.status || "";
-  
+
   if (status === "未开始") {
     // 如果当前是"未开始"，只能选择"进行中"
     return [{ label: "进行中", value: "进行中" }];
@@ -418,7 +416,7 @@ const availableStatusOptions = computed(() => {
     // 如果当前是"已完成"，不能再更改状态
     return [{ label: "已完成", value: "已完成" }];
   }
-  
+
   // 默认情况：如果状态未知，允许选择所有状态
   return [
     { label: "未开始", value: "未开始" },
@@ -449,6 +447,22 @@ const projectStore = useProjectStoreHook();
 const userStore = useUserStoreHook();
 const activeTab = ref<string>("statistics");
 const structureTreeData = ref<StructureTreeNode | Record<string, any> | null>(null);
+
+// 移动端检测
+const windowWidth = ref(window.innerWidth);
+const isMobile = computed(() => windowWidth.value <= 640);
+
+// 监听窗口大小变化
+const handleResize = () => {
+  windowWidth.value = window.innerWidth;
+};
+
+// 监听移动端状态和activeTab变化，如果移动端且选中了隐藏的tab，自动切换
+watch([isMobile, activeTab], ([mobile, tab]) => {
+  if (mobile && (tab === "statistics" || tab === "overview")) {
+    activeTab.value = "bug-statistics";
+  }
+}, { immediate: true });
 const structureTreeLoading = ref(false);
 // 需求任务嵌套数据（原始格式）
 const requirementsTasksData = ref<Record<string, any> | null>(null);
@@ -1178,6 +1192,13 @@ onMounted(() => {
       requirementPageSize.value
     );
   }
+  // 添加窗口大小监听
+  window.addEventListener("resize", handleResize);
+});
+
+onBeforeUnmount(() => {
+  // 移除窗口大小监听
+  window.removeEventListener("resize", handleResize);
 });
 
 const goBack = () => {
@@ -1634,7 +1655,7 @@ const getPriorityText = (priority: "low" | "medium" | "high"): string => {
 
 <style scoped lang="scss">
 .project-detail-page {
-  padding: 24px;
+  padding: 1.5rem;
   background: linear-gradient(135deg, #f5f7fa 0%, #fafbfc 100%);
 }
 
@@ -1714,6 +1735,11 @@ const getPriorityText = (priority: "low" | "medium" | "high"): string => {
 
   :deep(.el-card__body) {
     padding: 0;
+  }
+
+  .mobile-tip {
+    padding: 12px 16px;
+    border-bottom: 1px solid #e4e7ed;
   }
 
   .statistics-tabs {
@@ -2661,6 +2687,248 @@ const getPriorityText = (priority: "low" | "medium" | "high"): string => {
           width: 100%;
         }
       }
+    }
+  }
+}
+
+// 移动端适配 (640px)
+@media (max-width: 640px) {
+
+  .project-detail-page {
+    padding: 1rem;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+
+    .header-left {
+      width: 100%;
+      gap: 8px;
+
+      h2 {
+        font-size: 18px;
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .back-button {
+        font-size: 14px;
+        padding: 4px 8px;
+      }
+    }
+
+    .header-actions {
+      width: 100%;
+      flex-direction: column;
+      gap: 8px;
+
+      .el-button {
+        width: 100%;
+      }
+    }
+  }
+
+  .detail-content {
+    min-height: auto;
+  }
+
+  .detail-layout {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .statistics-card {
+    margin-bottom: 12px;
+
+    .statistics-tabs {
+      :deep(.el-tabs__header) {
+        padding: 0 8px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+
+        &::-webkit-scrollbar {
+          display: none;
+        }
+      }
+
+      :deep(.el-tabs__nav) {
+        white-space: nowrap;
+      }
+
+      :deep(.el-tabs__item) {
+        padding: 8px 12px;
+        font-size: 13px;
+        white-space: nowrap;
+      }
+
+      :deep(.el-tabs__content) {
+        padding: 8px 4px;
+      }
+    }
+  }
+
+  .statistics-content {
+    .statistics-header {
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 12px;
+
+      .el-button {
+        width: 100%;
+        font-size: 14px;
+        margin-left: 0;
+      }
+    }
+
+    .stat-item {
+      padding: 12px 8px;
+
+      .stat-label {
+        font-size: 11px;
+        margin-bottom: 4px;
+      }
+
+      .stat-value {
+        font-size: 18px;
+      }
+    }
+  }
+
+  .requirements-tasks-manager {
+    margin-top: 16px;
+    padding-top: 16px;
+
+    :deep(.el-tabs) {
+      .el-tabs__header {
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+
+        &::-webkit-scrollbar {
+          display: none;
+        }
+      }
+
+      .el-tabs__nav {
+        white-space: nowrap;
+      }
+
+      .el-tabs__item {
+        padding: 8px 12px;
+        font-size: 13px;
+        white-space: nowrap;
+      }
+
+      .el-tabs__content {
+        padding: 12px 8px;
+      }
+    }
+  }
+
+  .info-card {
+    margin-top: 12px !important;
+
+    :deep(.el-card__header) {
+      padding: 12px 16px;
+      font-size: 14px;
+    }
+
+    :deep(.el-card__body) {
+      padding: 16px;
+    }
+  }
+
+  .bug-list-card,
+  .history-list-card {
+    :deep(.el-card__header) {
+      padding: 12px 16px;
+      font-size: 14px;
+    }
+
+    :deep(.el-card__body) {
+      padding: 12px;
+    }
+  }
+
+  // 表格适配 - 改为横向滚动
+  :deep(.el-table) {
+    .el-table__body-wrapper {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .el-table__header-wrapper {
+      overflow-x: auto;
+    }
+
+    .el-table__cell {
+      padding: 8px 4px;
+      font-size: 12px;
+    }
+  }
+
+  .custom-timeline {
+    padding-left: 16px;
+
+    .timeline-item {
+      padding-bottom: 16px;
+
+      .timeline-dot {
+        left: -5px;
+        width: 12px;
+        height: 12px;
+      }
+
+      .timeline-content {
+        padding-left: 12px;
+
+        .history-content {
+          font-size: 13px;
+          padding: 6px 10px;
+        }
+      }
+    }
+  }
+
+  .requirement-item,
+  .task-item {
+    padding: 12px;
+    border-radius: 8px;
+
+    .requirement-title-row,
+    .task-title-row {
+      gap: 8px;
+      margin-bottom: 6px;
+
+      .requirement-title,
+      .task-title {
+        font-size: 14px;
+      }
+    }
+
+    .requirement-description,
+    .task-description {
+      font-size: 13px;
+      margin: 6px 0;
+    }
+
+    .requirement-meta,
+    .task-meta {
+      gap: 12px;
+      margin-top: 8px;
+      font-size: 11px;
+      flex-wrap: wrap;
     }
   }
 }

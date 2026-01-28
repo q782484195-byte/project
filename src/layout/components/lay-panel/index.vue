@@ -142,4 +142,26 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   padding: 14px 20px;
 }
+
+// 移动端适配
+@media (max-width: 640px) {
+  :deep(.el-scrollbar) {
+    height: calc(100vh - 140px);
+  }
+
+  .right-panel-background {
+    background: rgb(0 0 0 / 50%);
+  }
+
+  .right-panel {
+    max-width: 100%;
+    width: 100vw;
+    box-shadow: -2px 0 8px 0 rgb(0 0 0 / 15%);
+  }
+
+  .project-configuration {
+    padding: 16px 20px;
+    font-size: 16px;
+  }
+}
 </style>

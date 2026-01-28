@@ -23,6 +23,17 @@ export default {
       }
     },
     {
+      path: "/projects/overview",
+      name: "ProjectsOverview",
+      component: () => import("@/views/projects/overview.vue"),
+      meta: {
+        title: "项目概览",
+        showLink: true,
+        showParent: true,
+        roles: ["Admin", 'ProjectDirector']
+      }
+    },
+    {
       path: "/projects/detail/:id",
       name: "ProjectDetail",
       component: () => import("@/views/projects/detail.vue"),

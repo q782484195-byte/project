@@ -536,4 +536,34 @@ onUnmounted(() => removeMatchMedia);
     font-size: 14px;
   }
 }
+
+// 移动端适配
+@media (max-width: 640px) {
+  .theme-color {
+    li {
+      height: 18px;
+      margin-right: 6px;
+    }
+  }
+
+  .pure-theme {
+    gap: 8px;
+
+    li {
+      width: 40px;
+      height: 32px;
+    }
+  }
+
+  .setting {
+    li {
+      padding: 8px 0;
+      font-size: 14px;
+    }
+  }
+
+  :deep(.el-divider__text) {
+    font-size: 14px;
+  }
+}
 </style>

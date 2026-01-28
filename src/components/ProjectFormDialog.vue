@@ -1,5 +1,6 @@
 <template>
-  <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑项目' : '新建项目'" width="900px" @close="handleClose">
+  <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑项目' : '新建项目'" width="900px" class="project-form-dialog"
+    @close="handleClose">
     <el-form ref="formRef" :model="projectForm" :rules="rules" label-width="100px">
       <el-form-item label="项目名称" prop="name">
         <el-input v-model="projectForm.name" placeholder="请输入项目名称" />
@@ -146,6 +147,97 @@
     </template>
   </el-dialog>
 </template>
+
+<style lang="scss" scoped>
+// 移动端适配
+@media (max-width: 640px) {
+  .project-form-dialog {
+    :deep(.el-form) {
+      .el-form-item {
+        margin-bottom: 18px;
+      }
+
+      .el-row {
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+
+        .el-col {
+          padding-left: 0 !important;
+          padding-right: 0 !important;
+          width: 100% !important;
+          margin-bottom: 18px;
+        }
+      }
+
+      .el-form-item__label {
+        font-size: 14px;
+        margin-bottom: 8px;
+      }
+
+      .el-input,
+      .el-select,
+      .el-date-picker {
+        width: 100%;
+      }
+    }
+  }
+}
+
+.date-form-item {
+  :deep(.el-form-item__label) {
+    white-space: nowrap;
+  }
+}
+
+.project-form-dialog {
+  :deep(.el-dialog__footer) {
+    padding: 16px 20px;
+    border-top: 1px solid #ebeef5;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    background-color: #fff;
+    border-radius: 0 0 4px 4px;
+
+    .el-button {
+      min-width: 80px;
+      padding: 8px 20px;
+      font-size: 14px;
+    }
+  }
+
+  :deep(.el-dialog__body) {
+    padding: 20px;
+    overflow-y: auto;
+  }
+}
+
+// 移动端适配
+@media (max-width: 640px) {
+  .project-form-dialog {
+    :deep(.el-dialog) {
+      width: 95% !important;
+      margin: 5vh auto;
+    }
+
+    :deep(.el-dialog__footer) {
+      padding: 12px 16px;
+      flex-direction: column-reverse;
+      gap: 8px;
+
+      .el-button {
+        width: 100%;
+        min-width: auto;
+        margin: 0;
+      }
+    }
+
+    :deep(.el-dialog__body) {
+      padding: 16px;
+    }
+  }
+}
+</style>
 
 <script setup lang="ts">
 import { ref, computed, reactive, watch, onMounted } from "vue";
@@ -943,11 +1035,3 @@ onMounted(() => {
   loadProjectManagers();
 });
 </script>
-
-<style scoped lang="scss">
-.date-form-item {
-  :deep(.el-form-item__label) {
-    white-space: nowrap;
-  }
-}
-</style>

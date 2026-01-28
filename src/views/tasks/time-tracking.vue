@@ -413,4 +413,79 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
 }
+
+// 移动端适配 (640px)
+@media (max-width: 640px) {
+  .time-tracking-page {
+    padding: 12px;
+
+    .search-card {
+      margin-bottom: 12px;
+
+      :deep(.el-card__body) {
+        padding: 12px;
+      }
+    }
+
+    .search-form {
+      :deep(.el-form-item) {
+        width: 100%;
+        margin-right: 0;
+        margin-bottom: 12px;
+      }
+
+      .el-select,
+      .el-input-number {
+        width: 100% !important;
+      }
+
+      .el-button {
+        width: 100%;
+        margin-bottom: 8px;
+      }
+    }
+
+    .time-tracking-tabs {
+      :deep(.el-tabs__header) {
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+
+        &::-webkit-scrollbar {
+          display: none;
+        }
+      }
+
+      :deep(.el-tabs__nav) {
+        white-space: nowrap;
+      }
+
+      :deep(.el-tabs__item) {
+        padding: 8px 12px;
+        font-size: 13px;
+        white-space: nowrap;
+      }
+    }
+
+    .tab-table-container {
+      :deep(.el-table) {
+        .el-table__body-wrapper {
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+
+        .el-table__header-wrapper {
+          overflow-x: auto;
+        }
+
+        .el-table__cell {
+          padding: 8px 4px;
+          font-size: 12px;
+        }
+      }
+    }
+  }
+}
 </style>

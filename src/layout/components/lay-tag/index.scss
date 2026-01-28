@@ -369,3 +369,97 @@
     }
   }
 }
+
+// 移动端适配
+@media (max-width: 640px) {
+  .tags-view {
+    font-size: 12px;
+
+    .scroll-item {
+      height: 32px;
+      line-height: 32px;
+      padding-left: 4px;
+
+      &:not(:first-child) {
+        padding-right: 16px;
+      }
+
+      .tag-title {
+        padding: 0 2px;
+        font-size: 12px;
+        max-width: 80px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .el-icon-close {
+        width: 16px;
+        height: 16px;
+      }
+    }
+
+    .scroll-container {
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none; // Firefox
+      -ms-overflow-style: none; // IE/Edge
+
+      &::-webkit-scrollbar {
+        display: none; // Chrome/Safari
+      }
+
+      .tab {
+        .scroll-item {
+          &:nth-child(1) {
+            padding: 0 8px;
+          }
+        }
+
+        .fixed-tag {
+          padding: 0 8px;
+        }
+      }
+    }
+
+    .arrow-left,
+    .arrow-right,
+    .arrow-down {
+      width: 36px;
+      height: 32px;
+
+      svg {
+        width: 18px;
+        height: 18px;
+      }
+    }
+
+    .chrome-tab {
+      padding: 0 12px;
+      gap: 8px;
+
+      .tag-title {
+        max-width: 60px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .chrome-close-btn {
+        width: 14px;
+        height: 14px;
+      }
+    }
+
+    .contextmenu {
+      font-size: 12px;
+      min-width: 120px;
+
+      li {
+        padding: 6px 10px;
+        font-size: 12px;
+      }
+    }
+  }
+}

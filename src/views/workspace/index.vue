@@ -1652,11 +1652,11 @@ const handleReportSubmit = () => {
 // 状态分配成功回调
 const handleStatusFlowSuccess = (nextState: string, personName: string) => {
   if (!statusFlowTask.value) return;
-  
+
   // 更新任务状态
   statusFlowTask.value.状态 = nextState;
   statusFlowTask.value.status = nextState;
-  
+
   // 刷新工作台的待办任务列表
   loadTodoTasks(todoTasksPage.value);
   // 刷新任务tab的列表
@@ -2207,6 +2207,87 @@ onBeforeUnmount(() => {
   .more-icon-btn {
     :deep(.el-icon) {
       font-size: 18px;
+    }
+  }
+}
+
+// 移动端适配 (640px)
+@media (max-width: 640px) {
+  .main-content {
+    margin: 0 !important;
+  }
+
+  .workspace-page {
+
+    .workspace-tabs {
+      :deep(.el-tabs__header) {
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+
+        &::-webkit-scrollbar {
+          display: none;
+        }
+      }
+
+      :deep(.el-tabs__nav) {
+        white-space: nowrap;
+      }
+
+      :deep(.el-tabs__item) {
+        padding: 8px 12px;
+        font-size: 13px;
+        white-space: nowrap;
+      }
+
+      :deep(.el-tabs__content) {
+        padding: 12px 0;
+      }
+    }
+
+    .user-info-card {
+      margin-bottom: 12px;
+
+      .user-info {
+        .user-header {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 12px;
+
+          .welcome-section {
+            width: 100%;
+          }
+
+          .current-time {
+            width: 100%;
+            justify-content: flex-start;
+          }
+        }
+      }
+    }
+
+    .el-row {
+      .el-col {
+        margin-bottom: 12px;
+      }
+    }
+
+    :deep(.el-table) {
+      .el-table__body-wrapper {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .el-table__header-wrapper {
+        overflow-x: auto;
+      }
+
+      .el-table__cell {
+        padding: 8px 4px;
+        font-size: 12px;
+      }
     }
   }
 }

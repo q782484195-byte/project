@@ -301,4 +301,40 @@ useEventListener(document, "keydown", ({ code }) => {
     }
   }
 }
+
+// 移动端适配
+@media (max-width: 640px) {
+  .account-dropdown {
+    max-height: 180px;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.15);
+
+    .account-item {
+      padding: 12px 16px;
+      min-height: 44px; /* 优化触摸区域 */
+
+      .account-username {
+        font-size: 15px;
+      }
+
+      .delete-icon {
+        padding: 6px;
+        min-width: 32px;
+        min-height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+    }
+  }
+
+  :deep(.el-input__wrapper) {
+    padding: 12px 16px;
+    min-height: 44px; /* 优化触摸区域 */
+  }
+
+  :deep(.el-input__inner) {
+    font-size: 16px; /* 防止iOS自动缩放 */
+  }
+}
 </style>

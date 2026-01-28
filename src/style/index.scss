@@ -35,3 +35,9 @@
 .html-weakness {
   filter: invert(80%);
 }
+
+@media (max-width: 640px) {
+  .main-content {
+    margin: 0 !important;
+  }
+}

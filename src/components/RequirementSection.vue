@@ -1297,4 +1297,45 @@ defineExpose({
     padding-left: 8px;
   }
 }
+
+// 移动端适配 (640px)
+@media (max-width: 640px) {
+  .requirement-section {
+    padding: 12px;
+
+    .section-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+      margin-bottom: 12px;
+
+      .header-actions {
+        width: 100%;
+        flex-direction: column;
+        gap: 8px;
+
+        .el-button {
+          width: 100%;
+        }
+      }
+    }
+
+    .requirement-list {
+      .requirement-item {
+        padding: 12px;
+        margin-bottom: 12px;
+
+        .requirement-title {
+          font-size: 14px;
+        }
+
+        .requirement-meta {
+          flex-wrap: wrap;
+          gap: 8px;
+          font-size: 11px;
+        }
+      }
+    }
+  }
+}
 </style>

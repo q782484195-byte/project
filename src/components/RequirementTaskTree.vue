@@ -435,4 +435,50 @@ const handleSaveAllData = async () => {
 .save-json-btn {
   min-width: 100px;
 }
+
+// 移动端适配 (640px)
+@media (max-width: 640px) {
+  .requirement-task-tree {
+    padding: 12px;
+
+    .tree-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+      margin-bottom: 12px;
+
+      .header-actions {
+        width: 100%;
+        flex-direction: column;
+        gap: 8px;
+
+        .el-button {
+          width: 100%;
+        }
+      }
+    }
+
+    .requirement-node,
+    .task-node {
+      padding: 12px;
+      margin-bottom: 8px;
+      font-size: 13px;
+
+      .node-header {
+        flex-direction: column;
+        gap: 8px;
+
+        .node-title {
+          font-size: 14px;
+        }
+
+        .node-actions {
+          width: 100%;
+          justify-content: flex-start;
+          gap: 8px;
+        }
+      }
+    }
+  }
+}
 </style>
