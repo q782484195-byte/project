@@ -285,6 +285,9 @@ const tableHeight = ref<number>(600);
 // 缓存键名
 const CACHE_KEY = "tasks-list-params";
 
+// 刷新前保存的 tab 路径，刷新后恢复
+const savedActiveTabsBeforeRefresh = ref<string[] | null>(null);
+
 // 保存参数到缓存
 // const saveParamsToCache = () => {
 //   const params = {
@@ -698,14 +701,22 @@ const handleSearchAllTasks = async () => {
       // 清除缓存，因为数据已更新
       processedTasksCache.value = {};
 
-      // 设置默认选中的第一层 tab
+      // 优先恢复刷新前选中的 tab，否则使用第一层第一个
       const taskTypes = Object.keys(tasks.value);
       if (taskTypes.length > 0) {
-        activeTabs.value = [taskTypes[0]];
-        activeTab.value = taskTypes[0];
+        const saved = savedActiveTabsBeforeRefresh.value;
+        if (saved && saved.length > 0 && isPathValidInTasks(saved, tasks.value)) {
+          activeTabs.value = [...saved];
+          activeTab.value = saved.join("/");
+        } else {
+          activeTabs.value = [taskTypes[0]];
+          activeTab.value = taskTypes[0];
+        }
+        savedActiveTabsBeforeRefresh.value = null;
       } else {
         activeTabs.value = [];
         activeTab.value = "";
+        savedActiveTabsBeforeRefresh.value = null;
       }
 
       // 计算总任务数
@@ -744,9 +755,29 @@ const projectOptions = computed(() => {
   }));
 });
 
-// 处理任务刷新
+// 在刷新前记录当前选中的 tab，供 handleSearchAllTasks 恢复
+const saveCurrentTabForRestore = () => {
+  if (activeTabs.value && activeTabs.value.length > 0) {
+    savedActiveTabsBeforeRefresh.value = [...activeTabs.value];
+  } else {
+    savedActiveTabsBeforeRefresh.value = null;
+  }
+};
+
+// 校验 path 在新 tasks 树中是否仍存在
+const isPathValidInTasks = (path: string[], data: Record<string, any>): boolean => {
+  let current: any = data;
+  for (const key of path) {
+    if (!current || typeof current !== "object" || !current[key]) return false;
+    current = current[key];
+  }
+  return true;
+};
+
+// 处理任务刷新（会先保存当前 tab，刷新后恢复）
 const handleTaskRefresh = () => {
-  handleSearchAllTasks();
+  saveCurrentTabForRestore();
+  return handleSearchAllTasks();
 };
 
 // 根据 activeTabs 获取当前选中层级的 requirement_id 和 requirement_name
@@ -1099,8 +1130,8 @@ const handleBatchAssignSubmit = async () => {
         batchAssignDialogVisible.value = false;
         // 清空选中状态
         selectedTasks.value = [];
-        // 刷新任务列表
-        await handleSearchAllTasks();
+        // 刷新任务列表（会恢复刷新前选中的 tab）
+        await handleTaskRefresh();
       } else {
         const errorMsg = typeof response.message === 'string' ? response.message : "批量分配失败";
         ElMessage.error(errorMsg);
@@ -1178,8 +1209,8 @@ const handleCompleteTask = async (task: any) => {
 
     if (response?.code === 200) {
       ElMessage.success("完成任务成功");
-      // 刷新任务列表
-      await handleSearchAllTasks();
+      // 刷新任务列表（会恢复刷新前选中的 tab）
+      await handleTaskRefresh();
     } else {
       ElMessage.error(response?.message || "完成任务失败");
     }
@@ -1350,7 +1381,7 @@ const handleChangeAssigneeSubmit = () => {
         ElMessage.success("更改负责人成功");
         changeAssigneeDialogVisible.value = false;
         if (searchForm.value.projectId) {
-          await handleSearchAllTasks();
+          await handleTaskRefresh();
         }
       } else {
         ElMessage.error(response.message || "更改负责人失败");
@@ -1478,7 +1509,7 @@ const handleStatusFlowSuccess = (nextState: string, personName: string) => {
     statusFlowTask.value.assignee = personName;
   }
   if (searchForm.value.projectId) {
-    handleSearchAllTasks();
+    handleTaskRefresh();
   }
 };
 
@@ -1557,7 +1588,7 @@ const handleReportSubmit = () => {
         ElMessage.success("汇报成功");
         reportDialogVisible.value = false;
         if (searchForm.value.projectId) {
-          handleSearchAllTasks();
+          handleTaskRefresh();
         }
       } else {
         ElMessage.error(response.message || "汇报失败");
@@ -1597,7 +1628,7 @@ const handleCloseTask = async (task: any) => {
     if (response.code === 200) {
       ElMessage.success("任务已关闭");
       if (searchForm.value.projectId) {
-        handleSearchAllTasks();
+        handleTaskRefresh();
       }
     } else {
       ElMessage.error(response.message || "关闭任务失败");
