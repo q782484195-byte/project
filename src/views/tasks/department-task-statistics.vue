@@ -66,7 +66,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick } from "vue";
+import { ref, onMounted, onBeforeUnmount, onUnmounted, nextTick, watch } from "vue";
 import { ElMessage } from "element-plus";
 import { getTaskStatistics } from "@/api/system";
 import { TaskStatus } from "@/types";
@@ -79,6 +79,42 @@ const activeUserTab = ref<Record<string, string>>({});
 const pageRef = ref<HTMLElement>();
 const containerRef = ref<HTMLElement>();
 const tableHeight = ref<number>(800);
+
+// Tab 栏滑动：绑定在 nav-wrap（实际可滚动容器）上，PC 端滚轮横向滚动；滚动时显示滚动条，停止后隐藏
+const SCROLLBAR_VISIBLE_MS = 800;
+let tabsWheelCleanups: (() => void)[] = [];
+const setupTabsHeaderWheel = () => {
+  nextTick(() => {
+    tabsWheelCleanups.forEach((fn) => fn());
+    tabsWheelCleanups = [];
+    const container = containerRef.value;
+    if (!container) return;
+    container.querySelectorAll<HTMLElement>(".el-tabs__nav-wrap").forEach((wrap) => {
+      let scrollbarTimeout: ReturnType<typeof setTimeout> | null = null;
+      const onWheel = (e: WheelEvent) => {
+        if (wrap.scrollWidth <= wrap.clientWidth) return;
+        e.preventDefault();
+        wrap.scrollLeft += e.deltaY;
+      };
+      const onScroll = () => {
+        wrap.classList.add("nav-wrap-scrolling");
+        if (scrollbarTimeout) clearTimeout(scrollbarTimeout);
+        scrollbarTimeout = setTimeout(() => {
+          wrap.classList.remove("nav-wrap-scrolling");
+          scrollbarTimeout = null;
+        }, SCROLLBAR_VISIBLE_MS);
+      };
+      wrap.addEventListener("wheel", onWheel, { passive: false });
+      wrap.addEventListener("scroll", onScroll, { passive: true });
+      tabsWheelCleanups.push(() => {
+        wrap.removeEventListener("wheel", onWheel);
+        wrap.removeEventListener("scroll", onScroll);
+        if (scrollbarTimeout) clearTimeout(scrollbarTimeout);
+        wrap.classList.remove("nav-wrap-scrolling");
+      });
+    });
+  });
+};
 
 // 角色映射
 const roleMap: Record<string, string> = {
@@ -319,11 +355,18 @@ const getTaskStatisticsData = async () => {
 onMounted(() => {
   getTaskStatisticsData();
   calculateTableHeight();
-  window.addEventListener('resize', handleResize);
+  window.addEventListener("resize", handleResize);
+  setTimeout(setupTabsHeaderWheel, 400);
 });
-
+watch(activeDepartmentTab, () => {
+  setTimeout(setupTabsHeaderWheel, 100);
+});
+onBeforeUnmount(() => {
+  tabsWheelCleanups.forEach((fn) => fn());
+  tabsWheelCleanups = [];
+});
 onUnmounted(() => {
-  window.removeEventListener('resize', handleResize);
+  window.removeEventListener("resize", handleResize);
 });
 </script>
 
@@ -333,6 +376,62 @@ onUnmounted(() => {
     min-height: 800px;
     display: flex;
     flex-direction: column;
+
+    /* 使用原生横向滚动，让 tab 栏真正可滑动，隐藏的 tab 能滑出 */
+    :deep(.el-tabs__header) {
+      min-width: 0;
+      width: 100%;
+    }
+
+    /* 默认隐藏滚动条，滚动时显示，停止后延迟隐藏 */
+    :deep(.el-tabs__nav-wrap) {
+      overflow-x: auto !important;
+      overflow-y: hidden !important;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-x;
+      scrollbar-width: none;
+
+      &::-webkit-scrollbar {
+        height: 0;
+        transition: height 0.2s ease;
+      }
+
+      &::-webkit-scrollbar-thumb {
+        background: transparent;
+        border-radius: 3px;
+      }
+
+      &.nav-wrap-scrolling {
+        scrollbar-width: thin;
+
+        &::-webkit-scrollbar {
+          height: 2px;
+        }
+
+        &::-webkit-scrollbar-thumb {
+          background: var(--el-border-borer-color);
+        }
+      }
+    }
+
+    :deep(.el-tabs__nav-scroll) {
+      overflow: visible !important;
+      width: max-content;
+      min-width: 100%;
+      display: inline-block;
+    }
+
+    :deep(.el-tabs__nav) {
+      white-space: nowrap;
+      transform: none !important;
+      /* 禁用组件自带的 transform 滚动，改用容器原生滚动 */
+    }
+
+    /* 隐藏组件自带的 <> 按钮，避免与原生滚动重复 */
+    :deep(.el-tabs__nav-prev),
+    :deep(.el-tabs__nav-next) {
+      display: none;
+    }
   }
 
   .assignee-text {
@@ -341,6 +440,18 @@ onUnmounted(() => {
 
   .assignee-text-dept {
     color: #67C23A;
+  }
+}
+
+@media (max-width: 640px) {
+  .tasks-page .tasks-table-container {
+    :deep(.el-tabs__nav-wrap) {
+      scrollbar-width: none;
+
+      &::-webkit-scrollbar {
+        display: none;
+      }
+    }
   }
 }
 </style>

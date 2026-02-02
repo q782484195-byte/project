@@ -30,19 +30,18 @@
     <!-- 层级列表 -->
     <el-card v-loading="loading" class="requirements-table-card" ref="requirementsCardRef">
       <el-table :data="filteredRequirements" :style="{ width: '100%' }" :height="tableHeight">
-        <el-table-column prop="requirement_name" label="层级名称" min-width="200" />
-        <el-table-column prop="project_name" label="选择项目" width="150" />
-        <el-table-column prop="priority" label="优先级" width="100">
+        <el-table-column prop="requirement_name" label="层级名称" />
+        <el-table-column prop="project_name" label="选择项目" />
+        <el-table-column prop="priority" label="优先级">
           <template #default="{ row }">
             <el-tag :type="getPriorityType(row.priority) || undefined" size="small">
               {{ row.priority || "-" }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="priority" label="优先级" width="150">
+        <el-table-column prop="priority" label="优先级">
           <template #default="{ row }">
-            <el-select v-model="row.priority" size="small" style="width: 120px" placeholder="选择优先级"
-              @change="handlePriorityChange(row)">
+            <el-select v-model="row.priority" size="small" placeholder="选择优先级" @change="handlePriorityChange(row)">
               <el-option label="低" value="低" />
               <el-option label="中" value="中" />
               <el-option label="高" value="高" />
@@ -50,9 +49,9 @@
             </el-select>
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="150">
+        <el-table-column prop="status" label="状态">
           <template #default="{ row }">
-            <el-select v-model="row.status" size="small" style="width: 100px" @change="handleStatusChange(row)">
+            <el-select v-model="row.status" size="small" @change="handleStatusChange(row)">
               <el-option label="草稿" value="草稿" />
               <el-option label="进行中" value="进行中" />
               <el-option label="已完成" value="已完成" />
@@ -60,8 +59,8 @@
             </el-select>
           </template>
         </el-table-column>
-        <el-table-column prop="create_time" label="创建时间" width="180" />
-        <el-table-column label="操作" width="150" fixed="right">
+        <el-table-column prop="create_time" label="创建时间" />
+        <el-table-column label="操作" width="120" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link size="small" @click="handleView(row)">查看</el-button>
             <el-button type="primary" link size="small" @click="handleEdit(row)"
@@ -74,7 +73,7 @@
 
     <div class="pagination">
       <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" :page-sizes="[10, 20, 50, 100]"
-        :total="totalRequirements" layout="total, sizes, prev, pager, next, jumper" />
+        :total="totalRequirements" :layout="paginationLayout" />
     </div>
 
     <!-- 新建/编辑层级抽屉 -->
@@ -126,6 +125,13 @@ const hasOpenedCreateDrawer = ref(false); // 标志，用于避免重复打开�
 const pageRef = ref<HTMLElement>();
 const requirementsCardRef = ref<InstanceType<typeof ElCard>>();
 const tableHeight = ref<number>(680);
+
+// 移动端检测：分页在移动端使用简化布局
+const windowWidth = ref(typeof window !== "undefined" ? window.innerWidth : 1024);
+const isMobile = computed(() => windowWidth.value <= 640);
+const paginationLayout = computed(() =>
+  isMobile.value ? "prev, pager, next" : "total, sizes, prev, pager, next, jumper"
+);
 
 // 缓存键名
 const CACHE_KEY = "requirements-list-params";
@@ -640,6 +646,7 @@ const calculateTableHeight = () => {
 
 // 窗口大小改变时重新计算
 const handleResize = () => {
+  windowWidth.value = window.innerWidth;
   calculateTableHeight();
 };
 
@@ -723,6 +730,8 @@ onUnmounted(() => {
     margin-top: 20px;
     display: flex;
     justify-content: flex-end;
+    width: 100%;
+    box-sizing: border-box;
   }
 }
 
@@ -749,6 +758,36 @@ onUnmounted(() => {
         .el-select,
         .el-button {
           width: 100% !important;
+        }
+      }
+    }
+
+    .pagination {
+      margin-top: 16px;
+      justify-content: center;
+      width: 100%;
+      max-width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 0 4px;
+      box-sizing: border-box;
+
+      :deep(.el-pagination) {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 4px;
+
+        .el-pagination__total,
+        .el-pagination__sizes,
+        .el-pagination__jump {
+          margin: 0;
+        }
+
+        .btn-prev,
+        .btn-next,
+        .el-pager li {
+          min-width: 28px;
+          margin: 0 2px;
         }
       }
     }

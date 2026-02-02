@@ -10,7 +10,7 @@
               :type="searchForm.projectId === project.id ? 'primary' : 'info'"
               :effect="searchForm.projectId === project.id ? 'dark' : 'plain'" class="project-tag"
               @click="handleProjectTagClick(project.id)">
-              {{ project.name }}
+              <span class="project-tag-text">{{ project.name }}</span>
             </el-tag>
           </div>
         </el-form-item>
@@ -1818,16 +1818,26 @@ onUnmounted(() => {
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     user-select: none;
-    padding: 10px 20px;
+    padding: 10px 16px;
     font-size: 14px;
     font-weight: 500;
     border-radius: 8px;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
     border: 1.5px solid transparent;
     min-height: 36px;
+    width: 140px;
+    min-width: 140px;
+    max-width: 140px;
+    overflow: hidden;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+
+    .project-tag-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
 
     &:hover {
       transform: translateY(-2px);
@@ -1929,6 +1939,9 @@ onUnmounted(() => {
         gap: 8px;
 
         .project-tag {
+          width: 120px;
+          min-width: 120px;
+          max-width: 120px;
           padding: 8px 12px;
           font-size: 13px;
           min-height: 32px;

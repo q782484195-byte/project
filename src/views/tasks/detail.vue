@@ -30,21 +30,21 @@
                   分配
                 </el-button>
               </template>
-              <el-descriptions :column="2" border>
+              <el-descriptions :column="infoDescriptionsColumn" border>
                 <!-- 第1行：任务名称（左）| 所属项目（右） -->
                 <el-descriptions-item label="任务名称">{{
                   task.任务名 || task.task_name || task.title || "-"
-                }}</el-descriptions-item>
+                  }}</el-descriptions-item>
                 <el-descriptions-item label="所属项目">{{
                   task.project_name || "-"
-                }}</el-descriptions-item>
+                  }}</el-descriptions-item>
                 <!-- 第2行：关联层级（左）| 创建人（右） -->
                 <el-descriptions-item label="关联层级">{{
                   task.requirement_name || "-"
-                }}</el-descriptions-item>
+                  }}</el-descriptions-item>
                 <el-descriptions-item label="项目负责人">{{
                   task.creator || "-"
-                }}</el-descriptions-item>
+                  }}</el-descriptions-item>
                 <!-- 第3行：状态（左）| 负责人（右） -->
                 <el-descriptions-item label="状态">
                   <div style="display: flex; align-items: center; gap: 12px">
@@ -55,7 +55,7 @@
                 </el-descriptions-item>
                 <el-descriptions-item label="当前处理人">{{
                   task.当前处理人 || task.assignee || "-"
-                }}</el-descriptions-item>
+                  }}</el-descriptions-item>
                 <!-- 第4行：进度（左）| 优先级（右） -->
                 <el-descriptions-item label="进度">
                   <el-progress :percentage="task.进度 || task.progress || 0" />
@@ -258,7 +258,8 @@ import TaskStatusFlowDialog from "@/components/TaskStatusFlowDialog.vue";
 import { createBug, selectBugsByTask, type BugRecord } from "@/api/bug";
 import { selectReportList, selectTaskInfo } from "@/api/project";
 import type { FormInstance, FormRules } from "element-plus";
-
+import { useUserStore } from "@/store/modules/user";
+const userStore = useUserStore();
 const route = useRoute();
 const router = useRouter();
 
@@ -274,6 +275,11 @@ const originalStatus = ref<string>("");
 const activeTab = ref("info");
 const statusFlowLoading = ref(false);
 const statusFlowDialogVisible = ref(false);
+
+// 移动端检测：基本信息描述列表在移动端一行一个
+const windowWidth = ref(typeof window !== "undefined" ? window.innerWidth : 1024);
+const isMobile = computed(() => windowWidth.value <= 640);
+const infoDescriptionsColumn = computed(() => (isMobile.value ? 1 : 2));
 
 // BUG记录相关
 const bugList = ref<BugRecord[]>([]);
@@ -331,6 +337,7 @@ const calculateReportTableHeight = () => {
 
 // 窗口大小改变时重新计算
 const handleResize = () => {
+  windowWidth.value = window.innerWidth;
   calculateBugTableHeight();
   calculateReportTableHeight();
 };
@@ -516,12 +523,18 @@ const handleStatusFlowEnd = () => {
   statusFlowLoading.value = false;
 };
 
-// 是否可进行分配（有下一状态且非终态）
+// 是否可进行分配（有下一状态且非终态，且当前处理人为当前用户）
 const canOpenStatusFlow = computed(() => {
   const t = task.value;
   if (!t) return false;
   const status = t.状态 || t.status || "";
-  if (status === TaskStatus.COMPLETED || status === TaskStatus.CANCELLED || status === "已完成" || status === "已取消") {
+
+  if ((status === TaskStatus.CANCELLED || status === "已取消")) {
+    return false;
+  }
+  // 当前处理人不是当前用户时，不能进行分配/状态流转
+  const currentHandler = t.当前处理人 || t.assignee || "";
+  if (currentHandler && currentHandler !== userStore.username) {
     return false;
   }
   const nextState = t.next_state;

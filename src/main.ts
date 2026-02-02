@@ -1,3 +1,6 @@
+// 最先执行：为 touch 事件默认加 passive，消除 non-passive 警告
+import "./passive-touch-patch";
+
 import App from "./App.vue";
 import { setupStore } from "@/store";
 import { getPlatformConfig } from "./config";

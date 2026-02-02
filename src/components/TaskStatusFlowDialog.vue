@@ -25,6 +25,22 @@
           check-strictly default-expand-all :data="allUsersTree" :props="treeSelectProps" node-key="value"
           :render-after-expand="false" style="width: 100%" clearable />
       </el-form-item>
+      <template v-if="isPendingAssignToDeptLeader">
+        <el-form-item label="指派时限" prop="time_limit">
+          <el-input-number v-model="form.time_limit" :min="0" :precision="3" placeholder="请输入任务指派时限"
+            style="width: 90%" />
+          <span style="margin-left: 8px; color: #606266;">时</span>
+        </el-form-item>
+        <el-form-item label="截止期限" prop="task_assign_limit">
+          <el-date-picker v-model="form.task_assign_limit" type="date" placeholder="请选择任务截止期限" format="YYYY-MM-DD"
+            value-format="YYYY-MM-DD" style="width: 100%" :disabled-date="disabledPastDate" clearable />
+        </el-form-item>
+        <el-form-item label="超时提醒人" prop="notification_recipients">
+          <el-tree-select v-model="form.notification_recipients" placeholder="请选择指派超时提醒人" :loading="allUsersLoading"
+            filterable check-strictly default-expand-all :data="allUsersTree" :props="treeSelectProps" node-key="value"
+            :render-after-expand="false" style="width: 100%" clearable multiple />
+        </el-form-item>
+      </template>
       <!-- <el-form-item v-if="isFirstRoundTest" label="测试轮数" prop="testRounds">
         <el-select v-model="form.testRounds" placeholder="请选择测试轮数" style="width: 100%">
           <el-option v-for="round in testRoundOptions" :key="round" :label="`${round}轮`" :value="round" />
@@ -53,11 +69,11 @@
       <el-form-item v-if="needRejectionReason" label="驳回理由" prop="rejectionReason">
         <el-input v-model="form.rejectionReason" type="textarea" :rows="3" placeholder="请输入驳回理由" />
       </el-form-item>
-      <el-form-item v-if="needDevelopmentTime" label="研发开始时间" prop="development_start_time">
+      <el-form-item v-if="needDevelopmentTime" label="开始时间" prop="development_start_time">
         <el-date-picker v-model="form.development_start_time" type="date" placeholder="请选择研发开始时间" format="YYYY-MM-DD"
           value-format="YYYY-MM-DD" style="width: 100%" />
       </el-form-item>
-      <el-form-item v-if="needDevelopmentTime" label="研发结束时间" prop="development_end_time">
+      <el-form-item v-if="needDevelopmentTime" label="结束时间" prop="development_end_time">
         <el-date-picker v-model="form.development_end_time" type="date" placeholder="请选择研发结束时间" format="YYYY-MM-DD"
           value-format="YYYY-MM-DD" :disabled-date="(time: Date) => {
             if (props.task?.task_deadline) {
@@ -88,8 +104,8 @@ import type { FormInstance, FormRules, UploadFile, UploadFiles } from "element-p
 import { ElMessage } from "element-plus";
 import { Upload } from "@element-plus/icons-vue";
 import { TaskStatus } from "@/types";
-import { updateTaskState, updateTask, reportTaskProgress, uploadFile, updateDevelopmentTime } from "@/api/project";
-import { selectAllUsers } from "@/api/system";
+import { updateTaskState, updateTask, reportTaskProgress, uploadFile, updateDevelopmentTime, bulkAssignment } from "@/api/project";
+import { selectAllUsers, sendNotification, selectNotificationPerson } from "@/api/system";
 import { sendWorkchatMessage } from "@/api/report";
 import { useUserStoreHook } from "@/store/modules/user";
 
@@ -120,6 +136,9 @@ interface FormData {
   attachmentList: UploadFile[];
   development_start_time: string;
   development_end_time: string;
+  time_limit: number;
+  task_assign_limit: string;
+  notification_recipients: string[];
 }
 const form = reactive<FormData>({
   personName: "",
@@ -129,7 +148,10 @@ const form = reactive<FormData>({
   failureReport: "",
   attachmentList: [],
   development_start_time: "",
-  development_end_time: ""
+  development_end_time: "",
+  time_limit: 0,
+  task_assign_limit: "",
+  notification_recipients: []
 });
 const rules = computed<FormRules>(() => {
   const baseRules: FormRules = {};
@@ -137,6 +159,19 @@ const rules = computed<FormRules>(() => {
   if (needAssign.value) {
     baseRules.personName = [
       { required: true, message: "负责人不能为空", trigger: ["blur", "change"] }
+    ];
+  }
+  // 当前状态为待分配给部门负责人时，任务指派时限、任务截止期限、指派超时提醒人必填（与批量分配取值一致）
+  if (isPendingAssignToDeptLeader.value) {
+    baseRules.time_limit = [
+      { required: true, message: "请输入任务指派时限（小时）", trigger: "blur" },
+      { type: "number", min: 0, message: "任务指派时限必须大于0", trigger: "blur" }
+    ];
+    baseRules.task_assign_limit = [
+      { required: true, message: "请选择任务截止期限", trigger: ["blur", "change"] }
+    ];
+    baseRules.notification_recipients = [
+      { required: true, message: "请选择指派超时提醒人", trigger: "change" }
     ];
   }
 
@@ -167,10 +202,10 @@ const rules = computed<FormRules>(() => {
   // 如果当前状态是"工时审核未通过"，预计工时必填
   if (needDevelopmentTime.value) {
     baseRules.development_start_time = [
-      { required: true, message: "请选择研发开始时间", trigger: ["blur", "change"] }
+      { required: true, message: "请选择开始时间", trigger: ["blur", "change"] }
     ];
     baseRules.development_end_time = [
-      { required: true, message: "请选择研发结束时间", trigger: ["blur", "change"] },
+      { required: true, message: "请选择结束时间", trigger: ["blur", "change"] },
       {
         validator: (rule, value, callback) => {
           if (!value) {
@@ -297,6 +332,14 @@ const needAssignArray = computed<boolean[]>(() => {
 
 const selectedNextState = ref<string>("");
 
+// 当前状态是否为「待分配给部门负责人」（当前状态时显示接收人、截至日期、时限，分配给默认 default_person）
+const isPendingAssignToDeptLeader = computed<boolean>(() => {
+  const status = currentStatus.value;
+  return status === "待分配给部门负责人" ||
+    status === TaskStatus.PENDING_ASSIGN_TO_DEPT_LEADER ||
+    (status && String(status).includes("待分配给部门负责人"));
+});
+
 // 根据选中的下一状态，判断是否需要显示分配给输入框
 const needAssign = computed<boolean>(() => {
   if (nextOptions.value.length === 0 || needAssignArray.value.length === 0) {
@@ -389,8 +432,15 @@ const isTestFailure = computed<boolean>(() => {
 // 判断当前状态是否需要填写预计工时（工时审核未通过）
 const needDevelopmentTime = computed<boolean>(() => {
   const status = currentStatus.value;
-  return status === "工时审核未通过";
+  return status === "工时审核未通过" || status === "填写测试预计工时" || status === "填写研发预计工时" || status === "研发工时未通过" || status === "测试工时未通过";
 });
+
+// 禁用过去的日期（与 index 批量分配一致）
+const disabledPastDate = (time: Date): boolean => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return time.getTime() < today.getTime();
+};
 
 const resetForm = () => {
   form.personName = "";
@@ -401,11 +451,13 @@ const resetForm = () => {
   form.attachmentList = [];
   form.development_start_time = "";
   form.development_end_time = "";
+  form.time_limit = 0;
+  form.task_assign_limit = "";
+  form.notification_recipients = [];
   selectedNextState.value = "";
 };
 
-const initForm = () => {
-  form.personName = "";
+const initForm = async () => {
   form.rejectionReason = "";
   form.testRounds = 1;
   form.completionReport = "";
@@ -413,10 +465,29 @@ const initForm = () => {
   form.attachmentList = [];
   form.development_start_time = "";
   form.development_end_time = "";
+  // 当前状态为「待分配给部门负责人」时，与批量分配取值一致：时限默认 1 时
+  form.time_limit = isPendingAssignToDeptLeader.value ? 1 : 0;
+  form.task_assign_limit = "";
+  form.notification_recipients = [];
   if (nextOptions.value.length === 1) {
     selectedNextState.value = nextOptions.value[0];
   } else {
     selectedNextState.value = "";
+  }
+  // 当前状态为「待分配给部门负责人」时，分配给默认填任务的 default_person
+  form.personName = isPendingAssignToDeptLeader.value && props.task?.default_person
+    ? String(props.task.default_person).trim()
+    : "";
+  // 当前状态为「待分配给部门负责人」时，超时提醒人默认填入接口返回的接收人（与 index 批量分配一致）
+  if (isPendingAssignToDeptLeader.value) {
+    try {
+      const response = await selectNotificationPerson();
+      if (response.code === 200 && response.result?.recipient && Array.isArray(response.result.recipient)) {
+        form.notification_recipients = [...response.result.recipient];
+      }
+    } catch {
+      // 不显示错误，使用空数组
+    }
   }
   // 每次打开对话框都加载用户列表
   loadAllUsers();
@@ -427,9 +498,9 @@ const initForm = () => {
 
 watch(
   () => dialogVisible.value,
-  val => {
+  async val => {
     if (val) {
-      initForm();
+      await initForm();
     } else {
       resetForm();
     }
@@ -467,6 +538,8 @@ watch(
       formRef.value?.clearValidate("rejectionReason");
       formRef.value?.clearValidate("completionReport");
       formRef.value?.clearValidate("failureReport");
+      formRef.value?.clearValidate("recipient");
+      formRef.value?.clearValidate("deadline");
     });
   }
 );
@@ -797,7 +870,63 @@ const handleConfirm = () => {
         requestData.test_rounds = form.testRounds;
       }
 
-      // 4. 最后调用 /task/update_state 更新状态
+      // 当前状态为「待分配给部门负责人」时，与 index 批量分配一致：先调 sendNotification，再调 bulkAssignment，不放在 update_task_state 里传
+      if (isPendingAssignToDeptLeader.value) {
+        // 1. 先调用更新超时消息接收人接口（与 index handleBatchAssignSubmit 一致）
+        try {
+          const notificationResponse = await sendNotification({
+            recipient: Array.isArray(form.notification_recipients)
+              ? form.notification_recipients
+              : [form.notification_recipients]
+          });
+          if (notificationResponse.code !== 200) {
+            ElMessage.error(notificationResponse.message || "更新超时消息接收人失败");
+            confirmLoading.value = false;
+            return;
+          }
+        } catch (notificationError: any) {
+          console.error("更新超时消息接收人失败:", notificationError);
+          ElMessage.error(
+            notificationError?.response?.data?.message || notificationError?.message || "更新超时消息接收人失败"
+          );
+          confirmLoading.value = false;
+          return;
+        }
+
+        // 2. 再调用批量分配接口（单任务，与 index 同一逻辑）
+        const taskIdStr = String(taskId);
+        if (taskIdStr && taskIdStr !== "0" && form.task_assign_limit) {
+          const taskJson: Record<string, { task_name: string; state: string; current_assignee: string; default_person: string }> = {
+            [taskIdStr]: {
+              task_name: String(props.task?.任务名 || props.task?.task_name || props.task?.title || ""),
+              state: String(props.task?.状态 || props.task?.status || ""),
+              current_assignee: String(props.task?.当前处理人 || props.task?.current_handler || props.task?.assignee || ""),
+              default_person: String(props.task?.default_person || props.task?.默认部门负责人 || "")
+            }
+          };
+          try {
+            const bulkRes = await bulkAssignment({
+              hour: Number(form.time_limit ?? 1),
+              task_json: taskJson,
+              task_deadline: form.task_assign_limit
+            });
+            if (bulkRes.code !== 200) {
+              ElMessage.error(bulkRes.message || "设置任务时限与截止期限失败");
+              confirmLoading.value = false;
+              return;
+            }
+          } catch (bulkError: any) {
+            console.error("设置任务时限与截止期限失败:", bulkError);
+            ElMessage.error(
+              bulkError?.response?.data?.message || bulkError?.message || "设置任务时限与截止期限失败"
+            );
+            confirmLoading.value = false;
+            return;
+          }
+        }
+      }
+
+      // 4. 最后调用 /task/update_state 更新状态（不在此请求中传时限、截止期限、提醒人）
       const response = await updateTaskState(requestData);
       if (response.code === 200) {
         ElMessage.success(response.message || "状态更新成功");

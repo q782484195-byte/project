@@ -1,5 +1,5 @@
 <template>
-  <div class="nested-tabs-container">
+  <div ref="tabsContainerRef" class="nested-tabs-container">
     <el-tabs v-model="currentActiveTab" :lazy="true" @tab-change="handleTabChange" class="nested-tabs">
       <el-tab-pane v-for="(child, key) in data" :key="key" :name="key">
         <template #label>
@@ -32,7 +32,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, nextTick, watch } from "vue";
+import { computed, ref, onMounted, onBeforeUnmount, nextTick, watch } from "vue";
 
 const props = defineProps<{
   data: Record<string, any>;
@@ -51,6 +51,7 @@ const emit = defineEmits<{
 // 存储每个 tab 是否被截断的状态
 const isOverflowed = ref<Record<string, boolean>>({});
 const tabNameRefs = ref<Record<string, HTMLElement>>({});
+const tabsContainerRef = ref<HTMLElement | null>(null);
 
 const currentActiveTab = computed({
   get: () => props.activeTabs[props.level] || "",
@@ -98,18 +99,62 @@ const checkAllOverflow = () => {
   });
 };
 
+// Tab 栏滑动：与 department-task-statistics 一致，原生横向滚动；滚动时显示滚动条，停止后隐藏
+const SCROLLBAR_VISIBLE_MS = 800;
+let tabsWheelCleanups: (() => void)[] = [];
+const setupTabsHeaderWheel = () => {
+  nextTick(() => {
+    tabsWheelCleanups.forEach((fn) => fn());
+    tabsWheelCleanups = [];
+    const container = tabsContainerRef.value;
+    if (!container) return;
+    container.querySelectorAll<HTMLElement>(".el-tabs__nav-wrap").forEach((wrap) => {
+      let scrollbarTimeout: ReturnType<typeof setTimeout> | null = null;
+      const onWheel = (e: WheelEvent) => {
+        if (wrap.scrollWidth <= wrap.clientWidth) return;
+        e.preventDefault();
+        wrap.scrollLeft += e.deltaY;
+      };
+      const onScroll = () => {
+        wrap.classList.add("nav-wrap-scrolling");
+        if (scrollbarTimeout) clearTimeout(scrollbarTimeout);
+        scrollbarTimeout = setTimeout(() => {
+          wrap.classList.remove("nav-wrap-scrolling");
+          scrollbarTimeout = null;
+        }, SCROLLBAR_VISIBLE_MS);
+      };
+      wrap.addEventListener("wheel", onWheel, { passive: false });
+      wrap.addEventListener("scroll", onScroll, { passive: true });
+      tabsWheelCleanups.push(() => {
+        wrap.removeEventListener("wheel", onWheel);
+        wrap.removeEventListener("scroll", onScroll);
+        if (scrollbarTimeout) clearTimeout(scrollbarTimeout);
+        wrap.classList.remove("nav-wrap-scrolling");
+      });
+    });
+  });
+};
+
 onMounted(() => {
   checkAllOverflow();
+  setupTabsHeaderWheel();
 });
 
-// 监听数据变化，重新检查截断状态
+onBeforeUnmount(() => {
+  tabsWheelCleanups.forEach((fn) => fn());
+  tabsWheelCleanups = [];
+});
+
+// 监听数据变化，重新检查截断状态并重新绑定 tab 滚动
 watch(() => props.data, () => {
   checkAllOverflow();
+  setupTabsHeaderWheel();
 }, { deep: true });
 
-// 监听 activeTabs 变化，重新检查（因为切换 tab 可能影响布局）
+// 监听 activeTabs 变化，重新检查并重新绑定 tab 滚动
 watch(() => props.activeTabs, () => {
   checkAllOverflow();
+  setupTabsHeaderWheel();
 });
 
 // 判断节点是否有 task_list
@@ -207,16 +252,61 @@ const handleUpdateActiveTabs = (tabs: string[]) => {
     margin: 0 0 16px 0;
     border-bottom: 1px solid var(--el-border-color-lighter);
     background: transparent;
+    min-width: 0;
+    width: 100%;
   }
 
+  /* 与 department-task-statistics 一致：原生横向滚动，滚动时显示滚动条，停止后隐藏 */
   :deep(.el-tabs__nav-wrap) {
     &::after {
       display: none;
     }
+
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      height: 0;
+      transition: height 0.2s ease;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: transparent;
+      border-radius: 3px;
+    }
+
+    &.nav-wrap-scrolling {
+      scrollbar-width: thin;
+
+      &::-webkit-scrollbar {
+        height: 2px;
+      }
+
+      &::-webkit-scrollbar-thumb {
+        background: var(--el-border-color-lighter);
+      }
+    }
+  }
+
+  :deep(.el-tabs__nav-scroll) {
+    overflow: visible !important;
+    width: max-content;
+    min-width: 100%;
+    display: inline-block;
   }
 
   :deep(.el-tabs__nav) {
     border: none;
+    white-space: nowrap;
+    transform: none !important;
+  }
+
+  :deep(.el-tabs__nav-prev),
+  :deep(.el-tabs__nav-next) {
+    display: none;
   }
 
   :deep(.el-tabs__item) {
@@ -398,12 +488,8 @@ html.dark {
 @media (max-width: 640px) {
   .nested-tabs-container {
     .nested-tabs {
-      :deep(.el-tabs__header) {
-        overflow-x: auto;
-        overflow-y: hidden;
-        -webkit-overflow-scrolling: touch;
+      :deep(.el-tabs__nav-wrap) {
         scrollbar-width: none;
-        -ms-overflow-style: none;
 
         &::-webkit-scrollbar {
           display: none;

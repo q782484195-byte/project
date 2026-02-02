@@ -2,15 +2,16 @@
   <div class="time-tracking-page">
     <!-- 查询表单 -->
     <el-card class="search-card mb-20">
-      <el-form :model="searchForm" :inline="true" class="search-form">
+      <el-form :model="searchForm" :inline="!isMobile" class="search-form" :label-position="isMobile ? 'top' : 'left'">
         <el-form-item label="项目">
-          <el-select v-model="searchForm.project_id" placeholder="请选择项目" clearable filterable style="width: 300px"
-            :loading="projectsLoading" @change="handleProjectChange">
+          <el-select v-model="searchForm.project_id" placeholder="请选择项目" clearable filterable
+            :style="{ width: isMobile ? '100%' : '300px' }" :loading="projectsLoading" @change="handleProjectChange">
             <el-option v-for="project in projectOptions" :key="project.id" :label="project.name" :value="project.id" />
           </el-select>
         </el-form-item>
         <el-form-item label="天数">
-          <el-input-number v-model="searchForm.day" :min="1" :max="365" placeholder="请输入天数" style="width: 200px" />
+          <el-input-number v-model="searchForm.day" :min="1" :max="365" placeholder="请输入天数"
+            :style="{ width: isMobile ? '100%' : '200px' }" />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="handleSearch" :loading="loading">
@@ -32,29 +33,58 @@
         </div>
       </template>
       <div v-if="groupedTableData.size > 0" class="result-container">
-        <el-tabs v-model="activeTab" type="border-card" class="time-tracking-tabs">
-          <el-tab-pane v-for="(groupName, index) in groupNames" :key="groupName" :label="groupName" :name="groupName">
-            <div class="tab-table-container">
-              <el-table :data="groupedTableData.get(groupName) || []" border stripe style="width: 100%" height="100%">
-                <el-table-column v-for="(header, colIndex) in tableHeaders" :key="colIndex" :prop="`col_${colIndex}`"
-                  :label="header" :min-width="colIndex === 0 ? 200 : 120" :fixed="colIndex === 0 ? 'left' : false"
-                  show-overflow-tooltip>
-                  <template #default="{ row }">
-                    <div v-if="row[`col_${colIndex}`]" class="cell-content">
-                      <template v-if="hasMultipleValues(row[`col_${colIndex}`])">
-                        <div v-for="(item, idx) in splitValue(row[`col_${colIndex}`])" :key="idx" class="cell-item">
-                          {{ item }}
-                        </div>
+        <!-- PC 端：表格 -->
+        <template v-if="!isMobile">
+          <el-tabs v-model="activeTab" type="border-card" class="time-tracking-tabs">
+            <el-tab-pane v-for="(groupName, index) in groupNames" :key="groupName" :label="groupName" :name="groupName">
+              <div class="tab-table-container">
+                <el-table :data="groupedTableData.get(groupName) || []" border stripe style="width: 100%" height="100%">
+                  <el-table-column v-for="(header, colIndex) in tableHeaders" :key="colIndex" :prop="`col_${colIndex}`"
+                    :label="header" :min-width="colIndex === 0 ? 200 : 120" :fixed="colIndex === 0 ? 'left' : false"
+                    show-overflow-tooltip>
+                    <template #default="{ row }">
+                      <div v-if="row[`col_${colIndex}`]" class="cell-content">
+                        <template v-if="hasMultipleValues(row[`col_${colIndex}`])">
+                          <div v-for="(item, idx) in splitValue(row[`col_${colIndex}`])" :key="idx" class="cell-item">
+                            {{ item }}
+                          </div>
+                        </template>
+                        <span v-else>{{ row[`col_${colIndex}`] }}</span>
+                      </div>
+                      <span v-else style="color: #c0c4cc;">-</span>
+                    </template>
+                  </el-table-column>
+                </el-table>
+              </div>
+            </el-tab-pane>
+          </el-tabs>
+        </template>
+        <!-- 移动端：卡片列表 -->
+        <template v-else>
+          <el-tabs v-model="activeTab" type="border-card" class="time-tracking-tabs time-tracking-tabs-mobile">
+            <el-tab-pane v-for="groupName in groupNames" :key="groupName" :label="groupName" :name="groupName">
+              <div class="mobile-list">
+                <div v-for="(row, rowIndex) in (groupedTableData.get(groupName) || [])" :key="row._id || rowIndex"
+                  class="mobile-row-card">
+                  <div v-for="(header, colIndex) in tableHeaders" :key="colIndex" class="mobile-row-field">
+                    <span class="mobile-field-label">{{ header }}</span>
+                    <div class="mobile-field-value">
+                      <template v-if="row[`col_${colIndex}`]">
+                        <template v-if="hasMultipleValues(row[`col_${colIndex}`])">
+                          <div v-for="(item, idx) in splitValue(row[`col_${colIndex}`])" :key="idx" class="cell-item">
+                            {{ item }}
+                          </div>
+                        </template>
+                        <span v-else>{{ row[`col_${colIndex}`] }}</span>
                       </template>
-                      <span v-else>{{ row[`col_${colIndex}`] }}</span>
+                      <span v-else class="text-placeholder">-</span>
                     </div>
-                    <span v-else style="color: #c0c4cc;">-</span>
-                  </template>
-                </el-table-column>
-              </el-table>
-            </div>
-          </el-tab-pane>
-        </el-tabs>
+                  </div>
+                </div>
+              </div>
+            </el-tab-pane>
+          </el-tabs>
+        </template>
       </div>
       <div v-else class="empty-container">
         <el-empty description="暂无数据，请先查询" />
@@ -64,7 +94,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { ElMessage } from "element-plus";
 import { Search } from "@element-plus/icons-vue";
 import {
@@ -86,6 +116,10 @@ const searchForm = ref({
 const loading = ref(false);
 const projectsLoading = ref(false);
 const timeTrackingData = ref<Record<string, any>>({});
+
+// 移动端检测
+const windowWidth = ref(typeof window !== "undefined" ? window.innerWidth : 1024);
+const isMobile = computed(() => windowWidth.value <= 640);
 
 // 表头数据
 const tableHeaders = ref<string[]>([]);
@@ -292,8 +326,17 @@ const splitValue = (value: any): string[] => {
   return value.split(",").map(item => item.trim()).filter(item => item);
 };
 
+const handleResize = () => {
+  windowWidth.value = window.innerWidth;
+};
+
 onMounted(() => {
   loadProjects();
+  window.addEventListener("resize", handleResize);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener("resize", handleResize);
 });
 </script>
 
@@ -414,10 +457,74 @@ onMounted(() => {
   justify-content: center;
 }
 
+// 移动端卡片列表（替代表格）
+.mobile-list {
+  padding: 8px 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  max-height: 100%;
+}
+
+.mobile-row-card {
+  background: #fff;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.mobile-row-field {
+  display: flex;
+  align-items: flex-start;
+  padding: 6px 0;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 13px;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.mobile-field-label {
+  flex-shrink: 0;
+  width: 80px;
+  color: #909399;
+  font-weight: 500;
+}
+
+.mobile-field-value {
+  flex: 1;
+  min-width: 0;
+  word-break: break-word;
+  color: #303133;
+
+  .cell-item {
+    padding: 2px 0;
+    line-height: 1.5;
+
+    &:not(:last-child) {
+      margin-bottom: 4px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+  }
+}
+
+.text-placeholder {
+  color: #c0c4cc;
+}
+
 // 移动端适配 (640px)
 @media (max-width: 640px) {
   .time-tracking-page {
     padding: 12px;
+    height: auto;
+    min-height: calc(100vh - 160px);
 
     .search-card {
       margin-bottom: 12px;
@@ -434,18 +541,33 @@ onMounted(() => {
         margin-bottom: 12px;
       }
 
+      :deep(.el-form-item__label) {
+        padding-bottom: 4px;
+      }
+
       .el-select,
       .el-input-number {
         width: 100% !important;
       }
 
       .el-button {
-        width: 100%;
-        margin-bottom: 8px;
+        margin-right: 8px;
+
+        &:last-child {
+          margin-right: 0;
+        }
       }
     }
 
-    .time-tracking-tabs {
+    .result-card {
+      min-height: 300px;
+
+      :deep(.el-card__body) {
+        padding: 12px;
+      }
+    }
+
+    .time-tracking-tabs-mobile {
       :deep(.el-tabs__header) {
         overflow-x: auto;
         overflow-y: hidden;
@@ -466,6 +588,11 @@ onMounted(() => {
         padding: 8px 12px;
         font-size: 13px;
         white-space: nowrap;
+      }
+
+      :deep(.el-tabs__content) {
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
       }
     }
 

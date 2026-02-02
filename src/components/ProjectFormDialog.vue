@@ -429,7 +429,7 @@ const loadProjectManagers = async () => {
           members.forEach((user: any) => {
             const userRoles = Array.isArray(user.role) ? user.role : user.role ? [user.role] : [];
             // 检查是否是项目负责人
-            if (userRoles.includes("ProjectManager")) {
+            if (userRoles.includes("ProjectManager") || userRoles.includes("ProjectDirector")) {
               const username = user.username || user.nickname || "";
               if (username && !managers.find(m => m.value === username)) {
                 managers.push({

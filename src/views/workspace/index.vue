@@ -156,10 +156,13 @@
                   </template>
                 </el-table-column>
               </el-table>
-              <el-pagination v-model:current-page="todoTasksPage" v-model:page-size="todoTasksPageSize"
-                :total="todoTasksTotal" :page-sizes="[10, 20, 50, 100]" layout="total, sizes, prev, pager, next, jumper"
-                @size-change="handleTodoTasksSizeChange" @current-change="handleTodoTasksPageChange"
-                style="margin-top: 16px; justify-content: flex-end" />
+              <div class="todo-pagination-wrapper">
+                <el-pagination v-model:current-page="todoTasksPage" v-model:page-size="todoTasksPageSize"
+                  :total="todoTasksTotal" :page-sizes="[10, 20, 50, 100]"
+                  :layout="isMobile ? 'total, prev, pager, next' : 'total, sizes, prev, pager, next, jumper'"
+                  :small="isMobile" @size-change="handleTodoTasksSizeChange"
+                  @current-change="handleTodoTasksPageChange" />
+              </div>
 
             </el-card>
           </el-col>
@@ -393,7 +396,7 @@
                 {{ row.development_end_time || "-" }}
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="80" fixed="right">
+            <el-table-column label="操作" width="60" fixed="right">
               <template #default="{ row }">
                 <el-dropdown trigger="click" @command="(command) => handleAllTaskDropdownCommand(command, row)">
                   <el-button type="primary" link size="small" circle class="more-icon-btn">
@@ -1776,7 +1779,11 @@ const calculateTableHeights = () => {
 };
 
 // 窗口大小改变时重新计算
+const windowWidth = ref(typeof window !== "undefined" ? window.innerWidth : 1024);
+const isMobile = computed(() => windowWidth.value <= 640);
+
 const handleResize = () => {
+  windowWidth.value = window.innerWidth;
   calculateTableHeights();
 };
 
@@ -1961,7 +1968,6 @@ onBeforeUnmount(() => {
     border-radius: 8px;
 
     :deep(.el-tabs__header) {
-      margin-bottom: 20px;
       background: transparent;
     }
 
@@ -2196,6 +2202,17 @@ onBeforeUnmount(() => {
     color: #409eff;
   }
 
+  .todo-pagination-wrapper {
+    margin-top: 16px;
+    display: flex;
+    justify-content: flex-end;
+
+    :deep(.el-pagination) {
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+  }
+
   .text-ellipsis {
     overflow: hidden;
     text-overflow: ellipsis;
@@ -2241,10 +2258,6 @@ onBeforeUnmount(() => {
         font-size: 13px;
         white-space: nowrap;
       }
-
-      :deep(.el-tabs__content) {
-        padding: 12px 0;
-      }
     }
 
     .user-info-card {
@@ -2274,6 +2287,59 @@ onBeforeUnmount(() => {
       }
     }
 
+    /* 工作流程移动端适配 */
+    .workflow-diagram {
+      gap: 8px;
+      max-height: none;
+      padding: 4px 0;
+      -webkit-overflow-scrolling: touch;
+
+      &::-webkit-scrollbar {
+        width: 4px;
+      }
+
+      .workflow-role {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        padding: 8px;
+
+        &:hover {
+          transform: none;
+        }
+
+        .role-box {
+          min-width: 0;
+          padding: 6px 8px;
+          font-size: 11px;
+        }
+
+        .role-tasks {
+          gap: 4px;
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: none;
+          padding-bottom: 2px;
+
+          &::-webkit-scrollbar {
+            display: none;
+          }
+
+          .task-item {
+            padding: 4px 8px;
+            font-size: 10px;
+            white-space: nowrap;
+            flex-shrink: 0;
+          }
+
+          .task-arrow {
+            font-size: 10px;
+            flex-shrink: 0;
+          }
+        }
+      }
+    }
+
     :deep(.el-table) {
       .el-table__body-wrapper {
         overflow-x: auto;
@@ -2287,6 +2353,39 @@ onBeforeUnmount(() => {
       .el-table__cell {
         padding: 8px 4px;
         font-size: 12px;
+      }
+    }
+
+    /* 待办事项分页移动端适配 */
+    .todo-pagination-wrapper {
+      justify-content: center;
+      margin-top: 12px;
+      padding: 0 4px;
+
+      :deep(.el-pagination) {
+        justify-content: center;
+        gap: 2px;
+
+        .el-pagination__total,
+        .el-pagination__jump {
+          margin: 0 4px 4px 0;
+        }
+
+        .el-pagination__sizes {
+          margin: 0 4px 4px 0;
+        }
+
+        .el-pagination__prev,
+        .el-pagination__next,
+        .el-pagination .btn-quicknext,
+        .el-pagination .btn-quickprev,
+        .el-pager li {
+          min-width: 28px;
+          height: 28px;
+          line-height: 28px;
+          margin: 0 2px;
+          font-size: 12px;
+        }
       }
     }
   }
