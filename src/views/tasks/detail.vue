@@ -133,7 +133,11 @@
                   </el-table-column>
                   <el-table-column prop="state" label="状态" />
                   <el-table-column prop="message" label="汇报内容" show-overflow-tooltip />
-
+                  <el-table-column label="创建人">
+                    <template #default="{ row }">
+                      {{ row.creator || row.创建人 || "-" }}
+                    </template>
+                  </el-table-column>
                   <el-table-column prop="create_time" label="汇报时间" />
                 </el-table>
                 <el-empty v-else description="暂无汇报记录" :image-size="100" />

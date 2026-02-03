@@ -102,7 +102,7 @@
                     <el-dropdown-item command="close" v-if="hasPerms(['task:close'])" divided>
                       <span style="color: var(--el-color-danger)">关闭</span>
                     </el-dropdown-item>
-                    <el-dropdown-item command="complete" v-if="row.状态 !== '已完成'" divided>
+                    <el-dropdown-item command="complete" v-if="row.状态 !== '已完成' && hasPerms(['task:finish'])" divided>
                       <span style="color: var(--el-color-success)">完成</span>
                     </el-dropdown-item>
                     <el-dropdown-item command="report"

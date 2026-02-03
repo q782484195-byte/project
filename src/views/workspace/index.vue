@@ -4,9 +4,9 @@
     <el-tabs v-model="activeTab" @tab-change="handleTabChange" class="workspace-tabs">
       <!-- 工作台 Tab -->
       <el-tab-pane label="工作台" name="workspace">
-        <el-row :gutter="20">
+        <el-row :gutter="20" class="workspace-dashboard-row">
           <!-- 左侧：占2/3 -->
-          <el-col :span="16" :xs="24">
+          <el-col :span="16" :xs="24" class="workspace-dashboard-left-col">
             <!-- 用户信息和统计 -->
             <el-card class="user-info-card mb-20">
               <div class="user-info">
@@ -20,6 +20,21 @@
                       <div class="welcome-text">欢迎回来，</div>
                       <div class="user-name">
                         <span>{{ userStore.username || userStore.nickname || "用户" }}</span>
+                      </div>
+                      <div class="user-meta"
+                        v-if="currentUserDepartment || (userStore.roles && userStore.roles.length)">
+                        <span v-if="currentUserDepartment" class="meta-item">
+                          <el-icon>
+                            <OfficeBuilding />
+                          </el-icon>
+                          {{ currentUserDepartment }}
+                        </span>
+                        <span v-if="userStore.roles && userStore.roles.length" class="meta-item">
+                          <el-icon>
+                            <User />
+                          </el-icon>
+                          {{ displayRoleNames }}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -167,16 +182,15 @@
             </el-card>
           </el-col>
           <!-- 右侧：占1/3 -->
-          <el-col :span="8" :xs="24">
+          <el-col :span="8" :xs="24" class="workspace-dashboard-right-col">
             <!-- 流程示意图 -->
-            <el-card class="mb-20">
+            <!-- <el-card class="mb-20">
               <template #header>
                 <div class="card-header">
                   <span>工作流程</span>
                 </div>
               </template>
               <div class="workflow-diagram">
-                <!-- 管理员 -->
                 <div class="workflow-role">
                   <div class="role-box role-admin">
                     <div class="role-title">管理员</div>
@@ -190,7 +204,6 @@
                   </div>
                 </div>
 
-                <!-- 项目经理 -->
                 <div class="workflow-role">
                   <div class="role-box role-manager">
                     <div class="role-title">项目经理</div>
@@ -206,7 +219,6 @@
                   </div>
                 </div>
 
-                <!-- 部门主管 -->
                 <div class="workflow-role">
                   <div class="role-box role-product">
                     <div class="role-title">部门主管</div>
@@ -220,7 +232,6 @@
                   </div>
                 </div>
 
-                <!-- 研发人员 -->
                 <div class="workflow-role">
                   <div class="role-box role-developer">
                     <div class="role-title">研发人员</div>
@@ -237,28 +248,10 @@
                     <div class="task-item">完成</div>
                   </div>
                 </div>
-
-                <!-- 测试人员 -->
-                <!-- <div class="workflow-role">
-                  <div class="role-box role-tester">
-                    <div class="role-title">测试人员</div>
-                  </div>
-                  <div class="role-tasks">
-                    <div class="task-item">撰写用例</div>
-                    <div class="task-arrow">→</div>
-                    <div class="task-item">执行用例</div>
-                    <div class="task-arrow">→</div>
-                    <div class="task-item">提交Bug</div>
-                    <div class="task-arrow">→</div>
-                    <div class="task-item">验证Bug</div>
-                    <div class="task-arrow">→</div>
-                    <div class="task-item">关闭Bug</div>
-                  </div>
-                </div> -->
               </div>
-            </el-card>
+            </el-card> -->
 
-            <el-card>
+            <el-card class="workspace-activity-card">
               <template #header>
                 <div class="card-header">
                   <span>动态</span>
@@ -289,8 +282,11 @@
                         </el-icon>
                         <div class="activity-text">
                           <div class="activity-main-content">{{ report.content }}</div>
-                          <div v-if="report.state" class="activity-details" style="margin-top: 8px;">
-                            <el-tag :type="getStatusType(report.state)" size="small">状态: {{ report.state }}</el-tag>
+                          <div v-if="report.creator || report.state" class="activity-details" style="margin-top: 8px;">
+                            <span v-if="report.creator" class="report-creator">创建人: {{ report.creator }}</span>
+                            <el-tag v-if="report.state" :type="getStatusType(report.state)" size="small">状态: {{
+                              report.state
+                              }}</el-tag>
                           </div>
                         </div>
                       </div>
@@ -308,8 +304,9 @@
                         </el-icon>
                         <div class="activity-text">
                           <div class="activity-main-content">{{ report.content }}</div>
-                          <div v-if="report.taskName || report.progress !== undefined || report.state"
+                          <div v-if="report.creator || report.taskName || report.progress !== undefined || report.state"
                             class="activity-details" style="margin-top: 8px;">
+                            <span v-if="report.creator" class="report-creator">创建人: {{ report.creator }}</span>
                             <el-tag v-if="report.state" :type="getStatusType(report.state)" size="small"
                               style="margin-right: 8px;">状态: {{ report.state }}</el-tag>
                           </div>
@@ -618,7 +615,7 @@ import { createBug } from "@/api/bug";
 import { selectDepartmentUsers, type DepartmentUserItem } from "@/api/system";
 import { selectSelfReports, selectReports, type ReportRecord } from "@/api/report";
 import { ElMessage } from "element-plus";
-import { User, Clock, Document, DataLine, MoreFilled } from "@element-plus/icons-vue";
+import { User, Clock, Document, DataLine, MoreFilled, OfficeBuilding } from "@element-plus/icons-vue";
 import type { TaskListItem, RequirementListItem, ProjectListItem } from "@/api/project";
 import { TaskStatus } from "@/types";
 import TaskStatusFlowDialog from "@/components/TaskStatusFlowDialog.vue";
@@ -631,6 +628,39 @@ defineOptions({
 const router = useRouter();
 const route = useRoute();
 const userStore = useUserStoreHook();
+
+// 当前用户部门（从部门用户接口获取）
+const currentUserDepartment = ref("");
+
+// 角色代码 -> 显示名称
+const roleNameMap: Record<string, string> = {
+  Admin: "管理员",
+  ProjectManager: "项目经理",
+  DepartmentManager: "部门主管",
+  Member: "普通成员",
+  ProjectDirector: "项目总监",
+  BusinessDepartmentMembers: "业务部门成员"
+};
+const getRoleName = (role: string) => roleNameMap[role] || role;
+const displayRoleNames = computed(() => {
+  const roles = userStore.roles || [];
+  return roles.length ? roles.map(getRoleName).join("、") : "";
+});
+
+// 加载当前用户部门
+const loadCurrentUserDepartment = async () => {
+  try {
+    const response = await selectDepartmentUsers();
+    if (response.code === 200 && Array.isArray(response.result)) {
+      const me = response.result.find(
+        u => (u.username || "").trim() === (userStore.username || "").trim()
+      );
+      currentUserDepartment.value = me?.department || "";
+    }
+  } catch {
+    currentUserDepartment.value = "";
+  }
+};
 
 // 当前时间
 const currentTime = ref("");
@@ -714,8 +744,8 @@ const taskActivities = ref<Array<{ time: string; content: string; icon: string }
 const requirementActivities = ref<Array<{ time: string; content: string; icon: string }>>([]);
 const projectActivities = ref<Array<{ time: string; content: string; icon: string }>>([]);
 const activityTab = ref("activities"); // 动态tab切换
-const myReports = ref<Array<{ time: string; content: string; icon: string; taskName?: string; progress?: number; state?: string }>>([]); // 我汇报的
-const receivedReports = ref<Array<{ time: string; content: string; icon: string; taskName?: string; progress?: number; state?: string }>>([]); // 收到的汇报
+const myReports = ref<Array<{ time: string; content: string; icon: string; taskName?: string; progress?: number; state?: string; creator?: string }>>([]); // 我汇报的
+const receivedReports = ref<Array<{ time: string; content: string; icon: string; taskName?: string; progress?: number; state?: string; creator?: string }>>([]); // 收到的汇报
 
 // 检查是否可以查看收到的汇报（只有admin和部门主管可以查看）
 const canViewReceivedReports = computed(() => {
@@ -1006,7 +1036,7 @@ const handleActivityTabChange = (tabName: string) => {
 };
 
 // 将汇报记录转换为活动格式
-const convertReportsToActivities = (reports: ReportRecord[]): Array<{ time: string; content: string; icon: string; taskName?: string; progress?: number; state?: string }> => {
+const convertReportsToActivities = (reports: ReportRecord[]): Array<{ time: string; content: string; icon: string; taskName?: string; progress?: number; state?: string; creator?: string }> => {
   return reports.map(report => {
     const time = report.create_time || report.createdAt || "";
     const projectName = report.project_name || "";
@@ -1014,6 +1044,7 @@ const convertReportsToActivities = (reports: ReportRecord[]): Array<{ time: stri
     const taskName = report.task_name || report.任务名 || "";
     const progress = report.progress !== undefined ? report.progress : (report.进度 !== undefined ? report.进度 : undefined);
     const state = report.state || "";
+    const creator = report.creator || report.创建人 || "";
 
     // 构建内容，包含任务名和进度信息
     let content = message;
@@ -1041,7 +1072,8 @@ const convertReportsToActivities = (reports: ReportRecord[]): Array<{ time: stri
       icon: "Document",
       taskName: taskName || undefined,
       progress: progress !== undefined && progress !== null ? progress : undefined,
-      state: state || undefined
+      state: state || undefined,
+      creator: creator || undefined
     };
   });
 };
@@ -1790,6 +1822,7 @@ const handleResize = () => {
 onMounted(() => {
   updateTime();
   timeInterval = window.setInterval(updateTime, 1000);
+  loadCurrentUserDepartment();
 
   // 检查query参数，如果有tab参数就激活对应的TAB
   const tab = route.query.tab as string;
@@ -1823,6 +1856,80 @@ onBeforeUnmount(() => {
     margin-bottom: 20px;
   }
 
+  /* 工作台左右同高：空数据或未达最大高度时也保持最小高度与左侧对齐 */
+  .workspace-dashboard-row {
+    align-items: stretch;
+    min-height: 560px;
+  }
+
+  .workspace-dashboard-left-col {
+    display: flex;
+    flex-direction: column;
+    min-height: 560px;
+
+    >.user-info-card {
+      flex-shrink: 0;
+    }
+
+    >.el-card:not(.user-info-card) {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+
+      :deep(.el-card__body) {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+    }
+  }
+
+  .workspace-dashboard-right-col {
+    display: flex;
+    flex-direction: column;
+    min-height: 560px;
+  }
+
+  .workspace-activity-card {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 400px;
+
+    :deep(.el-card__body) {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .activity-tabs {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 300px;
+
+      :deep(.el-tabs__content) {
+        flex: 1;
+        overflow: auto;
+        min-height: 0;
+      }
+
+      :deep(.el-tab-pane) {
+        height: 100%;
+        min-height: 280px;
+      }
+    }
+
+    .activity-list {
+      min-height: 260px;
+      flex: 1;
+    }
+  }
+
   .user-info-card {
     border: 1px solid #ebeef5;
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
@@ -1836,7 +1943,6 @@ onBeforeUnmount(() => {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 24px;
         padding-bottom: 20px;
         border-bottom: 1px solid #ebeef5;
 
@@ -1866,6 +1972,26 @@ onBeforeUnmount(() => {
               font-size: 24px;
               font-weight: 600;
               color: #303133;
+            }
+
+            .user-meta {
+              display: flex;
+              flex-wrap: wrap;
+              gap: 16px;
+              margin-top: 6px;
+              font-size: 13px;
+              color: #606266;
+
+              .meta-item {
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+
+                .el-icon {
+                  font-size: 14px;
+                  color: #909399;
+                }
+              }
             }
           }
         }
@@ -2124,8 +2250,8 @@ onBeforeUnmount(() => {
 
   .activity-tabs {
     :deep(.el-tabs__content) {
-      max-height: 245px;
-      min-height: 240px;
+      max-height: 67vh;
+      min-height: 67vh;
       overflow-y: auto;
       overflow-x: hidden;
     }
@@ -2177,8 +2303,14 @@ onBeforeUnmount(() => {
           .activity-details {
             display: flex;
             flex-wrap: wrap;
+            align-items: center;
             gap: 12px;
             margin-top: 4px;
+
+            .report-creator {
+              font-size: 12px;
+              color: #909399;
+            }
 
             .activity-detail-item {
               display: inline-flex;
@@ -2284,6 +2416,39 @@ onBeforeUnmount(() => {
     .el-row {
       .el-col {
         margin-bottom: 12px;
+      }
+    }
+
+    /* 移动端不强制动态卡片与左侧同高，取消最小高度 */
+    .workspace-dashboard-row {
+      min-height: 0;
+    }
+
+    .workspace-dashboard-left-col {
+      min-height: 0;
+      display: block;
+
+      >.el-card:not(.user-info-card) {
+        display: block;
+      }
+    }
+
+    .workspace-dashboard-right-col {
+      display: block;
+      min-height: 0;
+    }
+
+    .workspace-activity-card {
+      flex: none;
+      display: block;
+      min-height: 0;
+
+      .activity-tabs :deep(.el-tab-pane) {
+        min-height: 0;
+      }
+
+      .activity-list {
+        min-height: 0;
       }
     }
 
