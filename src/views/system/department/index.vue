@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, h, resolveComponent } from "vue";
+import { ref, reactive, onMounted, onUnmounted, nextTick, h, resolveComponent } from "vue";
 import { message } from "@/utils/message";
 import { ElMessageBox } from "element-plus";
 import type { FormInstance, FormRules } from "element-plus";
@@ -17,6 +17,8 @@ defineOptions({
 });
 
 const tableRef = ref();
+const tableCardRef = ref<InstanceType<typeof import("element-plus").ElCard>>();
+const tableHeight = ref(400);
 const formRef = ref<FormInstance>();
 const queryFormRef = ref<FormInstance>();
 const loading = ref(false);
@@ -255,8 +257,39 @@ const handleSizeChange = (size: number) => {
   loadData();
 };
 
+// 计算表格高度，占满剩余视口
+const calculateTableHeight = () => {
+  nextTick(() => {
+    if (!tableCardRef.value?.$el) return;
+    const viewportHeight = window.innerHeight;
+    const cardRect = tableCardRef.value.$el.getBoundingClientRect();
+    const cardTopToViewportBottom = viewportHeight - cardRect.top;
+    const cardHeaderHeight = 56;
+    const cardPadding = 40;
+    const paginationHeight = 52;
+    const bottomPadding = 20;
+    const availableHeight =
+      cardTopToViewportBottom -
+      cardHeaderHeight -
+      cardPadding -
+      paginationHeight -
+      bottomPadding;
+    tableHeight.value = Math.max(300, availableHeight);
+  });
+};
+
+const handleResize = () => {
+  calculateTableHeight();
+};
+
 onMounted(() => {
   loadData();
+  calculateTableHeight();
+  window.addEventListener("resize", handleResize);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("resize", handleResize);
 });
 </script>
 
@@ -278,7 +311,7 @@ onMounted(() => {
       </el-form>
     </el-card> -->
 
-    <el-card shadow="never">
+    <el-card ref="tableCardRef" shadow="never">
       <template #header>
         <div class="card-header">
           <span class="font-medium">部门管理</span>
@@ -292,7 +325,7 @@ onMounted(() => {
       </template>
 
       <pure-table ref="tableRef" :data="tableData" :columns="columns" :loading="loading" :pagination="pagination"
-        :paginationSmall="false" :paginationBackground="true" height="600" :tree-props="{
+        :paginationSmall="false" :paginationBackground="true" :height="tableHeight" :tree-props="{
           children: 'children',
           hasChildren: 'hasChildren',
           checkStrictly: false

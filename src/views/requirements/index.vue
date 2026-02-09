@@ -1,24 +1,27 @@
 <template>
-  <div class="requirements-page" ref="pageRef">
-    <div class="page-header">
+  <div class="requirements-page" :class="{ 'is-mobile': isMobile }" ref="pageRef">
+    <div class="page-header" :class="{ 'page-header--mobile': isMobile }">
       <h2>层级管理</h2>
       <div class="header-actions">
-        <el-select v-model="selectedProjectId" placeholder="选择项目" clearable style="width: 180px"
-          @change="handleProjectChange">
+        <el-select v-model="selectedProjectId" placeholder="选择项目" clearable
+          :style="isMobile ? { width: '100%' } : { width: '180px' }" @change="handleProjectChange">
           <el-option v-for="project in projects" :key="project.id" :label="project.name" :value="project.id" />
         </el-select>
-        <el-select v-model="searchRequirementId" placeholder="选择层级" filterable clearable style="width: 220px"
-          @change="handleRequirementSelectChange" @clear="handleRequirementSelectChange">
+        <el-select v-model="searchRequirementId" placeholder="选择层级" filterable clearable
+          :style="isMobile ? { width: '100%' } : { width: '220px' }" @change="handleRequirementSelectChange"
+          @clear="handleRequirementSelectChange">
           <el-option v-for="option in requirementOptions" :key="option.value" :label="option.label"
             :value="option.value" />
         </el-select>
-        <el-select v-model="statusFilter" placeholder="状态筛选" clearable style="width: 120px">
+        <el-select v-model="statusFilter" placeholder="状态筛选" clearable
+          :style="isMobile ? { width: '100%' } : { width: '120px' }">
           <el-option label="草稿" value="草稿" />
           <el-option label="进行中" value="进行中" />
           <el-option label="已完成" value="已完成" />
           <el-option label="已取消" value="已取消" />
         </el-select>
-        <el-button type="primary" @click="handleCreate" v-perms="['requirement:add']">
+        <el-button type="primary" @click="handleCreate" v-perms="['requirement:add']"
+          :style="isMobile ? { width: '100%' } : undefined">
           <el-icon>
             <Plus />
           </el-icon>
@@ -27,8 +30,8 @@
       </div>
     </div>
 
-    <!-- 层级列表 -->
-    <el-card v-loading="loading" class="requirements-table-card" ref="requirementsCardRef">
+    <!-- 层级列表：桌面端表格 -->
+    <el-card v-loading="loading" class="requirements-table-card" ref="requirementsCardRef" v-if="!isMobile">
       <el-table :data="filteredRequirements" :style="{ width: '100%' }" :height="tableHeight">
         <el-table-column prop="requirement_name" label="层级名称" />
         <el-table-column prop="project_name" label="选择项目" />
@@ -70,6 +73,63 @@
         </el-table-column>
       </el-table>
     </el-card>
+
+    <!-- 移动端：层级卡片列表 -->
+    <div v-if="isMobile" v-loading="loading" class="requirements-mobile-wrap">
+      <template v-if="filteredRequirements.length">
+        <div v-for="row in filteredRequirements" :key="row.id || row._id" class="mobile-requirement-card">
+          <div class="mobile-requirement-card__main">
+            <div class="mobile-requirement-card__title">{{ row.requirement_name || "-" }}</div>
+            <div class="mobile-requirement-card__meta">
+              <el-tag :type="getStatusType(row.status) || undefined" size="small" effect="light">
+                {{ row.status || "-" }}
+              </el-tag>
+              <el-tag :type="getPriorityType(row.priority) || undefined" size="small">
+                {{ row.priority || "-" }}
+              </el-tag>
+            </div>
+            <div class="mobile-requirement-card__row">
+              <span class="mobile-requirement-card__label">选择项目</span>
+              <span class="mobile-requirement-card__value">{{ row.project_name || "-" }}</span>
+            </div>
+            <div class="mobile-requirement-card__row">
+              <span class="mobile-requirement-card__label">优先级</span>
+              <span class="mobile-requirement-card__value">
+                <el-select v-model="row.priority" size="small" placeholder="优先级" @change="handlePriorityChange(row)"
+                  class="mobile-requirement-card__select">
+                  <el-option label="低" value="低" />
+                  <el-option label="中" value="中" />
+                  <el-option label="高" value="高" />
+                  <el-option label="紧急" value="紧急" />
+                </el-select>
+              </span>
+            </div>
+            <div class="mobile-requirement-card__row">
+              <span class="mobile-requirement-card__label">状态</span>
+              <span class="mobile-requirement-card__value">
+                <el-select v-model="row.status" size="small" @change="handleStatusChange(row)"
+                  class="mobile-requirement-card__select">
+                  <el-option label="草稿" value="草稿" />
+                  <el-option label="进行中" value="进行中" />
+                  <el-option label="已完成" value="已完成" />
+                  <el-option label="已取消" value="已取消" />
+                </el-select>
+              </span>
+            </div>
+            <div class="mobile-requirement-card__row">
+              <span class="mobile-requirement-card__label">创建时间</span>
+              <span class="mobile-requirement-card__value">{{ row.create_time || "-" }}</span>
+            </div>
+            <div class="mobile-requirement-card__actions">
+              <el-button type="primary" link size="small" @click.stop="handleView(row)">查看</el-button>
+              <el-button type="primary" link size="small" @click.stop="handleEdit(row)"
+                v-perms="['requirement:update']">编辑</el-button>
+            </div>
+          </div>
+        </div>
+      </template>
+      <el-empty v-else description="暂无层级数据" :image-size="80" class="requirements-mobile-empty" />
+    </div>
 
     <div class="pagination">
       <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" :page-sizes="[10, 20, 50, 100]"
@@ -126,9 +186,10 @@ const pageRef = ref<HTMLElement>();
 const requirementsCardRef = ref<InstanceType<typeof ElCard>>();
 const tableHeight = ref<number>(680);
 
-// 移动端检测：分页在移动端使用简化布局
+// 移动端检测：768px 断点，与任务/项目列表一致；分页在移动端使用简化布局
+const MOBILE_BREAKPOINT = 768;
 const windowWidth = ref(typeof window !== "undefined" ? window.innerWidth : 1024);
-const isMobile = computed(() => windowWidth.value <= 640);
+const isMobile = computed(() => windowWidth.value <= MOBILE_BREAKPOINT);
 const paginationLayout = computed(() =>
   isMobile.value ? "prev, pager, next" : "total, sizes, prev, pager, next, jumper"
 );
@@ -627,9 +688,10 @@ watch(
   { immediate: false }
 );
 
-// 计算表格高度
+// 计算表格高度（仅桌面端有表格）
 const calculateTableHeight = () => {
   nextTick(() => {
+    if (isMobile.value) return;
     if (!requirementsCardRef.value || !requirementsCardRef.value.$el) return;
 
     const viewportHeight = window.innerHeight;
@@ -724,6 +786,18 @@ onUnmounted(() => {
       gap: 12px;
       align-items: center;
     }
+
+    &.page-header--mobile {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+
+      .header-actions {
+        width: 100%;
+        flex-direction: column;
+        gap: 8px;
+      }
+    }
   }
 
   .pagination {
@@ -735,30 +809,114 @@ onUnmounted(() => {
   }
 }
 
-// 移动端适配 (640px)
-@media (max-width: 640px) {
+// 移动端：卡片列表容器
+.requirements-mobile-wrap {
+  min-height: 200px;
+}
+
+.requirements-mobile-empty {
+  padding: 32px 0;
+}
+
+.mobile-requirement-card {
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 10px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: box-shadow 0.2s;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  &:active {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+}
+
+.mobile-requirement-card__main {
+  padding: 14px 12px;
+}
+
+.mobile-requirement-card__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+  margin-bottom: 10px;
+  line-height: 1.4;
+  word-break: break-all;
+}
+
+.mobile-requirement-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.mobile-requirement-card__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+  font-size: 13px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+
+  &:last-of-type {
+    border-bottom: none;
+  }
+}
+
+.mobile-requirement-card__label {
+  flex-shrink: 0;
+  color: var(--el-text-color-secondary);
+  min-width: 72px;
+}
+
+.mobile-requirement-card__value {
+  flex: 1;
+  text-align: right;
+  word-break: break-all;
+  color: var(--el-text-color-primary);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px 8px;
+}
+
+.mobile-requirement-card__select {
+  min-width: 90px;
+  max-width: 140px;
+}
+
+.mobile-requirement-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--el-border-color-lighter);
+
+  .el-button {
+    padding: 2px 8px;
+    font-size: 12px;
+  }
+}
+
+// 移动端适配：768px 与 640px
+@media (max-width: 768px) {
   .requirements-page {
-    padding: 12px;
+    padding: 12px 10px;
 
     .page-header {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 12px;
       margin-bottom: 16px;
 
       h2 {
         font-size: 18px;
-      }
-
-      .header-actions {
-        width: 100%;
-        flex-direction: column;
-        gap: 8px;
-
-        .el-select,
-        .el-button {
-          width: 100% !important;
-        }
       }
     }
 
@@ -791,6 +949,12 @@ onUnmounted(() => {
         }
       }
     }
+  }
+}
+
+@media (max-width: 640px) {
+  .requirements-page {
+    padding: 12px;
 
     .requirements-table-card {
       :deep(.el-card__body) {

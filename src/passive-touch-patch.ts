@@ -1,6 +1,7 @@
 /**
- * 为 touchstart/touchmove/wheel 默认添加 passive: true，消除 Chrome 的 non-passive 警告，
- * 并提升滚动流畅度。若某处需要 preventDefault()（如自定义横向滚轮），请显式使用 { passive: false }。
+ * 为 touchstart/touchmove 默认添加 passive: true，消除 Chrome 的 non-passive 警告，
+ * 并提升滚动流畅度。wheel 不强制 passive，避免 Element Plus virtual-list 等组件内
+ * preventDefault() 触发 "Unable to preventDefault inside passive event listener" 警告。
  */
 const supportsPassive = (() => {
   let supported = false;
@@ -12,7 +13,7 @@ const supportsPassive = (() => {
       }
     });
     window.addEventListener("test", null as any, opts);
-    window.removeEventListener("test", null as any);
+    window.removeEventListener("test", null as any, opts);
   } catch {
     // ignore
   }
@@ -21,7 +22,7 @@ const supportsPassive = (() => {
 
 if (supportsPassive && typeof window !== "undefined") {
   const originalAddEventListener = EventTarget.prototype.addEventListener;
-  const passiveScrollBlockingEvents = ["touchstart", "touchmove", "wheel"];
+  const passiveScrollBlockingEvents = ["touchstart", "touchmove"];
 
   EventTarget.prototype.addEventListener = function (
     type: string,

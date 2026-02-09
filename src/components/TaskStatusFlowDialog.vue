@@ -13,11 +13,13 @@
           </el-tag>
         </template>
         <template v-else>
-          <el-radio-group v-model="selectedNextState">
-            <el-radio-button v-for="option in nextOptions" :key="option" :label="option">
-              {{ getTaskStatusText(option) }}
-            </el-radio-button>
-          </el-radio-group>
+          <div class="next-state-radio-wrap">
+            <el-radio-group v-model="selectedNextState" class="next-state-radio-group">
+              <el-radio-button v-for="option in nextOptions" :key="option" :label="option">
+                {{ getTaskStatusText(option) }}
+              </el-radio-button>
+            </el-radio-group>
+          </div>
         </template>
       </el-form-item>
       <el-form-item v-if="needAssign" label="分配给" prop="personName">
@@ -27,9 +29,11 @@
       </el-form-item>
       <template v-if="isPendingAssignToDeptLeader">
         <el-form-item label="指派时限" prop="time_limit">
-          <el-input-number v-model="form.time_limit" :min="0" :precision="3" placeholder="请输入任务指派时限"
-            style="width: 90%" />
-          <span style="margin-left: 8px; color: #606266;">时</span>
+          <div class="time-limit-inline">
+            <el-input-number v-model="form.time_limit" :min="0" :precision="3" placeholder="请输入任务指派时限"
+              class="time-limit-input" />
+            <span class="time-limit-unit">时</span>
+          </div>
         </el-form-item>
         <el-form-item label="截止期限" prop="task_assign_limit">
           <el-date-picker v-model="form.task_assign_limit" type="date" placeholder="请选择任务截止期限" format="YYYY-MM-DD"
@@ -340,29 +344,16 @@ const isPendingAssignToDeptLeader = computed<boolean>(() => {
     (status && String(status).includes("待分配给部门负责人"));
 });
 
-// 根据选中的下一状态，判断是否需要显示分配给输入框
+// 根据下一状态选项，判断是否需要显示分配给输入框（待分配给部门负责人与其他状态一致：有需要分配就显示，默认部门负责人由 initForm 预填）
 const needAssign = computed<boolean>(() => {
   if (nextOptions.value.length === 0 || needAssignArray.value.length === 0) {
     return false;
   }
-
-  // 如果只有一个选项，直接使用第一个 need_assign
   if (nextOptions.value.length === 1) {
     return needAssignArray.value[0] === true;
   }
-
-  // 如果有多个选项，需要选中状态才能判断
-  if (!selectedNextState.value) {
-    return false;
-  }
-
-  // 根据选中的状态找到对应的 need_assign
-  const selectedIndex = nextOptions.value.indexOf(selectedNextState.value);
-  if (selectedIndex !== -1 && selectedIndex < needAssignArray.value.length) {
-    return needAssignArray.value[selectedIndex] === true;
-  }
-
-  return false;
+  // 多个下一状态选项时：只要有任一下一状态需要分配给就显示，不要求先选下一状态
+  return needAssignArray.value.some(need => need === true);
 });
 
 // 根据选中的下一状态，判断是否需要显示驳回理由输入框
@@ -1011,3 +1002,61 @@ const getTaskStatusText = (status: string): string => {
   return status || "";
 };
 </script>
+
+<style scoped lang="scss">
+/* 指派时限：输入框与「时」同一行 */
+.time-limit-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+.time-limit-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.time-limit-unit {
+  flex-shrink: 0;
+  color: #606266;
+}
+
+/* 下一状态多选：桌面端保持横向 */
+.next-state-radio-wrap {
+  width: 100%;
+}
+
+.next-state-radio-group {
+  flex-wrap: wrap;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .next-state-radio-wrap {
+    :deep(.el-radio-group) {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    :deep(.el-radio-button) {
+      margin-right: 0;
+
+      .el-radio-button__inner {
+        padding: 8px 14px;
+        font-size: 13px;
+      }
+    }
+  }
+
+  .time-limit-inline {
+    gap: 6px;
+  }
+
+  .time-limit-unit {
+    font-size: 14px;
+  }
+}
+</style>

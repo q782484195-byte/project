@@ -440,7 +440,7 @@ export const loadRequirementFromJson = (
 export interface ProjectStatisticsResponse {
   code: number;
   进行中: number;
-  测试审阅中: number;
+  测试验收中: number;
   已完成: number;
   已取消: number;
   总进度: number;

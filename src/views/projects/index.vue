@@ -21,7 +21,7 @@
 
     <!-- 项目统计 -->
     <el-row :gutter="20" class="stats-row">
-      <el-col :span="8" :xs="24">
+      <el-col :span="6" :xs="24">
         <div class="stat-card">
           <div class="stat-number" style="color: #409eff">
             {{ projectStats.total }}
@@ -29,7 +29,7 @@
           <div class="stat-label">总项目数</div>
         </div>
       </el-col>
-      <el-col :span="8" :xs="24">
+      <el-col :span="6" :xs="24">
         <div class="stat-card">
           <div class="stat-number" style="color: #67c23a">
             {{ projectStats.active }}
@@ -37,7 +37,15 @@
           <div class="stat-label">进行中</div>
         </div>
       </el-col>
-      <el-col :span="8" :xs="24">
+      <el-col :span="6" :xs="24">
+        <div class="stat-card">
+          <div class="stat-number" style="color: #f56c6c">
+            {{ projectStats.delayed }}
+          </div>
+          <div class="stat-label">已延期</div>
+        </div>
+      </el-col>
+      <el-col :span="6" :xs="24">
         <div class="stat-card">
           <div class="stat-number" style="color: #e6a23c">
             {{ projectStats.completed }}
@@ -161,7 +169,7 @@
           </div>
         </div>
 
-        <!-- 第四行：计划时间 -->
+        <!-- 计划时间 -->
         <div class="project-row project-row-time">
           <div class="field-item">
             <el-icon>
@@ -171,10 +179,18 @@
             <el-tooltip :content="formatDateRange(project.startDate, project.endDate) || '-'" placement="top">
               <span class="field-value">{{
                 formatDateRange(project.startDate, project.endDate)
-              }}</span>
+                }}</span>
             </el-tooltip>
           </div>
         </div>
+
+        <!-- 右下角：查看任务列表 -->
+        <div class="project-row project-row-actions">
+          <el-button type="primary" size="small" class="go-task-list-btn" @click.stop="goToTaskList(project)">
+            查看任务列表
+          </el-button>
+        </div>
+
       </div>
     </div>
 
@@ -446,7 +462,8 @@ const loadProjects = async () => {
 const projectStats = computed(() => ({
   total: projects.value.length,
   active: projects.value.filter(p => p.status === "进行中").length,
-  completed: projects.value.filter(p => p.status === "已完成").length
+  completed: projects.value.filter(p => p.status === "已完成").length,
+  delayed: projects.value.filter(p => p.status === "延期").length
 }));
 
 const getProjectProgress = (project: Project & Record<string, unknown>) => {
@@ -472,6 +489,14 @@ const openProjectDetail = (project: Project, event?: Event) => {
   router.push({
     name: "ProjectDetail",
     params: { id: project.id }
+  });
+};
+
+// 前往任务列表页，并默认选中当前项目
+const goToTaskList = (project: Project) => {
+  router.push({
+    path: "/tasks/list",
+    query: { project_id: project.id }
   });
 };
 
@@ -849,6 +874,16 @@ onMounted(() => {
     }
   }
 
+  .project-row-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+
+    .go-task-list-btn {
+      flex-shrink: 0;
+    }
+  }
+
   .project-row-progress {
     width: 100%;
     box-sizing: border-box;
@@ -1141,6 +1176,14 @@ onMounted(() => {
           width: 100%;
           max-width: 100%;
         }
+      }
+    }
+
+    .project-row-actions {
+      justify-content: stretch;
+
+      .go-task-list-btn {
+        width: 100%;
       }
     }
 

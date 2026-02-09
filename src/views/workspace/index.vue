@@ -91,93 +91,134 @@
                   <span>待办事项</span>
                 </div>
               </template>
-              <el-table :data="todoTasks" v-loading="tasksLoading" :style="{ width: '100%' }"
-                :height="todoTasksTableHeight">
-                <el-table-column prop="项目名称" label="项目名称">
-                  <template #default="{ row }">
-                    <el-tooltip :content="row.项目名称 || row.project_name || '-'" placement="top"
-                      :disabled="!row.项目名称 && !row.project_name">
-                      <div class="text-ellipsis">{{ row.项目名称 || row.project_name || "-" }}</div>
-                    </el-tooltip>
+              <template v-if="!isMobile">
+                <el-table :data="todoTasks" v-loading="tasksLoading" :style="{ width: '100%' }"
+                  :height="todoTasksTableHeight">
+                  <el-table-column prop="项目名称" label="项目名称">
+                    <template #default="{ row }">
+                      <el-tooltip :content="row.项目名称 || row.project_name || '-'" placement="top"
+                        :disabled="!row.项目名称 && !row.project_name">
+                        <div class="text-ellipsis">{{ row.项目名称 || row.project_name || "-" }}</div>
+                      </el-tooltip>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="任务名" label="任务名称" width="80">
+                    <template #default="{ row }">
+                      <el-tooltip :content="row.任务名 || row.task_name || row.title || '-'" placement="top"
+                        :disabled="!row.任务名 && !row.task_name && !row.title">
+                        <div class="text-ellipsis">{{ row.任务名 || row.task_name || row.title || "-" }}</div>
+                      </el-tooltip>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="requirement_name" label="关联层级" show-overflow-tooltip width="150" />
+                  <el-table-column prop="指派人" label="负责人">
+                    <template #default="{ row }">
+                      <el-tooltip :content="row.指派人 || row.assignee || '-'" placement="top"
+                        :disabled="!row.指派人 && !row.assignee">
+                        <div class="assignee-text text-ellipsis">{{ row.指派人 || row.assignee || "-" }}</div>
+                      </el-tooltip>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="状态" label="状态" width="150">
+                    <template #default="{ row }">
+                      <el-tooltip :content="row.状态 || row.status || '-'" placement="top"
+                        :disabled="!row.状态 && !row.status">
+                        <div class="status-text text-ellipsis">{{ row.状态 || row.status || "-" }}</div>
+                      </el-tooltip>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="优先级" label="优先级">
+                    <template #default="{ row }">
+                      <el-tag :type="getPriorityType(row.优先级 || row.priority) || undefined" size="small">
+                        {{ row.优先级 || row.priority || "-" }}
+                      </el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="进度" label="进度">
+                    <template #default="{ row }">
+                      {{ (row.进度 || 0) + '%' }}
+                      <!-- <el-progress :percentage="row.进度 || 0" :status="row.进度 === 100 ? 'success' : undefined" /> -->
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="development_start_time" label="研发开始时间" show-overflow-tooltip width="110" />
+                  <el-table-column prop="development_end_time" label="研发结束时间" show-overflow-tooltip width="110" />
+                  <el-table-column prop="assignment_time" label="任务分配时间" show-overflow-tooltip width="180" />
+                  <el-table-column label="操作" :min-width="operationColWidth(4)" fixed="right">
+                    <template #default="{ row }">
+                      <div class="table-action-btns">
+                        <el-button type="primary" link size="small"
+                          @click="handleTodoTaskDropdownCommand('view', row)">查看</el-button>
+                        <el-button type="primary" link size="small"
+                          @click="handleTodoTaskDropdownCommand('assign', row)"
+                          v-if="(row.当前处理人 || row.current_handler) === userStore.username && row.next_state && Array.isArray(row.next_state) && row.next_state.length > 0">
+                          分配
+                        </el-button>
+                        <el-button type="primary" link size="small"
+                          @click="handleTodoTaskDropdownCommand('report', row)"
+                          v-if="(row.当前处理人 || row.current_handler) === userStore.username && canRecordBug(row.状态 || row.status, 'report') && hasPerms(['task:report'])"
+                          class="action-success">
+                          进度汇报
+                        </el-button>
+                        <el-button type="primary" link size="small" @click="handleTodoTaskDropdownCommand('bug', row)"
+                          v-if="(row.当前处理人 || row.current_handler) === userStore.username && canRecordBug(row.状态 || row.status, 'bug') && hasPerms(['bug:record'])"
+                          class="action-warning">
+                          记录BUG
+                        </el-button>
+                      </div>
+                    </template>
+                  </el-table-column>
+                </el-table>
+              </template>
+              <!-- 移动端：待办事项卡片列表 -->
+              <template v-else>
+                <div v-loading="tasksLoading" class="workspace-mobile-cards">
+                  <template v-if="todoTasks.length">
+                    <div v-for="(row, idx) in todoTasks" :key="row._id || row.id || idx" class="workspace-mobile-card">
+                      <div class="workspace-mobile-card__title">{{ row.任务名 || row.task_name || row.title || "-" }}</div>
+                      <div class="workspace-mobile-card__meta">
+                        <el-tag v-if="row.状态 || row.status" size="small" effect="light">{{ row.状态 || row.status
+                        }}</el-tag>
+                        <el-tag v-if="row.优先级 || row.priority" :type="getPriorityType(row.优先级 || row.priority)"
+                          size="small">{{ row.优先级 || row.priority }}</el-tag>
+                      </div>
+                      <div class="workspace-mobile-card__row">
+                        <span class="workspace-mobile-card__label">项目</span>
+                        <span class="workspace-mobile-card__value">{{ row.项目名称 || row.project_name || "-" }}</span>
+                      </div>
+                      <div class="workspace-mobile-card__row">
+                        <span class="workspace-mobile-card__label">负责人</span>
+                        <span class="workspace-mobile-card__value">{{ row.指派人 || row.assignee || "-" }}</span>
+                      </div>
+                      <div class="workspace-mobile-card__row">
+                        <span class="workspace-mobile-card__label">进度</span>
+                        <span class="workspace-mobile-card__value">{{ (row.进度 ?? 0) + "%" }}</span>
+                      </div>
+                      <div class="workspace-mobile-card__actions">
+                        <el-button type="primary" link size="small"
+                          @click="handleTodoTaskDropdownCommand('view', row)">查看</el-button>
+                        <el-button type="primary" link size="small"
+                          @click="handleTodoTaskDropdownCommand('assign', row)"
+                          v-if="(row.当前处理人 || row.current_handler) === userStore.username && row.next_state && Array.isArray(row.next_state) && row.next_state.length > 0">分配</el-button>
+                        <el-button type="primary" link size="small"
+                          @click="handleTodoTaskDropdownCommand('report', row)"
+                          v-if="(row.当前处理人 || row.current_handler) === userStore.username && canRecordBug(row.状态 || row.status, 'report') && hasPerms(['task:report'])"
+                          class="action-success">进度汇报</el-button>
+                        <el-button type="primary" link size="small" @click="handleTodoTaskDropdownCommand('bug', row)"
+                          v-if="(row.当前处理人 || row.current_handler) === userStore.username && canRecordBug(row.状态 || row.status, 'bug') && hasPerms(['bug:record'])"
+                          class="action-warning">记录BUG</el-button>
+                      </div>
+                    </div>
                   </template>
-                </el-table-column>
-                <el-table-column prop="任务名" label="任务名称" width="80">
-                  <template #default="{ row }">
-                    <el-tooltip :content="row.任务名 || row.task_name || row.title || '-'" placement="top"
-                      :disabled="!row.任务名 && !row.task_name && !row.title">
-                      <div class="text-ellipsis">{{ row.任务名 || row.task_name || row.title || "-" }}</div>
-                    </el-tooltip>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="requirement_name" label="关联层级" show-overflow-tooltip width="150" />
-                <el-table-column prop="指派人" label="负责人">
-                  <template #default="{ row }">
-                    <el-tooltip :content="row.指派人 || row.assignee || '-'" placement="top"
-                      :disabled="!row.指派人 && !row.assignee">
-                      <div class="assignee-text text-ellipsis">{{ row.指派人 || row.assignee || "-" }}</div>
-                    </el-tooltip>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="状态" label="状态" width="150">
-                  <template #default="{ row }">
-                    <el-tooltip :content="row.状态 || row.status || '-'" placement="top"
-                      :disabled="!row.状态 && !row.status">
-                      <div class="status-text text-ellipsis">{{ row.状态 || row.status || "-" }}</div>
-                    </el-tooltip>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="优先级" label="优先级">
-                  <template #default="{ row }">
-                    <el-tag :type="getPriorityType(row.优先级 || row.priority) || undefined" size="small">
-                      {{ row.优先级 || row.priority || "-" }}
-                    </el-tag>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="进度" label="进度">
-                  <template #default="{ row }">
-                    <el-progress :percentage="row.进度 || 0" :status="row.进度 === 100 ? 'success' : undefined" />
-                  </template>
-                </el-table-column>
-                <el-table-column prop="development_start_time" label="研发开始时间" show-overflow-tooltip width="100" />
-                <el-table-column prop="development_end_time" label="研发结束时间" show-overflow-tooltip width="100" />
-                <el-table-column prop="assignment_time" label="任务分配时间" show-overflow-tooltip width="180" />
-                <el-table-column label="操作" width="80" fixed="right">
-                  <template #default="{ row }">
-                    <el-dropdown trigger="click" @command="(command) => handleTodoTaskDropdownCommand(command, row)">
-                      <el-button type="primary" link size="small" circle class="more-icon-btn">
-                        <el-icon :size="18">
-                          <MoreFilled />
-                        </el-icon>
-                      </el-button>
-                      <template #dropdown>
-                        <el-dropdown-menu>
-                          <el-dropdown-item command="view">查看</el-dropdown-item>
-                          <el-dropdown-item command="assign"
-                            v-if="(row.当前处理人 || row.current_handler) === userStore.username">
-                            分配
-                          </el-dropdown-item>
-                          <el-dropdown-item command="report"
-                            v-if="(row.当前处理人 || row.current_handler) === userStore.username && canRecordBug(row.状态 || row.status, 'report') && hasPerms(['task:report'])">
-                            <span style="color: var(--el-color-success)">进度汇报</span>
-                          </el-dropdown-item>
-                          <el-dropdown-item command="bug"
-                            v-if="(row.当前处理人 || row.current_handler) === userStore.username && canRecordBug(row.状态 || row.status, 'bug') && hasPerms(['bug:record'])"
-                            divided>
-                            <span style="color: var(--el-color-warning)">记录BUG</span>
-                          </el-dropdown-item>
-                        </el-dropdown-menu>
-                      </template>
-                    </el-dropdown>
-                  </template>
-                </el-table-column>
-              </el-table>
-              <div class="todo-pagination-wrapper">
-                <el-pagination v-model:current-page="todoTasksPage" v-model:page-size="todoTasksPageSize"
-                  :total="todoTasksTotal" :page-sizes="[10, 20, 50, 100]"
-                  :layout="isMobile ? 'total, prev, pager, next' : 'total, sizes, prev, pager, next, jumper'"
-                  :small="isMobile" @size-change="handleTodoTasksSizeChange"
-                  @current-change="handleTodoTasksPageChange" />
-              </div>
+                  <el-empty v-else-if="!tasksLoading" description="暂无待办" :image-size="80" />
+                </div>
+                <div class="todo-pagination-wrapper">
+                  <el-pagination v-model:current-page="todoTasksPage" v-model:page-size="todoTasksPageSize"
+                    :total="todoTasksTotal" :page-sizes="[10, 20, 50, 100]"
+                    :layout="isMobile ? 'total, prev, pager, next' : 'total, sizes, prev, pager, next, jumper'"
+                    :small="isMobile" @size-change="handleTodoTasksSizeChange"
+                    @current-change="handleTodoTasksPageChange" />
+                </div>
+              </template>
 
             </el-card>
           </el-col>
@@ -286,7 +327,7 @@
                             <span v-if="report.creator" class="report-creator">创建人: {{ report.creator }}</span>
                             <el-tag v-if="report.state" :type="getStatusType(report.state)" size="small">状态: {{
                               report.state
-                              }}</el-tag>
+                            }}</el-tag>
                           </div>
                         </div>
                       </div>
@@ -363,66 +404,97 @@
               <!-- <el-button type="primary" size="small" @click="goToMyTasks">查看更多</el-button> -->
             </div>
           </template>
-          <el-table :data="filteredAllTasks" v-loading="allTasksLoading" :style="{ width: '100%' }"
-            :height="allTasksTableHeight">
-            <el-table-column prop="任务名" label="任务名称" min-width="200" />
-            <el-table-column prop="状态" label="状态" width="140">
-              <template #default="{ row }">
-                <el-tag :type="getStatusType(row.状态)" size="small">
-                  {{ row.状态 }}
-                </el-tag>
+          <template v-if="!isMobile">
+            <el-table :data="filteredAllTasks" v-loading="allTasksLoading" :style="{ width: '100%' }"
+              :height="allTasksTableHeight">
+              <el-table-column prop="任务名" label="任务名称" min-width="200" />
+              <el-table-column prop="状态" label="状态" width="140">
+                <template #default="{ row }">
+                  <el-tag :type="getStatusType(row.状态)" size="small">
+                    {{ row.状态 }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="当前处理人" label="当前处理人" min-width="200" />
+              <el-table-column prop="优先级" label="优先级" width="100">
+                <template #default="{ row }">
+                  <el-tag v-if="row.优先级" :type="getPriorityType(row.优先级)" size="small">
+                    {{ row.优先级 }}
+                  </el-tag>
+                  <span v-else>-</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="requirement_name" label="所属层级" min-width="150" />
+              <el-table-column prop="development_start_time" label="研发开始时间" width="150">
+                <template #default="{ row }">
+                  {{ row.development_start_time || "-" }}
+                </template>
+              </el-table-column>
+              <el-table-column prop="development_start_time" label="研发结束时间" width="150">
+                <template #default="{ row }">
+                  {{ row.development_end_time || "-" }}
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" :min-width="operationColWidth(4)" fixed="right">
+                <template #default="{ row }">
+                  <div class="table-action-btns">
+                    <el-button type="primary" link size="small"
+                      @click="handleAllTaskDropdownCommand('view', row)">查看</el-button>
+                    <el-button type="primary" link size="small" @click="handleAllTaskDropdownCommand('assign', row)"
+                      v-if="(row.当前处理人 || row.current_handler) === userStore.username && row.next_state && Array.isArray(row.next_state) && row.next_state.length > 0">
+                      分配
+                    </el-button>
+                    <el-button type="primary" link size="small" @click="handleAllTaskDropdownCommand('bug', row)"
+                      v-if="(row.当前处理人 || row.current_handler) === userStore.username && canRecordBug(row.状态 || row.status, 'bug')"
+                      class="action-warning">
+                      记录BUG
+                    </el-button>
+                    <el-button type="primary" link size="small" @click="handleAllTaskDropdownCommand('report', row)"
+                      v-if="(row.当前处理人 || row.current_handler) === userStore.username && canRecordBug(row.状态 || row.status, 'report') && hasPerms(['task:report'])"
+                      class="action-success">
+                      进度汇报
+                    </el-button>
+                  </div>
+                </template>
+              </el-table-column>
+            </el-table>
+          </template>
+          <!-- 移动端：任务列表卡片 -->
+          <template v-else>
+            <div v-loading="allTasksLoading" class="workspace-mobile-cards">
+              <template v-if="filteredAllTasks.length">
+                <div v-for="(row, idx) in filteredAllTasks" :key="row._id || row.id || idx"
+                  class="workspace-mobile-card">
+                  <div class="workspace-mobile-card__title">{{ row.任务名 || row.task_name || row.title || "-" }}</div>
+                  <div class="workspace-mobile-card__meta">
+                    <el-tag v-if="row.状态" :type="getStatusType(row.状态)" size="small">{{ row.状态 }}</el-tag>
+                    <el-tag v-if="row.优先级" :type="getPriorityType(row.优先级)" size="small">{{ row.优先级 }}</el-tag>
+                  </div>
+                  <div class="workspace-mobile-card__row">
+                    <span class="workspace-mobile-card__label">当前处理人</span>
+                    <span class="workspace-mobile-card__value">{{ row.当前处理人 || row.current_handler || "-" }}</span>
+                  </div>
+                  <div class="workspace-mobile-card__row">
+                    <span class="workspace-mobile-card__label">所属层级</span>
+                    <span class="workspace-mobile-card__value">{{ row.requirement_name || "-" }}</span>
+                  </div>
+                  <div class="workspace-mobile-card__actions">
+                    <el-button type="primary" link size="small"
+                      @click="handleAllTaskDropdownCommand('view', row)">查看</el-button>
+                    <el-button type="primary" link size="small" @click="handleAllTaskDropdownCommand('assign', row)"
+                      v-if="(row.当前处理人 || row.current_handler) === userStore.username && row.next_state && Array.isArray(row.next_state) && row.next_state.length > 0">分配</el-button>
+                    <el-button type="primary" link size="small" @click="handleAllTaskDropdownCommand('bug', row)"
+                      v-if="(row.当前处理人 || row.current_handler) === userStore.username && canRecordBug(row.状态 || row.status, 'bug')"
+                      class="action-warning">记录BUG</el-button>
+                    <el-button type="primary" link size="small" @click="handleAllTaskDropdownCommand('report', row)"
+                      v-if="(row.当前处理人 || row.current_handler) === userStore.username && canRecordBug(row.状态 || row.status, 'report') && hasPerms(['task:report'])"
+                      class="action-success">进度汇报</el-button>
+                  </div>
+                </div>
               </template>
-            </el-table-column>
-            <el-table-column prop="当前处理人" label="当前处理人" min-width="200" />
-            <el-table-column prop="优先级" label="优先级" width="100">
-              <template #default="{ row }">
-                <el-tag v-if="row.优先级" :type="getPriorityType(row.优先级)" size="small">
-                  {{ row.优先级 }}
-                </el-tag>
-                <span v-else>-</span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="requirement_name" label="所属层级" min-width="150" />
-            <el-table-column prop="development_start_time" label="研发开始时间" width="150">
-              <template #default="{ row }">
-                {{ row.development_start_time || "-" }}
-              </template>
-            </el-table-column>
-            <el-table-column prop="development_start_time" label="研发结束时间" width="150">
-              <template #default="{ row }">
-                {{ row.development_end_time || "-" }}
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="60" fixed="right">
-              <template #default="{ row }">
-                <el-dropdown trigger="click" @command="(command) => handleAllTaskDropdownCommand(command, row)">
-                  <el-button type="primary" link size="small" circle class="more-icon-btn">
-                    <el-icon :size="18">
-                      <MoreFilled />
-                    </el-icon>
-                  </el-button>
-                  <template #dropdown>
-                    <el-dropdown-menu>
-                      <el-dropdown-item command="view">查看</el-dropdown-item>
-                      <el-dropdown-item command="assign"
-                        v-if="(row.当前处理人 || row.current_handler) === userStore.username">
-                        分配
-                      </el-dropdown-item>
-                      <el-dropdown-item command="bug"
-                        v-if="(row.当前处理人 || row.current_handler) === userStore.username && canRecordBug(row.状态 || row.status, 'bug')">
-                        <span style="color: var(--el-color-warning)">记录BUG</span>
-                      </el-dropdown-item>
-                      <el-dropdown-item command="report"
-                        v-if="(row.当前处理人 || row.current_handler) === userStore.username && canRecordBug(row.状态 || row.status, 'report') && hasPerms(['task:report'])"
-                        divided>
-                        <span style="color: var(--el-color-success)">进度汇报</span>
-                      </el-dropdown-item>
-                    </el-dropdown-menu>
-                  </template>
-                </el-dropdown>
-              </template>
-            </el-table-column>
-          </el-table>
+              <el-empty v-else-if="!allTasksLoading" description="暂无任务" :image-size="80" />
+            </div>
+          </template>
         </el-card>
       </el-tab-pane>
       <!-- 需求 Tab -->
@@ -474,37 +546,62 @@
               <!-- <el-button type="primary" size="small" @click="goToProjects">查看更多</el-button> -->
             </div>
           </template>
-          <el-table :data="projects" v-loading="projectsLoading" :style="{ width: '100%' }"
-            :height="projectsTableHeight">
-            <el-table-column prop="project_name" label="项目名称" min-width="200" />
-            <el-table-column prop="state" label="状态" width="140">
-              <template #default="{ row }">
-                <el-tag :type="getProjectStatusType(row.state)" size="small">
-                  {{ row.state }}
-                </el-tag>
+          <template v-if="!isMobile">
+            <el-table :data="projects" v-loading="projectsLoading" :style="{ width: '100%' }"
+              :height="projectsTableHeight">
+              <el-table-column prop="project_name" label="项目名称" min-width="200" />
+              <el-table-column prop="state" label="状态" width="140">
+                <template #default="{ row }">
+                  <el-tag :type="getProjectStatusType(row.state)" size="small">
+                    {{ row.state }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="creator" label="创建人" width="100" />
+              <el-table-column prop="plant_start_time" label="计划开始时间" width="160" />
+              <el-table-column prop="plant_end_time" label="计划计划结束时间" width="160" />
+              <el-table-column prop="create_time" label="创建时间" width="160" />
+              <el-table-column label="操作" :min-width="operationColWidth(1)" fixed="right">
+                <template #default="{ row }">
+                  <div class="table-action-btns">
+                    <el-button type="primary" link size="small"
+                      @click="handleProjectDropdownCommand('view', row)">查看</el-button>
+                  </div>
+                </template>
+              </el-table-column>
+            </el-table>
+          </template>
+          <!-- 移动端：项目列表卡片 -->
+          <template v-else>
+            <div v-loading="projectsLoading" class="workspace-mobile-cards">
+              <template v-if="projects.length">
+                <div v-for="(row, idx) in projects" :key="row._id ?? idx" class="workspace-mobile-card">
+                  <div class="workspace-mobile-card__title">{{ row.project_name || "-" }}</div>
+                  <div class="workspace-mobile-card__meta">
+                    <el-tag v-if="row.state" :type="getProjectStatusType(row.state)" size="small">{{ row.state
+                    }}</el-tag>
+                  </div>
+                  <div class="workspace-mobile-card__row">
+                    <span class="workspace-mobile-card__label">创建人</span>
+                    <span class="workspace-mobile-card__value">{{ row.creator || "-" }}</span>
+                  </div>
+                  <div class="workspace-mobile-card__row">
+                    <span class="workspace-mobile-card__label">计划开始</span>
+                    <span class="workspace-mobile-card__value">{{ row.plant_start_time || "-" }}</span>
+                  </div>
+                  <div class="workspace-mobile-card__row">
+                    <span class="workspace-mobile-card__label">计划结束</span>
+                    <span class="workspace-mobile-card__value">{{ row.plant_end_time || "-" }}</span>
+                  </div>
+                  <div class="workspace-mobile-card__actions">
+                    <el-button type="primary" link size="small"
+                      @click="handleProjectDropdownCommand('view', row)">查看</el-button>
+                  </div>
+                </div>
               </template>
-            </el-table-column>
-            <el-table-column prop="creator" label="创建人" width="100" />
-            <el-table-column prop="plant_start_time" label="计划开始时间" width="160" />
-            <el-table-column prop="plant_end_time" label="计划计划结束时间" width="160" />
-            <el-table-column prop="create_time" label="创建时间" width="160" />
-            <el-table-column label="操作" width="80" fixed="right">
-              <template #default="{ row }">
-                <el-dropdown trigger="click" @command="(command) => handleProjectDropdownCommand(command, row)">
-                  <el-button type="primary" link size="small" circle class="more-icon-btn">
-                    <el-icon :size="18">
-                      <MoreFilled />
-                    </el-icon>
-                  </el-button>
-                  <template #dropdown>
-                    <el-dropdown-menu>
-                      <el-dropdown-item command="view">查看</el-dropdown-item>
-                    </el-dropdown-menu>
-                  </template>
-                </el-dropdown>
-              </template>
-            </el-table-column>
-          </el-table>
+              <el-empty v-else-if="!projectsLoading" description="暂无项目" :image-size="80" />
+            </div>
+          </template>
         </el-card>
       </el-tab-pane>
     </el-tabs>
@@ -615,7 +712,7 @@ import { createBug } from "@/api/bug";
 import { selectDepartmentUsers, type DepartmentUserItem } from "@/api/system";
 import { selectSelfReports, selectReports, type ReportRecord } from "@/api/report";
 import { ElMessage } from "element-plus";
-import { User, Clock, Document, DataLine, MoreFilled, OfficeBuilding } from "@element-plus/icons-vue";
+import { User, Clock, Document, DataLine, OfficeBuilding } from "@element-plus/icons-vue";
 import type { TaskListItem, RequirementListItem, ProjectListItem } from "@/api/project";
 import { TaskStatus } from "@/types";
 import TaskStatusFlowDialog from "@/components/TaskStatusFlowDialog.vue";
@@ -961,6 +1058,11 @@ const generateProjectActivities = (projs: ProjectListItem[]) => {
   projectActivities.value = newActivities.sort((a, b) => {
     return new Date(b.time).getTime() - new Date(a.time).getTime();
   }).slice(0, 10);
+};
+
+// 根据操作按钮数量计算操作列宽度（约 56px 基础 + 每按钮 52px）
+const operationColWidth = (buttonCount: number): number => {
+  return Math.max(80, 50 + buttonCount * 35);
 };
 
 // 查看任务
@@ -1400,7 +1502,7 @@ const canRecordBug = (status: string, type?: 'bug' | 'report'): boolean => {
   ];
   // 如果是进度汇报，添加进行中状态
   if (type === 'report') {
-    testReviewStatuses.push("任务进行中", "第1轮测试", "第2轮测试", "第3轮测试", "第4轮测试", "第5轮测试", "第6轮测试", "第7轮测试", "第8轮测试");
+    testReviewStatuses.push("任务进行中", "第1轮测试", "第2轮测试", "第3轮测试", "第4轮测试", "第5轮测试", "第6轮测试", "第7轮测试", "第8轮测试", "测试任务进行中");
   }
   return testReviewStatuses.includes(status);
 
@@ -1810,9 +1912,10 @@ const calculateTableHeights = () => {
   });
 };
 
-// 窗口大小改变时重新计算
+// 窗口大小改变时重新计算（768px 及以下视为移动端：表格改为卡片、分页简化）
+const MOBILE_BREAKPOINT = 768;
 const windowWidth = ref(typeof window !== "undefined" ? window.innerWidth : 1024);
-const isMobile = computed(() => windowWidth.value <= 640);
+const isMobile = computed(() => windowWidth.value <= MOBILE_BREAKPOINT);
 
 const handleResize = () => {
   windowWidth.value = window.innerWidth;
@@ -2352,23 +2455,153 @@ onBeforeUnmount(() => {
     width: 100%;
   }
 
-  // 放大三个点图标
-  .more-icon-btn {
-    :deep(.el-icon) {
-      font-size: 18px;
+  // 操作列按钮组
+  .table-action-btns {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+
+    .el-button {
+      padding: 0 4px;
+      margin: 0;
+    }
+
+    .action-success {
+      color: var(--el-color-success);
+
+      &:hover {
+        color: var(--el-color-success);
+        opacity: 0.8;
+      }
+    }
+
+    .action-warning {
+      color: var(--el-color-warning);
+
+      &:hover {
+        color: var(--el-color-warning);
+        opacity: 0.8;
+      }
+    }
+  }
+
+  /* 移动端：待办/任务/项目卡片列表（768px 及以下显示） */
+  .workspace-mobile-cards {
+    min-height: 200px;
+    padding-top: 8px;
+  }
+
+  .workspace-mobile-card {
+    background: var(--el-bg-color);
+    border: 1px solid var(--el-border-color-lighter);
+    border-radius: 10px;
+    margin-bottom: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    transition: box-shadow 0.2s;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+
+    &:active {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+  }
+
+  .workspace-mobile-card__title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--el-text-color-primary);
+    margin-bottom: 10px;
+    line-height: 1.4;
+    word-break: break-all;
+    padding: 14px 12px 0;
+  }
+
+  .workspace-mobile-card__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+    padding: 0 12px;
+  }
+
+  .workspace-mobile-card__row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 12px;
+    font-size: 13px;
+    border-bottom: 1px solid var(--el-border-color-lighter);
+
+    &:last-of-type {
+      border-bottom: none;
+    }
+  }
+
+  .workspace-mobile-card__label {
+    flex-shrink: 0;
+    color: var(--el-text-color-secondary);
+    min-width: 80px;
+  }
+
+  .workspace-mobile-card__value {
+    flex: 1;
+    text-align: right;
+    word-break: break-all;
+    color: var(--el-text-color-primary);
+  }
+
+  .workspace-mobile-card__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    margin-top: 8px;
+    padding: 12px 12px 14px;
+    border-top: 1px solid var(--el-border-color-lighter);
+
+    .el-button {
+      padding: 2px 8px;
+      font-size: 12px;
+    }
+
+    .action-success {
+      color: var(--el-color-success);
+    }
+
+    .action-warning {
+      color: var(--el-color-warning);
     }
   }
 }
 
-// 移动端适配 (640px)
+// 移动端适配 (768px / 640px)
+@media (max-width: 768px) {
+  .workspace-page {
+    padding: 12px 10px;
+
+    .workspace-mobile-cards .el-empty {
+      padding: 32px 0;
+    }
+  }
+}
+
 @media (max-width: 640px) {
   .main-content {
     margin: 0 !important;
   }
 
   .workspace-page {
+    :deep(.el-card__body) {
+      padding: 10px !important;
+    }
 
     .workspace-tabs {
+      padding: 0;
+
       :deep(.el-tabs__header) {
         overflow-x: auto;
         overflow-y: hidden;

@@ -1,38 +1,39 @@
 <template>
   <div class="project-overview">
-    <el-card shadow="never">
+    <el-card shadow="never" class="overview-card">
       <template #header>
         <div class="card-header">
           <span class="font-medium">项目概览</span>
-          <el-button :icon="Refresh" @click="loadData">刷新</el-button>
+          <el-button :icon="Refresh" @click="loadData" class="header-btn">刷新</el-button>
         </div>
       </template>
 
       <!-- 查询表单 -->
-      <el-form :inline="true" :model="queryForm" class="query-form" style="margin-bottom: 16px;">
-        <el-form-item label="">
-          <el-button :type="queryMode === 'now' ? 'success' : 'default'" @click="handleNowClick">
+      <el-form :inline="!isMobile" :model="queryForm" class="query-form" :class="{ 'query-form--mobile': isMobile }">
+        <el-form-item label="" :class="{ 'is-full-width': isMobile }">
+          <el-button :type="queryMode === 'now' ? 'success' : 'default'" class="query-btn" @click="handleNowClick">
             当前时间
           </el-button>
         </el-form-item>
-        <el-form-item label="日期">
+        <el-form-item label="日期" :class="{ 'is-full-width': isMobile }">
           <el-date-picker v-model="queryForm.date" type="date" placeholder="选择日期" format="YYYY/MM/DD"
-            value-format="YYYY-MM-DD" style="width: 180px;" @change="handleDateChange" />
+            value-format="YYYY-MM-DD" class="date-picker" @change="handleDateChange" />
         </el-form-item>
       </el-form>
 
       <!-- 多个时间点快照 -->
       <div v-for="snapshot in snapshots" :key="snapshot.id" class="snapshot-block">
-        <div class="snapshot-meta" v-if="snapshot.dateTime || snapshot.day">
+        <div v-if="snapshot.dateTime || snapshot.day" class="snapshot-meta">
           <span>统计时间：{{ snapshot.dateTime || snapshot.day }}</span>
         </div>
-        <el-table v-loading="loading" :data="snapshot.tableData" border stripe style="width: 100%"
+
+        <!-- 桌面端：表格 -->
+        <el-table v-if="!isMobile" v-loading="loading" :data="snapshot.tableData" border stripe style="width: 100%"
           :default-expand-all="false" row-key="projectId" empty-text="暂无项目数据" :header-cell-style="{
             background: 'var(--el-table-row-hover-bg-color)',
             color: 'var(--el-text-color-primary)',
             textAlign: 'center'
           }" :cell-style="{ textAlign: 'center' }">
-          <!-- 展开列 -->
           <el-table-column type="expand" width="50">
             <template #default="{ row }">
               <div class="expanded-content">
@@ -44,16 +45,17 @@
                   <el-table-column v-for="(header, index) in detailedHeaders" :key="index" :prop="`col_${index}`"
                     :label="header" :min-width="index === 0 ? 120 : 100" show-overflow-tooltip>
                     <template #default="{ row: detailRow }">
-                      <span>{{ detailRow[`col_${index}`] !== undefined && detailRow[`col_${index}`] !== null ?
-                        detailRow[`col_${index}`] : '-' }}</span>
+                      <span>{{
+                        detailRow[`col_${index}`] !== undefined && detailRow[`col_${index}`] !== null
+                          ? detailRow[`col_${index}`]
+                          : '-'
+                      }}</span>
                     </template>
                   </el-table-column>
                 </el-table>
               </div>
             </template>
           </el-table-column>
-
-          <!-- 主表格列 -->
           <el-table-column v-for="(header, index) in overviewHeaders" :key="index" :prop="`col_${index}`"
             :label="header" :min-width="getColumnWidth(header)" :fixed="index === 0 ? 'left' : false"
             show-overflow-tooltip>
@@ -66,22 +68,103 @@
               <span v-else-if="header === '延期时间' && row.overview[index]">
                 <el-tag type="danger" size="small">{{ row.overview[index] }} 天</el-tag>
               </span>
-              <span v-else>{{ row.overview[index] !== undefined && row.overview[index] !== null &&
-                row.overview[index] !==
-                '' ? row.overview[index] : '-' }}</span>
+              <span v-else>{{
+                row.overview[index] !== undefined &&
+                  row.overview[index] !== null &&
+                  row.overview[index] !== ''
+                  ? row.overview[index]
+                  : '-'
+              }}</span>
             </template>
           </el-table-column>
         </el-table>
+
+        <!-- 移动端：卡片列表 -->
+        <template v-else>
+          <div v-loading="loading" class="mobile-list">
+            <template v-if="snapshot.tableData.length">
+              <div v-for="row in snapshot.tableData" :key="row.projectId" class="mobile-card"
+                @click="toggleMobileExpand(row.projectId)">
+                <div class="mobile-card__main">
+                  <div class="mobile-card__title">
+                    {{ row.overview[0] !== undefined && row.overview[0] !== null ? row.overview[0] : '未命名项目' }}
+                  </div>
+                  <div class="mobile-card__meta">
+                    <el-tag v-if="overviewHeaders.includes('项目状态')"
+                      :type="getStatusTagType(row.overview[overviewHeaders.indexOf('项目状态')])" size="small"
+                      class="mobile-card__tag">
+                      {{ row.overview[overviewHeaders.indexOf('项目状态')] || '-' }}
+                    </el-tag>
+                    <el-tag v-if="overviewHeaders.includes('延期时间') && row.overview[overviewHeaders.indexOf('延期时间')]"
+                      type="danger" size="small" class="mobile-card__tag">
+                      {{ row.overview[overviewHeaders.indexOf('延期时间')] }} 天
+                    </el-tag>
+                  </div>
+                  <span class="mobile-card__expand" :class="{ 'is-open': expandedRowId === row.projectId }">
+                    <el-icon>
+                      <ArrowDown />
+                    </el-icon>
+                  </span>
+                </div>
+                <div v-show="expandedRowId === row.projectId" class="mobile-card__detail">
+                  <div v-for="(header, index) in overviewHeaders" :key="index" class="mobile-detail-row">
+                    <span class="mobile-detail-row__label">{{ header }}</span>
+                    <span class="mobile-detail-row__value">
+                      <template v-if="header === '项目状态'">
+                        <el-tag :type="getStatusTagType(row.overview[index])" size="small">
+                          {{ row.overview[index] || '-' }}
+                        </el-tag>
+                      </template>
+                      <template v-else-if="header === '延期时间' && row.overview[index]">
+                        <el-tag type="danger" size="small">{{ row.overview[index] }} 天</el-tag>
+                      </template>
+                      <template v-else>
+                        {{ row.overview[index] !== undefined && row.overview[index] !== null && row.overview[index] !==
+                          '' ? row.overview[index] : '-' }}
+                      </template>
+                    </span>
+                  </div>
+                  <div class="mobile-detail-section">
+                    <div class="mobile-detail-section__title">详细信息</div>
+                    <div v-for="(header, index) in detailedHeaders" :key="index" class="mobile-detail-row">
+                      <span class="mobile-detail-row__label">{{ header }}</span>
+                      <span class="mobile-detail-row__value">
+                        {{ row.detailedData && (row.detailedData[`col_${index}`] ?? '-') }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </template>
+            <el-empty v-else description="暂无项目数据" class="mobile-empty" />
+          </div>
+        </template>
       </div>
     </el-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { ElMessage } from 'element-plus';
-import { Refresh } from '@element-plus/icons-vue';
+import { Refresh, ArrowDown } from '@element-plus/icons-vue';
+import { deviceDetection } from '@pureadmin/utils';
 import { selectProjectOverview, selectProjectRecord } from '@/api/project';
+
+const MOBILE_BREAKPOINT = 768;
+const isNarrowScreen = ref(window.innerWidth <= MOBILE_BREAKPOINT);
+const isMobile = computed(() => deviceDetection() || isNarrowScreen.value);
+
+function updateNarrowScreen() {
+  isNarrowScreen.value = window.innerWidth <= MOBILE_BREAKPOINT;
+}
+
+
+const expandedRowId = ref<string | null>(null);
+
+function toggleMobileExpand(projectId: string) {
+  expandedRowId.value = expandedRowId.value === projectId ? null : projectId;
+}
 
 interface OverviewData {
   head: {
@@ -266,7 +349,11 @@ const loadData = async () => {
 };
 
 onMounted(() => {
+  window.addEventListener('resize', updateNarrowScreen);
   loadData();
+});
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', updateNarrowScreen);
 });
 </script>
 
@@ -422,6 +509,201 @@ onMounted(() => {
   :deep(.el-table__empty-block) {
     padding: 40px 0;
     color: #909399;
+  }
+
+  // 移动端：卡片头部与查询表单
+  .query-form--mobile {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 16px;
+
+    .el-form-item.is-full-width {
+      width: 100%;
+      margin-right: 0;
+      margin-bottom: 0;
+    }
+
+    .el-form-item .el-form-item__content {
+      width: 100%;
+    }
+
+    .query-btn {
+      width: 100%;
+    }
+
+    .date-picker {
+      width: 100% !important;
+    }
+  }
+
+  // 移动端：卡片列表
+  .mobile-list {
+    min-height: 120px;
+  }
+
+  .mobile-card {
+    background: var(--el-bg-color);
+    border: 1px solid var(--el-border-color-lighter);
+    border-radius: 8px;
+    margin-bottom: 12px;
+    overflow: hidden;
+    transition: box-shadow 0.2s;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+
+    &:active {
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+    }
+  }
+
+  .mobile-card__main {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 12px;
+    min-height: 44px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .mobile-card__title {
+    flex: 1;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--el-text-color-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-card__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .mobile-card__tag {
+    flex-shrink: 0;
+  }
+
+  .mobile-card__expand {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    color: var(--el-text-color-secondary);
+    transition: transform 0.2s;
+
+    &.is-open {
+      transform: rotate(180deg);
+    }
+  }
+
+  .mobile-card__detail {
+    padding: 0 12px 14px;
+    border-top: 1px solid var(--el-border-color-lighter);
+    background: var(--el-fill-color-light);
+  }
+
+  .mobile-detail-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 0;
+    font-size: 13px;
+    border-bottom: 1px solid var(--el-border-color-lighter);
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+
+  .mobile-detail-row__label {
+    flex-shrink: 0;
+    color: var(--el-text-color-secondary);
+    min-width: 90px;
+  }
+
+  .mobile-detail-row__value {
+    flex: 1;
+    text-align: right;
+    word-break: break-all;
+    color: var(--el-text-color-primary);
+  }
+
+  .mobile-detail-section {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--el-border-color);
+  }
+
+  .mobile-detail-section__title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--el-text-color-primary);
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+  }
+
+  .mobile-empty {
+    padding: 32px 0;
+  }
+}
+
+// 移动端媒体查询：统一缩小间距与字号
+@media (max-width: 768px) {
+  .project-overview {
+    padding: 0 2px;
+
+    .overview-card {
+      :deep(.el-card__header) {
+        padding: 12px 14px;
+      }
+
+      :deep(.el-card__body) {
+        padding: 14px;
+      }
+    }
+
+    .card-header {
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+
+      .font-medium {
+        font-size: 15px;
+      }
+
+      .header-btn {
+        padding: 8px 12px;
+        font-size: 13px;
+      }
+    }
+
+    .query-form {
+      margin-bottom: 12px;
+    }
+
+    .snapshot-block {
+      margin-bottom: 24px;
+    }
+
+    .snapshot-meta {
+      margin-bottom: 10px;
+      padding: 8px 12px;
+      font-size: 13px;
+
+      span::before {
+        font-size: 12px;
+      }
+    }
   }
 }
 </style>

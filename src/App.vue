@@ -24,3 +24,9 @@ export default defineComponent({
   }
 });
 </script>
+
+<style lang="scss">
+.el-tabs__content {
+  padding: 0;
+}
+</style>

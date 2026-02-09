@@ -127,10 +127,13 @@ export interface Project {
   | "未开始"
   | "进行中"
   | "已完成"
+  | "延期"
   | "active"
   | "completed"
   | "paused"
-  | "cancelled"; // 支持中文和英文状态
+  | "cancelled";
+  delayed?: boolean;
+  // 支持中文和英文状态
   progress?: number;
   startDate?: string;
   endDate?: string;

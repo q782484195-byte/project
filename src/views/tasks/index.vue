@@ -1,10 +1,9 @@
 <template>
-  <div class="tasks-page" ref="pageRef">
+  <div class="tasks-page" :class="{ 'is-mobile': isMobile }" ref="pageRef">
     <!-- 搜索表单 -->
     <el-card class="search-card mb-5">
-
-      <el-form :model="searchForm" :inline="true" class="search-form">
-        <el-form-item label="选择项目">
+      <el-form :model="searchForm" :inline="!isMobile" class="search-form" :class="{ 'search-form--mobile': isMobile }">
+        <el-form-item label="选择项目" :class="{ 'is-full-width': isMobile }">
           <div class="project-tags">
             <el-tag v-for="project in projects" :key="project.id"
               :type="searchForm.projectId === project.id ? 'primary' : 'info'"
@@ -18,16 +17,16 @@
     </el-card>
 
     <!-- 任务列表 -->
-    <el-card v-loading="loading" ref="tasksCardRef">
+    <el-card v-loading="loading" ref="tasksCardRef" class="tasks-card">
       <div class="tasks-table-container" ref="containerRef">
         <div class="table-header-actions" v-if="Object.keys(tasks).length > 0">
-          <el-button type="success" @click="handleBatchAssign" v-perms="['task:bulk_assignment']"
+          <!-- <el-button type="success" @click="handleBatchAssign" v-perms="['task:bulk_assignment']"
             :loading="batchAssignLoading" :disabled="selectedTasks.length === 0">
             <el-icon>
               <Share />
             </el-icon>
             分配选中任务 ({{ selectedTasks.length }})
-          </el-button>
+          </el-button> -->
           <div style="flex: 1;"></div>
           <el-button type="primary" @click="handleCreate" v-perms="['task:add']">
             <el-icon>
@@ -36,18 +35,18 @@
             新建任务
           </el-button>
         </div>
-        <!-- 多层 tab 结构（递归组件） -->
-        <NestedTabs v-if="Object.keys(tasks).length > 0" :data="tasks" :level="0" :active-tabs="activeTabs"
+        <!-- 多层 tab 结构（递归组件）；PC 端显示表格，移动端隐藏表格改用卡片 -->
+        <NestedTabs v-if="!isMobile && Object.keys(tasks).length > 0" :data="tasks" :level="0" :active-tabs="activeTabs"
           :table-height="tableHeight" :loading="tabLoading" :processed-cache="processedTasksCache"
-          @update:active-tabs="activeTabs = $event" @selection-change="handleSelectionChange">
-          <el-table-column type="selection" width="55" :selectable="isRowSelectable" />
-          <el-table-column prop="任务名" label="任务名称" width="140">
+          :hide-table="isMobile" @update:active-tabs="activeTabs = $event" @selection-change="handleSelectionChange">
+          <!-- <el-table-column type="selection" :selectable="isRowSelectable" /> -->
+          <el-table-column prop="任务名" label="任务名称">
             <template #default="{ row }">
               {{ row.任务名 || row.task_name || row.title || "-" }}
             </template>
           </el-table-column>
           <!-- <el-table-column prop="requirement_name" label="关联层级" width="140" /> -->
-          <el-table-column prop="当前处理人" label="当前处理人/部门" width="220">
+          <el-table-column prop="当前处理人" label="当前处理人/部门">
             <template #default="{ row }">
               <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                 <el-tag type="success" size="small">
@@ -78,44 +77,114 @@
               <el-progress :percentage="row.进度 || 0" :status="row.进度 === 100 ? 'success' : undefined" />
             </template>
           </el-table-column>
-          <el-table-column prop="task_deadline" label="任务截止日期" width="150" />
-          <el-table-column prop="create_time" label="创建时间" width="180" />
-          <el-table-column label="操作" width="80" fixed="right">
+          <el-table-column prop="task_deadline" label="任务截止日期" />
+          <el-table-column prop="create_time" label="创建时间" />
+          <el-table-column label="操作" :width="operationColWidth(3)" fixed="right">
             <template #default="{ row }">
-              <el-dropdown trigger="click" @command="(command) => handleDropdownCommand(command, row)">
-                <el-button type="primary" link size="small" circle class="more-icon-btn">
-                  <el-icon :size="18">
-                    <MoreFilled />
-                  </el-icon>
+              <div class="table-action-btns">
+                <el-button type="primary" link size="small" @click="handleDropdownCommand('view', row)">查看</el-button>
+                <el-button type="primary" link size="small" @click="handleDropdownCommand('edit', row)"
+                  v-if="((userStore.username === (row.当前处理人 || row.current_handler)) || isAdmin || isProjectManager) && row.状态 !== '已完成' && hasPerms(['task:update'])">
+                  编辑
                 </el-button>
-                <template #dropdown>
-                  <el-dropdown-menu>
-                    <el-dropdown-item command="view">查看</el-dropdown-item>
-                    <el-dropdown-item command="edit"
-                      v-if="((userStore.username === (row.当前处理人 || row.current_handler)) || isAdmin || isProjectManager) && row.状态 !== '已完成' && hasPerms(['task:update'])">
-                      编辑
-                    </el-dropdown-item>
-                    <el-dropdown-item command="changeAssignee"
-                      v-if="isPendingAssignStatus(row.状态 || row.status) && hasPerms(['task:update_current_assignee'])">
-                      更改负责人
-                    </el-dropdown-item>
-                    <el-dropdown-item command="close" v-if="hasPerms(['task:close'])" divided>
-                      <span style="color: var(--el-color-danger)">关闭</span>
-                    </el-dropdown-item>
-                    <el-dropdown-item command="complete" v-if="row.状态 !== '已完成' && hasPerms(['task:finish'])" divided>
-                      <span style="color: var(--el-color-success)">完成</span>
-                    </el-dropdown-item>
-                    <el-dropdown-item command="report"
-                      v-if="(row.当前处理人 || row.current_handler) === userStore.username && canRecordBug(row.状态 || row.status) && hasPerms(['task:report'])">
-                      <span style="color: var(--el-color-success)">进度汇报</span>
-                    </el-dropdown-item>
-                  </el-dropdown-menu>
-                </template>
-              </el-dropdown>
+                <el-button type="primary" link size="small" @click="handleDropdownCommand('changeAssignee', row)"
+                  v-if="isPendingAssignStatus(row.状态 || row.status) && hasPerms(['task:update_current_assignee'])">
+                  更改负责人
+                </el-button>
+                <el-button type="primary" link size="small" @click="handleDropdownCommand('assign', row)"
+                  v-if="row.next_state && Array.isArray(row.next_state) && row.next_state.length > 0 && hasPerms(['task:update'])">
+                  分配
+                </el-button>
+                <el-button type="primary" link size="small" @click="handleDropdownCommand('close', row)"
+                  v-if="hasPerms(['task:close'])" class="action-danger">
+                  关闭
+                </el-button>
+                <el-button type="primary" link size="small" @click="handleDropdownCommand('complete', row)"
+                  v-if="row.状态 !== '已完成' && hasPerms(['task:finish'])" class="action-success">
+                  完成
+                </el-button>
+                <el-button type="primary" link size="small" @click="handleDropdownCommand('report', row)"
+                  v-if="(row.当前处理人 || row.current_handler) === userStore.username && canRecordBug(row.状态 || row.status) && hasPerms(['task:report'])"
+                  class="action-success">
+                  进度汇报
+                </el-button>
+              </div>
             </template>
           </el-table-column>
         </NestedTabs>
-        <el-empty v-else description="暂无任务数据" :image-size="100" />
+        <!-- PC 端：无任何任务数据时的占位提示 -->
+        <el-empty v-if="!isMobile && !loading && Object.keys(tasks).length === 0" description="暂无任务数据"
+          :image-size="100" />
+
+        <!-- 移动端：任务卡片列表（与当前 Tab 的 filteredTasks 一致） -->
+        <div v-if="isMobile">
+          <div v-if="Object.keys(tasks).length > 0" v-loading="tabLoading" class="mobile-task-cards">
+            <template v-if="filteredTasks.length">
+              <div v-for="row in filteredTasks" :key="row.rowKey" class="mobile-task-card">
+                <div class="mobile-task-card__main">
+                  <div class="mobile-task-card__title">{{ row.任务名 || row.task_name || row.title || "-" }}</div>
+                  <div class="mobile-task-card__meta">
+                    <el-tag :type="getStatusType(row.状态 || row.status) || undefined" size="small" effect="light">
+                      {{ row.状态 || row.status || "-" }}
+                    </el-tag>
+                    <el-tag :type="getPriorityType(row.优先级 || row.priority) || undefined" size="small">
+                      {{ row.优先级 || row.priority || "-" }}
+                    </el-tag>
+                  </div>
+                  <div class="mobile-task-card__row">
+                    <span class="mobile-task-card__label">当前处理人/部门</span>
+                    <span class="mobile-task-card__value">
+                      <el-tag type="success" size="small">{{ row.部门 || "-" }}</el-tag>
+                      <el-tag type="primary" size="small">{{ row.当前处理人 || row.assignee || "-" }}</el-tag>
+                    </span>
+                  </div>
+                  <div class="mobile-task-card__row">
+                    <span class="mobile-task-card__label">进度</span>
+                    <span class="mobile-task-card__value mobile-task-card__progress-wrap">
+                      <el-progress :percentage="row.进度 || 0" :status="row.进度 === 100 ? 'success' : undefined"
+                        :stroke-width="8" class="mobile-task-card__progress" />
+                    </span>
+                  </div>
+                  <div class="mobile-task-card__row">
+                    <span class="mobile-task-card__label">截止日期</span>
+                    <span class="mobile-task-card__value">{{ row.task_deadline || "-" }}</span>
+                  </div>
+                  <div class="mobile-task-card__row">
+                    <span class="mobile-task-card__label">创建时间</span>
+                    <span class="mobile-task-card__value">{{ row.create_time || "-" }}</span>
+                  </div>
+                  <div class="mobile-task-card__actions">
+                    <el-button type="primary" link size="small"
+                      @click.stop="handleDropdownCommand('view', row)">查看</el-button>
+                    <el-button type="primary" link size="small" @click.stop="handleDropdownCommand('edit', row)"
+                      v-if="((userStore.username === (row.当前处理人 || row.current_handler)) || isAdmin || isProjectManager) && row.状态 !== '已完成' && hasPerms(['task:update'])">
+                      编辑
+                    </el-button>
+                    <el-button type="primary" link size="small"
+                      @click.stop="handleDropdownCommand('changeAssignee', row)"
+                      v-if="isPendingAssignStatus(row.状态 || row.status) && hasPerms(['task:update_current_assignee'])">
+                      更改负责人
+                    </el-button>
+                    <el-button type="primary" link size="small" @click.stop="handleDropdownCommand('assign', row)"
+                      v-if="row.next_state && Array.isArray(row.next_state) && row.next_state.length > 0 && hasPerms(['task:update'])">
+                      分配
+                    </el-button>
+                    <el-button type="primary" link size="small" @click.stop="handleDropdownCommand('close', row)"
+                      v-if="hasPerms(['task:close'])" class="action-danger">关闭</el-button>
+                    <el-button type="primary" link size="small" @click.stop="handleDropdownCommand('complete', row)"
+                      v-if="row.状态 !== '已完成' && hasPerms(['task:finish'])" class="action-success">完成</el-button>
+                    <el-button type="primary" link size="small" @click.stop="handleDropdownCommand('report', row)"
+                      v-if="(row.当前处理人 || row.current_handler) === userStore.username && canRecordBug(row.状态 || row.status) && hasPerms(['task:report'])"
+                      class="action-success">进度汇报</el-button>
+                  </div>
+                </div>
+              </div>
+            </template>
+            <el-empty v-else-if="!tabLoading" description="暂无任务数据" :image-size="80" class="mobile-task-cards-empty" />
+          </div>
+          <!-- 移动端且没有任何任务数据时显示 -->
+          <el-empty v-else-if="!tabLoading" description="暂无任务数据" :image-size="100" />
+        </div>
       </div>
     </el-card>
 
@@ -222,7 +291,8 @@ import { ref, computed, onMounted, onUnmounted, watch, reactive, nextTick, toRaw
 import { useRouter, useRoute } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import type { FormInstance, FormRules } from "element-plus";
-import { Plus, Search, Share, MoreFilled } from "@element-plus/icons-vue";
+import { Plus, Search, Share } from "@element-plus/icons-vue";
+import { deviceDetection } from "@pureadmin/utils";
 import { hasPerms } from "@/utils/auth";
 import {
   selectProjects,
@@ -249,6 +319,12 @@ const userRoles = computed(() => userStore.roles || []);
 const isAdmin = computed(() => userRoles.value.includes("Admin"));
 const isProjectManager = computed(() => userRoles.value.includes("ProjectManager"));
 const canCallDepartmentSelect = computed(() => isAdmin.value || isProjectManager.value);
+
+// 移动端适配：设备检测 + 视口宽度
+const MOBILE_BREAKPOINT = 768;
+const isNarrowScreen = ref(window.innerWidth <= MOBILE_BREAKPOINT);
+const isMobile = computed(() => deviceDetection() || isNarrowScreen.value);
+
 // 搜索表单
 const searchForm = ref({
   projectId: "",
@@ -585,7 +661,7 @@ const canRecordBug = (status: string): boolean => {
   if (!status) return false;
   // 如果无法标准化，检查中文状态
   const testReviewStatuses = [
-    "第1轮测试", "第2轮测试", "第3轮测试", "第4轮测试", "第5轮测试", "第6轮测试", "第7轮测试", "第8轮测试", "任务进行中",
+    "第1轮测试", "第2轮测试", "第3轮测试", "第4轮测试", "第5轮测试", "第6轮测试", "第7轮测试", "第8轮测试", "任务进行中", "测试任务进行中"
   ];
   return testReviewStatuses.includes(status);
 };
@@ -1155,8 +1231,13 @@ const handleBatchAssignSubmit = async () => {
   });
 };
 
+// 根据操作按钮数量计算操作列宽度（约 56px 基础 + 每按钮 52px）
+const operationColWidth = (buttonCount: number): number => {
+  return Math.max(80, 50 + buttonCount * 35);
+};
+
 // 查看任务
-// 处理下拉菜单命令
+// 处理操作按钮命令
 const handleDropdownCommand = (command: string, row: any) => {
   switch (command) {
     case 'view':
@@ -1167,6 +1248,9 @@ const handleDropdownCommand = (command: string, row: any) => {
       break;
     case 'changeAssignee':
       handleChangeAssignee(row);
+      break;
+    case 'assign':
+      openStatusFlowDialog(row);
       break;
     case 'close':
       handleCloseTask(row);
@@ -1737,6 +1821,7 @@ const calculateTableHeight = () => {
 
 // 窗口大小改变时重新计算
 const handleResize = () => {
+  isNarrowScreen.value = window.innerWidth <= MOBILE_BREAKPOINT;
   calculateTableHeight();
 };
 
@@ -1760,8 +1845,15 @@ onUnmounted(() => {
 
 <style scoped lang="scss">
 .tasks-page {
+  .tasks-card {
+    :deep(.el-card__body) {
+      padding: 16px;
+    }
+  }
+
   .tasks-table-container {
-    min-height: 550px;
+    /* PC 端不强制过高的最小高度，避免页面出现多余纵向滚动条 */
+    min-height: 750px;
     display: flex;
     flex-direction: column;
   }
@@ -1825,9 +1917,9 @@ onUnmounted(() => {
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
     border: 1.5px solid transparent;
     min-height: 36px;
-    width: 140px;
-    min-width: 140px;
-    max-width: 140px;
+    flex: 0 1 auto;
+    min-width: 100px;
+    max-width: 200px;
     overflow: hidden;
     display: inline-flex;
     align-items: center;
@@ -1885,18 +1977,279 @@ onUnmounted(() => {
     }
   }
 
-  // 放大三个点图标
-  .more-icon-btn {
-    :deep(.el-icon) {
-      font-size: 18px;
+  // 操作列按钮组
+  .table-action-btns {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+
+    .el-button {
+      padding: 0 4px;
+      margin: 0;
+    }
+
+    .action-danger {
+      color: var(--el-color-danger);
+
+      &:hover {
+        color: var(--el-color-danger);
+        opacity: 0.8;
+      }
+    }
+
+    .action-success {
+      color: var(--el-color-success);
+
+      &:hover {
+        color: var(--el-color-success);
+        opacity: 0.8;
+      }
+    }
+  }
+
+  // 移动端：搜索表单纵向排列
+  .search-form--mobile {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+
+    .el-form-item.is-full-width {
+      width: 100%;
+      margin-right: 0;
+      margin-bottom: 12px;
+    }
+
+    .el-form-item .el-form-item__content {
+      width: 100%;
+    }
+  }
+
+  // 移动端：任务卡片列表
+  .mobile-task-cards {
+    min-height: 200px;
+  }
+
+  .mobile-task-cards-empty {
+    padding: 32px 0;
+  }
+
+  .mobile-task-card {
+    background: var(--el-bg-color);
+    border: 1px solid var(--el-border-color-lighter);
+    border-radius: 10px;
+    margin-bottom: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    transition: box-shadow 0.2s;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+
+    &:active {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+  }
+
+  .mobile-task-card__main {
+    padding: 14px 12px;
+  }
+
+  .mobile-task-card__title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--el-text-color-primary);
+    margin-bottom: 10px;
+    line-height: 1.4;
+    word-break: break-all;
+  }
+
+  .mobile-task-card__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+
+  .mobile-task-card__row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 0;
+    font-size: 13px;
+    border-bottom: 1px solid var(--el-border-color-lighter);
+
+    &:last-of-type {
+      border-bottom: none;
+    }
+  }
+
+  .mobile-task-card__label {
+    flex-shrink: 0;
+    color: var(--el-text-color-secondary);
+    min-width: 90px;
+  }
+
+  .mobile-task-card__value {
+    flex: 1;
+    text-align: right;
+    word-break: break-all;
+    color: var(--el-text-color-primary);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px 8px;
+  }
+
+  .mobile-task-card__progress-wrap {
+    min-width: 140px;
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .mobile-task-card__progress {
+    min-width: 140px;
+    width: 100%;
+  }
+
+  .mobile-task-card__progress-wrap :deep(.el-progress-bar) {
+    padding-right: 0;
+  }
+
+  .mobile-task-card__progress-wrap :deep(.el-progress-bar__outer) {
+    min-width: 140px;
+  }
+
+  .mobile-task-card__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--el-border-color-lighter);
+
+    .el-button {
+      padding: 2px 8px;
+      font-size: 12px;
+    }
+
+    .action-danger {
+      color: var(--el-color-danger);
+    }
+
+    .action-success {
+      color: var(--el-color-success);
     }
   }
 }
 
-// 移动端适配 (640px)
+// 移动端适配：768px 与 640px 断点
+@media (max-width: 768px) {
+  .tasks-page {
+    padding: 12px 10px;
+
+    .tasks-card :deep(.el-card__body) {
+      padding: 12px 10px;
+    }
+
+    .search-card {
+      margin-bottom: 12px;
+
+      :deep(.el-card__body) {
+        padding: 14px 12px;
+      }
+    }
+
+    .search-form {
+      :deep(.el-form-item) {
+        margin-right: 0;
+      }
+
+      .project-tags {
+        gap: 10px;
+      }
+
+      .project-tag {
+        min-height: 40px;
+        padding: 10px 14px;
+        font-size: 13px;
+        flex: 1 1 calc((100% - 20px) / 3);
+        min-width: calc((100% - 20px) / 3);
+        max-width: none;
+      }
+    }
+
+    .table-header-actions {
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 12px;
+
+      .el-button {
+        width: 100%;
+        margin: 0;
+        justify-content: center;
+      }
+    }
+
+    .tasks-table-container {
+      min-height: 380px;
+
+      :deep(.nested-tabs-container) {
+        .el-tabs__item {
+          padding: 0 14px;
+          font-size: 13px;
+          height: 40px;
+          line-height: 40px;
+          max-width: 160px;
+        }
+
+        .tab-name {
+          max-width: 120px;
+        }
+
+        .tab-count {
+          font-size: 12px;
+        }
+      }
+
+      :deep(.el-table) {
+        .el-table__body-wrapper {
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+
+        .el-table__header-wrapper {
+          overflow-x: auto;
+        }
+
+        .el-table__cell {
+          padding: 10px 6px;
+          font-size: 12px;
+        }
+
+        .el-progress {
+          min-width: 60px;
+        }
+      }
+
+      .table-action-btns {
+        gap: 6px 4px;
+
+        .el-button {
+          padding: 2px 6px;
+          font-size: 12px;
+        }
+      }
+    }
+  }
+}
+
 @media (max-width: 640px) {
   .tasks-page {
-    padding: 12px;
+    padding: 10px 8px;
 
     .page-header {
       flex-direction: column;
@@ -1919,67 +2272,54 @@ onUnmounted(() => {
       }
     }
 
-    .search-card {
-      margin-bottom: 12px;
-
-      :deep(.el-card__body) {
-        padding: 12px;
-      }
+    .search-card :deep(.el-card__body) {
+      padding: 12px 10px;
     }
 
-    .search-form {
-      :deep(.el-form-item) {
-        width: 100%;
-        margin-right: 0;
-        margin-bottom: 12px;
-      }
-
-      .project-tags {
-        width: 100%;
-        gap: 8px;
-
-        .project-tag {
-          width: 120px;
-          min-width: 120px;
-          max-width: 120px;
-          padding: 8px 12px;
-          font-size: 13px;
-          min-height: 32px;
-        }
-      }
-    }
-
-    .table-header-actions {
-      flex-direction: column;
-      gap: 8px;
-      margin-bottom: 12px;
-
-      .el-button {
-        width: 100%;
-        margin: 0;
-      }
+    .search-form .project-tags .project-tag {
+      flex: 1 1 calc((100% - 20px) / 3);
+      min-width: calc((100% - 20px) / 3);
+      max-width: none;
+      min-height: 44px;
+      padding: 12px 14px;
+      font-size: 14px;
     }
 
     .tasks-table-container {
-      min-height: 400px;
+      min-height: 360px;
 
-      :deep(.el-table) {
-        .el-table__body-wrapper {
-          overflow-x: auto;
-          -webkit-overflow-scrolling: touch;
-        }
+      :deep(.nested-tabs-container) .el-tabs__item {
+        padding: 0 12px;
+        font-size: 12px;
+        height: 38px;
+        line-height: 38px;
+        max-width: 140px;
+      }
 
-        .el-table__header-wrapper {
-          overflow-x: auto;
-        }
+      :deep(.nested-tabs-container) .tab-name {
+        font-size: 11px;
+      }
 
-        .el-table__cell {
-          padding: 8px 4px;
-          font-size: 12px;
-          white-space: nowrap;
-        }
+      :deep(.nested-tabs-container) .tab-count {
+        font-size: 11px;
+      }
+
+      :deep(.el-table) .el-table__cell {
+        padding: 8px 4px;
+        font-size: 12px;
       }
     }
+  }
+}
+</style>
+
+<!-- 移动端弹窗宽度（弹窗挂载在 body，需单独样式） -->
+<style lang="scss">
+@media (max-width: 768px) {
+  .el-overlay-dialog .el-dialog {
+    width: calc(100% - 24px) !important;
+    max-width: none;
+    margin: 12px auto;
   }
 }
 </style>

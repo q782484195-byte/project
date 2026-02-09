@@ -4,25 +4,33 @@
       <el-tab-pane v-for="(child, key) in data" :key="key" :name="key">
         <template #label>
           <el-tooltip :content="key || '未命名'" placement="top" :disabled="!isOverflowed[key]">
-            <span class="tab-label">
+            <span class="tab-label" :class="{
+              'is-all-completed':
+                currentActiveTab === key &&
+                hasTaskList(child) &&
+                isAllTasksCompleted(child.task_list)
+            }">
               <span :ref="setTabNameRef(key)" class="tab-name">{{ key || '未命名' }}</span>
               <span class="tab-count">{{ getTotalTaskCount(child) }}</span>
             </span>
           </el-tooltip>
         </template>
-        <!-- 如果当前节点有 task_list 且是当前选中的 tab，显示表格 -->
+        <!-- 如果当前节点有 task_list 且是当前选中的 tab，显示表格（移动端 hideTable 时占位由父级渲染卡片） -->
         <div v-if="hasTaskList(child) && currentActiveTab === key" class="table-wrapper">
-          <el-table :data="getProcessedTasks(child.task_list, key)" :height="tableHeight" row-key="rowKey"
-            v-loading="loading" element-loading-text="加载任务数据..." empty-text="暂无任务数据"
-            @selection-change="$emit('selection-change', $event)" class="nested-table">
-            <slot></slot>
-          </el-table>
+          <template v-if="!hideTable">
+            <el-table :data="getProcessedTasks(child.task_list, key)" :height="tableHeight" row-key="rowKey"
+              v-loading="loading" element-loading-text="加载任务数据..." empty-text="暂无任务数据"
+              @selection-change="$emit('selection-change', $event)" class="nested-table">
+              <slot></slot>
+            </el-table>
+          </template>
+          <div v-else class="mobile-cards-placeholder" />
         </div>
         <!-- 如果当前节点是中间层且是当前选中的 tab，递归渲染下一层 tab -->
         <div v-else-if="isIntermediateNode(child) && currentActiveTab === key" class="nested-content">
           <NestedTabs :data="child" :level="level + 1" :active-tabs="activeTabs" :table-height="tableHeight"
-            :loading="loading" :processed-cache="processedCache" @update:active-tabs="handleUpdateActiveTabs"
-            @selection-change="$emit('selection-change', $event)">
+            :loading="loading" :processed-cache="processedCache" :hide-table="hideTable"
+            @update:active-tabs="handleUpdateActiveTabs" @selection-change="$emit('selection-change', $event)">
             <slot></slot>
           </NestedTabs>
         </div>
@@ -34,14 +42,19 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onBeforeUnmount, nextTick, watch } from "vue";
 
-const props = defineProps<{
-  data: Record<string, any>;
-  level: number;
-  activeTabs: string[];
-  tableHeight: number;
-  loading: boolean;
-  processedCache: Record<string, any[]>;
-}>();
+const props = withDefaults(
+  defineProps<{
+    data: Record<string, any>;
+    level: number;
+    activeTabs: string[];
+    tableHeight: number;
+    loading: boolean;
+    processedCache: Record<string, any[]>;
+    /** 为 true 时不渲染表格（由父级在移动端渲染卡片列表） */
+    hideTable?: boolean;
+  }>(),
+  { hideTable: false }
+);
 
 const emit = defineEmits<{
   "update:active-tabs": [tabs: string[]];
@@ -194,6 +207,17 @@ const getTotalTaskCount = (node: any): number => {
   }, 0);
 };
 
+// 判断 task_list 下是否所有任务状态均为「已完成」或「已作废」
+const DONE_STATUSES = ["已完成", "已作废", "已取消", "COMPLETED", "CANCELLED", "completed", "cancelled"];
+
+const isAllTasksCompleted = (taskList: any[] | undefined): boolean => {
+  if (!Array.isArray(taskList) || taskList.length === 0) return false;
+  return taskList.every((task: any) => {
+    const status = String(task.状态 ?? task.status ?? "").trim();
+    return DONE_STATUSES.includes(status);
+  });
+};
+
 // 处理任务列表
 const getProcessedTasks = (taskList: any[] | undefined, currentKey: string): any[] => {
   // 如果 task_list 不存在或不是数组，返回空数组（但表格仍会显示）
@@ -241,6 +265,12 @@ const handleUpdateActiveTabs = (tabs: string[]) => {
 .nested-tabs-container {
   width: 100%;
   height: 100%;
+}
+
+.mobile-cards-placeholder {
+  min-height: 0;
+  height: 0;
+  overflow: hidden;
 }
 
 .nested-tabs {
@@ -343,6 +373,29 @@ const handleUpdateActiveTabs = (tabs: string[]) => {
         height: 2px;
         background: var(--el-color-primary);
         border-radius: 2px 2px 0 0;
+      }
+    }
+
+    /* 当前 tab 的 task_list 下所有任务均为「已完成」时，tab 背景为绿色 */
+    &:has(.tab-label.is-all-completed) {
+      color: var(--el-color-success-dark-2);
+      font-weight: 600;
+      background-color: var(--el-color-success-light-9);
+
+      &::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: var(--el-color-success);
+        border-radius: 2px 2px 0 0;
+      }
+
+      .tab-count {
+        color: var(--el-color-success);
+        background-color: var(--el-color-success-light-7);
       }
     }
   }
@@ -507,7 +560,7 @@ html.dark {
       }
 
       :deep(.el-tabs__content) {
-        padding: 8px 0;
+        // padding: 8px 0;
       }
     }
 

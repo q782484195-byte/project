@@ -58,8 +58,8 @@
                 </el-col>
                 <el-col :span="6">
                   <div class="stat-item stat-testing">
-                    <div class="stat-label">测试审阅中</div>
-                    <div class="stat-value">{{ projectStatistics.测试审阅中 }}</div>
+                    <div class="stat-label">测试验收中</div>
+                    <div class="stat-value">{{ projectStatistics.测试验收中 }}</div>
                   </div>
                 </el-col>
                 <el-col :span="6">
@@ -172,7 +172,7 @@
           <el-descriptions :column="1" border>
             <el-descriptions-item label="项目名称">{{
               project.name
-              }}</el-descriptions-item>
+            }}</el-descriptions-item>
             <el-descriptions-item label="状态">
               <el-select v-model="currentStatus" :loading="statusUpdating" :disabled="currentStatus === '已完成'"
                 size="small" style="width: 120px" @change="handleStatusChange">
@@ -188,13 +188,13 @@
             </el-descriptions-item>
             <el-descriptions-item label="计划开始时间">{{
               formatDate(project.startDate)
-              }}</el-descriptions-item>
+            }}</el-descriptions-item>
             <el-descriptions-item label="计划结束时间">{{
               formatDate(project.endDate)
-              }}</el-descriptions-item>
+            }}</el-descriptions-item>
             <el-descriptions-item v-if="project.createdAt" label="创建时间">{{
               formatDate(project.createdAt)
-              }}</el-descriptions-item>
+            }}</el-descriptions-item>
           </el-descriptions>
         </el-card>
 
