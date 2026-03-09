@@ -92,7 +92,7 @@
                   更改负责人
                 </el-button>
                 <el-button type="primary" link size="small" @click="handleDropdownCommand('assign', row)"
-                  v-if="row.next_state && Array.isArray(row.next_state) && row.next_state.length > 0 && hasPerms(['task:update'])">
+                  v-if="row.next_state && Array.isArray(row.next_state) && row.next_state.length > 0 && hasPerms(['task:update']) && userStore.username === row.当前处理人">
                   分配
                 </el-button>
                 <el-button type="primary" link size="small" @click="handleDropdownCommand('close', row)"
@@ -166,7 +166,7 @@
                       更改负责人
                     </el-button>
                     <el-button type="primary" link size="small" @click.stop="handleDropdownCommand('assign', row)"
-                      v-if="row.next_state && Array.isArray(row.next_state) && row.next_state.length > 0 && hasPerms(['task:update'])">
+                      v-if="row.next_state && Array.isArray(row.next_state) && row.next_state.length > 0 && hasPerms(['task:update']) && userStore.username === row.当前处理人">
                       分配
                     </el-button>
                     <el-button type="primary" link size="small" @click.stop="handleDropdownCommand('close', row)"
@@ -1811,7 +1811,7 @@ const calculateTableHeight = () => {
     const containerRect = containerRef.value.getBoundingClientRect();
     const containerTopToViewportBottom = viewportHeight - containerRect.top;
     const tabsHeaderHeight = 40;
-    const cardPadding = 70;
+    const cardPadding = 90;
     const bottomPadding = 20;
     const availableHeight = containerTopToViewportBottom - tabsHeaderHeight - cardPadding - bottomPadding;
 
