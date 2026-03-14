@@ -45,6 +45,7 @@ export interface CreateProjectParams {
   describe: string[]; // URL 字符串数组
   attachment: string[]; // URL 字符串数组
   project_proposal?: string[]; // 立项文件 URL 字符串数组
+  project_initiation_date?: string; // 立项日期
 }
 
 /** 编辑项目参数 */
@@ -102,7 +103,8 @@ export const createProject = (params: CreateProjectParams) => {
       plant_end_time: params.plant_end_time,
       describe: params.describe,
       attachment: params.attachment,
-      project_proposal: params.project_proposal || []
+      project_proposal: params.project_proposal || [],
+      project_initiation_date: params.project_initiation_date || "",
     }
   });
 };
@@ -125,7 +127,8 @@ export const updateProject = (params: UpdateProjectParams) => {
       plant_end_time: params.plant_end_time,
       describe: params.describe,
       attachment: params.attachment,
-      project_proposal: params.project_proposal || []
+      project_proposal: params.project_proposal || [],
+      project_initiation_date: params.project_initiation_date || ""
     }
   });
 };
@@ -587,6 +590,8 @@ export interface UpdateTaskParams {
   default_person?: string;
   attachment?: string[];
   estimated_time?: number;
+  development_start_time?: string;
+  development_end_time?: string;
 }
 
 /** 更新任务 */
@@ -600,7 +605,9 @@ export const updateTask = (params: UpdateTaskParams) => {
       task_deadline: params.task_deadline,
       default_person: params.default_person,
       attachment: params.attachment || [],
-      estimated_time: params.estimated_time
+      estimated_time: params.estimated_time,
+      development_start_time: params.development_start_time,
+      development_end_time: params.development_end_time
     }
   });
 };
@@ -652,6 +659,17 @@ export const bulkAssignment = (params: BulkAssignmentParams) => {
     data: {
       task_json: params.task_json,
       hour: params.hour || 1,
+      task_deadline: params.task_deadline
+    }
+  });
+};
+
+
+/** 分配任务 */
+export const updateTaskDeadline = (params: any) => {
+  return http.request<ApiResponse<any>>("post", "/task/update_task_deadline", {
+    data: {
+      task_id: params.task_id,
       task_deadline: params.task_deadline
     }
   });
@@ -840,6 +858,19 @@ export const selectReportList = (params: SelectReportListParams) => {
   });
 };
 
+/** 更新任务延期原因 */
+export const updateTaskDelayReason = (params: {
+  task_id: string;
+  message?: string;
+}) => {
+  return http.request<ApiResponse<any>>("post", "/task/update_delay_message", {
+    data: {
+      task_id: params.task_id,
+      message: params.message ?? "",
+    }
+  });
+};
+
 /** 查询需求类型 */
 export const selectRequirementType = (params: any) => {
   return http.request<ApiResponse<any>>("post", "/project/select_requirement_type", {
@@ -865,5 +896,25 @@ export const selectProjectRecord = (params: any) => {
     }
   });
 };
+
+/** 暂停项目 */
+export const updateProjectPause = (params: any) => {
+  return http.request<ApiResponse<any[]>>("post", "/project/pause", {
+    data: {
+      project_id: params.project_id
+    }
+  });
+};
+
+/** 任务更换负责人 */
+export const updateTaskTransfer = (params: any) => {
+  return http.request<ApiResponse<any[]>>("post", "/task/transfer", {
+    data: {
+      task_id: params.task_id,
+      person_name: params.person_name
+    }
+  });
+};
+
 
 

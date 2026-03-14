@@ -77,8 +77,13 @@
               <el-progress :percentage="row.进度 || 0" :status="row.进度 === 100 ? 'success' : undefined" />
             </template>
           </el-table-column>
-          <el-table-column prop="task_deadline" label="任务截止日期" />
-          <el-table-column prop="create_time" label="创建时间" />
+          <el-table-column prop="task_deadline" label="任务完成期限" />
+          <el-table-column label="是否延期" width="90">
+            <template #default="{ row }">
+              <el-tag v-if="row.delay?.task_is_delay" type="danger" size="small">延期</el-tag>
+              <el-tag v-else type="success" size="small">正常</el-tag>
+            </template>
+          </el-table-column>
           <el-table-column label="操作" :width="operationColWidth(3)" fixed="right">
             <template #default="{ row }">
               <div class="table-action-btns">
@@ -148,6 +153,12 @@
                   <div class="mobile-task-card__row">
                     <span class="mobile-task-card__label">截止日期</span>
                     <span class="mobile-task-card__value">{{ row.task_deadline || "-" }}</span>
+                  </div>
+                  <div class="mobile-task-card__row" v-if="row.delay?.task_is_delay">
+                    <span class="mobile-task-card__label">是否延期</span>
+                    <span class="mobile-task-card__value">
+                      <el-tag type="danger" size="small">延期</el-tag>
+                    </span>
                   </div>
                   <div class="mobile-task-card__row">
                     <span class="mobile-task-card__label">创建时间</span>

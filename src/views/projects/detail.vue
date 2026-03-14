@@ -10,14 +10,6 @@
         </el-button>
         <h2>{{ project?.name || "项目详情" }}</h2>
       </div>
-      <!-- <div class="header-actions">
-        <el-button type="primary" @click="handleEdit">
-          <el-icon>
-            <Edit />
-          </el-icon>
-          编辑项目
-        </el-button>
-      </div> -->
     </div>
 
     <div v-loading="loading" class="detail-content">
@@ -99,13 +91,6 @@
           </el-tab-pane>
           <el-tab-pane label="BUG统计" name="bug-statistics">
             <div v-loading="bugStatisticsLoading" class="bug-statistics-content">
-              <!-- BUG统计卡片 -->
-              <div v-if="bugList && bugList.length > 0" class="bug-stats-summary">
-                <el-row :gutter="12">
-                  <el-col :span="6">
-                  </el-col>
-                </el-row>
-              </div>
               <!-- BUG列表 -->
               <el-card v-if="bugList && bugList.length > 0" class="bug-list-card" shadow="never">
                 <template #header>
@@ -153,11 +138,6 @@
         </el-tabs>
       </el-card>
 
-      <div v-if="project && activeTab === 'statistics'" class="detail-layout">
-
-
-      </div>
-
     </div>
 
 
@@ -172,14 +152,19 @@
           <el-descriptions :column="1" border>
             <el-descriptions-item label="项目名称">{{
               project.name
-            }}</el-descriptions-item>
+              }}</el-descriptions-item>
             <el-descriptions-item label="状态">
               <el-select v-model="currentStatus" :loading="statusUpdating" :disabled="currentStatus === '已完成'"
                 size="small" style="width: 120px" @change="handleStatusChange">
                 <el-option v-for="option in availableStatusOptions" :key="option.value" :label="option.label"
                   :value="option.value" />
               </el-select>
+              <el-button type="primary" size="small" style="margin-left: 16px;" @click="handleUpdateStatus"
+                v-if="userStore.username === project.creator">
+                暂停
+              </el-button>
             </el-descriptions-item>
+
             <el-descriptions-item label="项目负责人">
               <el-tag v-if="project.creator" type="primary" size="small">
                 {{ project.creator }}
@@ -188,13 +173,13 @@
             </el-descriptions-item>
             <el-descriptions-item label="计划开始时间">{{
               formatDate(project.startDate)
-            }}</el-descriptions-item>
+              }}</el-descriptions-item>
             <el-descriptions-item label="计划结束时间">{{
               formatDate(project.endDate)
-            }}</el-descriptions-item>
+              }}</el-descriptions-item>
             <el-descriptions-item v-if="project.createdAt" label="创建时间">{{
               formatDate(project.createdAt)
-            }}</el-descriptions-item>
+              }}</el-descriptions-item>
           </el-descriptions>
         </el-card>
 
@@ -324,6 +309,7 @@
                     {{ getPriorityText(task.priority || task.优先级) }}
                   </el-tag>
                 </div>
+
                 <div v-if="task.预计工时" class="task-hours">
                   <el-icon>
                     <Clock />
@@ -345,7 +331,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from "vue";
+import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import type { Project, Task, Requirement } from "@/types";
 import {
@@ -358,15 +344,11 @@ const dayjs: typeof import("dayjs") = ((dayjsLib as any).default || dayjsLib) as
 import { ElMessage, ElMessageBox } from "element-plus";
 import {
   ArrowLeft,
-  Edit,
   Plus,
-  Calendar,
-  Folder,
   Document,
   Download,
   Clock,
-  InfoFilled,
-  Delete
+  InfoFilled
 } from "@element-plus/icons-vue";
 import type { RequirementItemData } from "@/api/project";
 import {
@@ -379,6 +361,7 @@ import {
   isRequirementItem,
   selectProjectSelectAll,
   loadRequirementFromJson,
+  updateProjectPause,
   type RequirementListItem,
   type DescribeContent,
   type ProjectStatisticsResponse,
@@ -388,7 +371,6 @@ import {
 } from "@/api/project";
 import { useProjectStoreHook } from "@/store/modules/project";
 import { useUserStoreHook } from "@/store/modules/user";
-import RequirementDrawer from "@/components/RequirementDrawer.vue";
 import ProjectStructureTree, { StructureTreeNode } from "@/components/ProjectStructureTree.vue";
 import RequirementTaskTree from "@/components/RequirementTaskTree.vue";
 
@@ -437,7 +419,6 @@ interface RequirementTreeNode {
 const projectRequirements = ref<Requirement[]>([]);
 const requirementTreeData = ref<RequirementTreeNode[]>([]);
 const requirementsLoading = ref(false);
-const currentRequirement = ref<Requirement | null>(null);
 const selectedRequirement = ref<Requirement | null>(null);
 const requirementTasks = ref<any[]>([]);
 const tasksLoading = ref(false);
@@ -521,13 +502,26 @@ const requirementPage = ref(1);
 const requirementPageSize = ref(7);
 const requirementTotal = ref(0);
 
-// 树形组件配置
-const treeProps = {
-  children: "children",
-  label: "label"
+const handleUpdateStatus = async () => {
+  try {
+    await ElMessageBox.confirm("确定要暂停该项目吗？", "确认暂停", {
+      confirmButtonText: "确定",
+      cancelButtonText: "取消",
+      type: "warning"
+    });
+  } catch {
+    return;
+  }
+  const response = await updateProjectPause({
+    project_id: project.value?.id || ""
+  });
+  if (response.code === 200) {
+    ElMessage.success("暂停成功");
+    loadProject();
+  } else {
+    ElMessage.error(response.message || "暂停失败");
+  }
 };
-
-// 使用从 API 导入的工具函数 isRequirementItem
 
 // 递归将嵌套对象转换为树形结构
 const convertToTreeData = (
@@ -919,27 +913,6 @@ const loadProjectRequirements = async (
   }
 };
 
-// 处理需求分页大小变化
-const handleRequirementPageSizeChange = (newSize: number) => {
-  requirementPageSize.value = newSize;
-  requirementPage.value = 1; // 重置到第一页
-  if (projectId.value) {
-    loadProjectRequirements(projectId.value, 1, newSize);
-  }
-};
-
-// 处理需求页码变化
-const handleRequirementPageChange = (newPage: number) => {
-  requirementPage.value = newPage;
-  if (projectId.value) {
-    loadProjectRequirements(
-      projectId.value,
-      newPage,
-      requirementPageSize.value
-    );
-  }
-};
-
 // 加载需求的任务
 const loadRequirementTasks = async (requirementId: string) => {
   tasksLoading.value = true;
@@ -1064,16 +1037,6 @@ const loadProjectStructure = async () => {
   } finally {
     structureTreeLoading.value = false;
   }
-};
-
-const handleRequirementDrawerRefresh = () => {
-  if (!projectId.value) return;
-  loadProjectRequirements(
-    projectId.value,
-    requirementPage.value,
-    requirementPageSize.value
-  );
-  loadProjectStructure();
 };
 
 // 处理添加需求或任务
@@ -1205,11 +1168,6 @@ const goBack = () => {
   router.back();
 };
 
-const handleEdit = () => {
-  // TODO: 打开编辑项目对话框
-  ElMessage.info("编辑项目功能待实现");
-};
-
 const handleStatusChange = async (newStatus: string) => {
   if (!project.value || !project.value.id) {
     ElMessage.error("项目信息不完整");
@@ -1272,87 +1230,6 @@ const handleStatusChange = async (newStatus: string) => {
   }
 };
 
-// 跳转到需求管理页面
-const goToRequirementPage = () => {
-  if (project.value?.id) {
-    router.push({
-      name: "RequirementsList",
-      query: {
-        project_id: project.value.id,
-        project_name: project.value.name,
-        create: "true"
-      }
-    });
-  } else {
-    router.push({
-      name: "RequirementsList",
-      query: {
-        create: "true"
-      }
-    });
-  }
-};
-
-
-
-// 选择层级（打开任务列表抽屉）
-const selectRequirement = (requirement: Requirement) => {
-  selectedRequirement.value = requirement;
-  showTasksDrawer.value = true;
-  const requirementId = requirement.id || (requirement as any)._id;
-  if (requirementId) {
-    loadRequirementTasks(requirementId);
-  }
-};
-
-// 点击层级列表，跳转到层级列表页并带上参数
-const handleRequirementClick = (requirement: Requirement) => {
-  const projectIdValue = project.value?.id || projectId.value || "";
-  const requirementId = requirement.id || (requirement as any)._id || "";
-  router.push({
-    name: "RequirementsList",
-    query: {
-      project_id: projectIdValue,
-      requirement_id: requirementId
-    }
-  });
-};
-
-// 处理树节点点击
-const handleTreeNodeClick = (data: RequirementTreeNode) => {
-  if (data.type === "requirement" && data.data) {
-    // 将 RequirementListItem 转换为 Requirement 格式
-    const requirement: Requirement = {
-      id: data.data._id,
-      title: data.data.需求名,
-      description: extractDescription(data.data.describe),
-      status: mapStatusToEnum(data.data.状态),
-      priority: mapPriority(data.data.优先级),
-      projectId: data.data.project_id,
-      creatorId: data.data.creator,
-      createdAt: data.data.create_time
-    };
-    handleRequirementClick(requirement);
-  }
-};
-
-// 处理树节点双击
-const handleTreeNodeDblClick = (data: RequirementTreeNode) => {
-  if (data.type === "requirement" && data.data) {
-    const requirement: Requirement = {
-      id: data.data._id,
-      title: data.data.需求名,
-      description: extractDescription(data.data.describe),
-      status: mapStatusToEnum(data.data.状态),
-      priority: mapPriority(data.data.优先级),
-      projectId: data.data.project_id,
-      creatorId: data.data.creator,
-      createdAt: data.data.create_time
-    };
-    selectRequirement(requirement);
-  }
-};
-
 const handleAddTask = () => {
   if (!selectedRequirement.value) {
     ElMessage.warning("请先选择一个需求");
@@ -1409,15 +1286,6 @@ const handleDeleteTask = async (task: any) => {
   } catch {
     // 用户取消
   }
-};
-
-const handleTaskStatusChange = (task: Task, completed: boolean) => {
-  if (completed) {
-    task.status = TaskStatus.COMPLETED;
-  } else {
-    task.status = TaskStatus.NOT_STARTED;
-  }
-  projectStore.updateTask(task);
 };
 
 // 获取图片 URL（处理文件路径）
@@ -1521,85 +1389,8 @@ const downloadAttachment = (attachment: string) => {
   document.body.removeChild(link);
 };
 
-const getRoleText = (role: string) => {
-  const roleMap: Record<string, string> = {
-    project_manager: "项目经理",
-    ui_designer: "UI设计师",
-    frontend_developer: "前端开发",
-    backend_developer: "后端开发",
-    tester: "测试工程师"
-  };
-  return roleMap[role] || role;
-};
-
 const formatDate = (dateStr?: string) => {
   return dateStr ? dayjs(dateStr).format("YYYY-MM-DD") : "-";
-};
-
-const formatDateRange = (startDate?: string, endDate?: string): string => {
-  if (!startDate && !endDate) return "-";
-  if (startDate && endDate) {
-    return `${formatDate(startDate)} ~ ${formatDate(endDate)}`;
-  }
-  return startDate ? formatDate(startDate) : formatDate(endDate);
-};
-
-const getRequirementStatusTagType = (
-  status: RequirementStatus
-): "success" | "primary" | "info" | "warning" | "danger" => {
-  const typeMap: Record<
-    RequirementStatus,
-    "success" | "primary" | "info" | "warning" | "danger"
-  > = {
-    [RequirementStatus.DRAFT]: "info",
-    [RequirementStatus.REVIEWING]: "primary",
-    [RequirementStatus.APPROVED]: "success",
-    [RequirementStatus.DEVELOPING]: "primary",
-    [RequirementStatus.TESTING]: "warning",
-    [RequirementStatus.COMPLETED]: "success",
-    [RequirementStatus.REJECTED]: "danger",
-    [RequirementStatus.CANCELLED]: "info"
-  };
-  return typeMap[status] || "info";
-};
-
-const getRequirementStatusText = (status: RequirementStatus): string => {
-  const textMap: Record<RequirementStatus, string> = {
-    [RequirementStatus.DRAFT]: "草稿",
-    [RequirementStatus.REVIEWING]: "评审中",
-    [RequirementStatus.APPROVED]: "已通过",
-    [RequirementStatus.DEVELOPING]: "开发中",
-    [RequirementStatus.TESTING]: "测试中",
-    [RequirementStatus.COMPLETED]: "已完成",
-    [RequirementStatus.REJECTED]: "已拒绝",
-    [RequirementStatus.CANCELLED]: "已取消"
-  };
-  return textMap[status] || status;
-};
-
-const getRequirementPriorityTagType = (
-  priority: RequirementPriority
-): "success" | "warning" | "danger" | "info" => {
-  const typeMap: Record<
-    RequirementPriority,
-    "success" | "warning" | "danger" | "info"
-  > = {
-    low: "info",
-    medium: "success",
-    high: "warning",
-    urgent: "danger"
-  };
-  return typeMap[priority] || "info";
-};
-
-const getRequirementPriorityText = (priority: RequirementPriority): string => {
-  const textMap: Record<RequirementPriority, string> = {
-    low: "低",
-    medium: "中",
-    high: "高",
-    urgent: "紧急"
-  };
-  return textMap[priority] || priority;
 };
 
 const getTaskStatusTagType = (
@@ -1691,38 +1482,10 @@ const getPriorityText = (priority: "low" | "medium" | "high"): string => {
     }
   }
 
-  .header-actions {
-    display: flex;
-    gap: 12px;
-  }
 }
 
 .detail-content {
   min-height: calc(100vh - 250px);
-}
-
-.detail-layout {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 24px;
-  align-items: start;
-
-  @media (max-width: 1200px) {
-    grid-template-columns: 1fr;
-  }
-}
-
-
-.left-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.right-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
 }
 
 .statistics-card {
@@ -1906,10 +1669,6 @@ const getPriorityText = (priority: "low" | "medium" | "high"): string => {
 }
 
 .bug-statistics-content {
-  .bug-stats-summary {
-    margin-bottom: 20px;
-  }
-
   .bug-list-card {
     margin-top: 20px;
     border-radius: 8px;
@@ -2723,24 +2482,10 @@ const getPriorityText = (priority: "low" | "medium" | "high"): string => {
       }
     }
 
-    .header-actions {
-      width: 100%;
-      flex-direction: column;
-      gap: 8px;
-
-      .el-button {
-        width: 100%;
-      }
-    }
   }
 
   .detail-content {
     min-height: auto;
-  }
-
-  .detail-layout {
-    grid-template-columns: 1fr;
-    gap: 16px;
   }
 
   .statistics-card {

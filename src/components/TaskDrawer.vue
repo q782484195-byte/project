@@ -49,8 +49,8 @@
           </el-select>
         </el-form-item>
 
-        <el-form-item label="任务截止日期" prop="task_deadline">
-          <el-date-picker v-model="taskForm.task_deadline" type="date" placeholder="请选择任务截止日期" style="width: 50%"
+        <el-form-item label="任务完成期限" prop="task_deadline">
+          <el-date-picker v-model="taskForm.task_deadline" type="date" placeholder="请选择任务完成期限" style="width: 50%"
             format="YYYY-MM-DD" value-format="YYYY-MM-DD" :disabled="isEdit && !canEditAllFields" />
         </el-form-item>
 
@@ -283,7 +283,7 @@ const rules: FormRules = {
 
   priority: [{ required: true, message: "请选择优先级", trigger: "change" }],
   task_deadline: [
-    { required: true, message: "请选择任务截止日期", trigger: "change" }
+    { required: true, message: "请选择任务完成期限", trigger: "change" }
   ],
   default_person: [
     { required: true, message: "请选择默认部门负责人", trigger: "change" }

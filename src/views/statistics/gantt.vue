@@ -16,7 +16,11 @@
         </div>
       </template>
 
-      <div v-if="ganttTasks.length === 0" class="empty-state">
+      <div v-if="!filterDepartment && !filterUser" class="empty-state">
+        <el-empty description="请先选择部门或者人员" :image-size="120" />
+      </div>
+
+      <div v-else-if="ganttTasks.length === 0" class="empty-state">
         <el-empty description="暂无带时间信息的任务数据" :image-size="120" />
       </div>
 
@@ -77,7 +81,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { ElMessage } from "element-plus";
 import dayjs from "dayjs";
 import { getTaskStatistics } from "@/api/system";
@@ -225,9 +229,12 @@ const departmentOptions = computed(() => {
   return Object.keys(rawData.value).filter(Boolean).sort();
 });
 
+// 人员选项：根据已选部门筛选，仅显示该部门下的人员
 const userOptions = computed(() => {
   const set = new Set<string>();
-  Object.values(rawData.value).forEach((users) => {
+  const deptFilter = filterDepartment.value;
+  Object.entries(rawData.value).forEach(([deptName, users]) => {
+    if (deptFilter && deptName !== deptFilter) return;
     (users || []).forEach((u: any) => {
       if (u?.username) set.add(u.username);
     });
@@ -238,6 +245,14 @@ const userOptions = computed(() => {
 function applyFilters() {
   // 依赖 ganttTasks 的 computed，改变 filter 即可
 }
+
+// 部门变更时，若当前选中人员不在新部门下，则清空人员筛选
+watch(filterDepartment, () => {
+  const users = userOptions.value;
+  if (filterUser.value && !users.includes(filterUser.value)) {
+    filterUser.value = "";
+  }
+});
 
 async function loadData() {
   loading.value = true;

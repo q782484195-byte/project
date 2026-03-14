@@ -51,7 +51,7 @@
                       <el-progress :percentage="row.进度 || 0" :status="row.进度 === 100 ? 'success' : undefined" />
                     </template>
                   </el-table-column>
-                  <el-table-column prop="task_deadline" label="任务截至日期" />
+                  <el-table-column prop="task_deadline" label="任务完成期限" />
                   <el-table-column prop="create_time" label="创建时间" />
                 </el-table>
               </el-tab-pane>

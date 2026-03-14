@@ -23,7 +23,7 @@
                         <span class="report-project">{{ report.project_name || "-" }}</span>
                         <span v-if="report.requirement_name" class="report-divider">|</span>
                         <span v-if="report.requirement_name" class="report-requirement">{{ report.requirement_name
-                        }}</span>
+                          }}</span>
                         <span v-if="report.task_name" class="report-divider">|</span>
                         <span v-if="report.task_name" class="report-task">{{ report.task_name }}</span>
                         <el-tag v-if="report.state" :type="getReportStatusType(report.state)" size="small">状态: {{
@@ -147,7 +147,7 @@ const loadingTaskStatus = ref(false);
 const reports = ref<ReportRecord[]>([]);
 const reportsLoading = ref(false);
 const reportsPage = ref(1);
-const reportsPageSize = ref(20);
+const reportsPageSize = ref(10);
 const reportsTotal = ref(0);
 
 const recentTasks = computed(() => {
@@ -820,7 +820,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
   height: 100%;
   min-height: 600px;
-  max-height: calc(100vh - 200px);
+  max-height: calc(100vh - 250px);
 }
 
 .report-list {

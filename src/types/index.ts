@@ -162,6 +162,7 @@ export interface Project {
   createdAt?: string;
   updatedAt?: string;
   总进度?: number; // 项目总进度（来自后端API）
+  project_initiation_date?: string; // 立项时间
 }
 
 // 需求状态枚举

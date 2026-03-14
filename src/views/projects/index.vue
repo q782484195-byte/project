@@ -151,7 +151,15 @@
             </el-tooltip>
           </div>
         </div>
-
+        <!-- 第四行：分辨率，业务负责人 -->
+        <div class="project-row project-row-third">
+          <div class="field-item">
+            <span class="field-label">立项时间:</span>
+            <el-tooltip :content="project.project_initiation_date || '-'" placement="top">
+              <span class="field-value">{{ project.project_initiation_date || "-" }}</span>
+            </el-tooltip>
+          </div>
+        </div>
         <!-- 第五行：进度 -->
         <div class="project-row project-row-progress">
           <div class="progress-info">
@@ -179,7 +187,7 @@
             <el-tooltip :content="formatDateRange(project.startDate, project.endDate) || '-'" placement="top">
               <span class="field-value">{{
                 formatDateRange(project.startDate, project.endDate)
-                }}</span>
+              }}</span>
             </el-tooltip>
           </div>
         </div>

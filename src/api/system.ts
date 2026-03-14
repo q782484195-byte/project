@@ -58,6 +58,7 @@ export const getDepartmentNameList = () => {
   }>("get", "/department/select");
 };
 
+
 /** 获取部门列表 */
 export const getDepartmentList = (params?: {
   name?: string;
@@ -67,6 +68,18 @@ export const getDepartmentList = (params?: {
     "get",
     "/department/select",
     { params }
+  );
+};
+
+
+/** 获取下一状态用户列表 */
+export const getNextStateUserList = (params: {
+  next_state: string;
+}) => {
+  return http.request<ApiResponse<any>>(
+    "post",
+    "/department/next_state_select_user",
+    { data: params }
   );
 };
 

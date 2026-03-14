@@ -19,9 +19,10 @@
           <!-- 基本信息 Tab -->
           <el-tab-pane label="基本信息" name="info">
             <!-- 基本信息 -->
-            <el-card class="info-card" shadow="never">
+            <!-- 项目基本信息（info 接口返回的 project） -->
+            <el-card class="info-card task-info-card" shadow="never">
               <template #header>
-                <span>基本信息</span>
+                <span>任务基本信息</span>
                 <el-button v-if="canOpenStatusFlow" type="primary" :loading="statusFlowLoading" class="ml-16"
                   @click="openStatusFlowDialog">
                   <el-icon>
@@ -30,91 +31,305 @@
                   分配
                 </el-button>
               </template>
-              <el-descriptions :column="infoDescriptionsColumn" border>
-                <!-- 第1行：任务名称（左）| 所属项目（右） -->
-                <el-descriptions-item label="任务名称">{{
-                  task.任务名 || task.task_name || task.title || "-"
-                  }}</el-descriptions-item>
-                <el-descriptions-item label="所属项目">{{
-                  task.project_name || "-"
-                  }}</el-descriptions-item>
-                <!-- 第2行：关联层级（左）| 创建人（右） -->
-                <el-descriptions-item label="关联层级">{{
-                  task.requirement_name || "-"
-                  }}</el-descriptions-item>
-                <el-descriptions-item label="项目负责人">{{
-                  task.creator || "-"
-                  }}</el-descriptions-item>
-                <!-- 第3行：状态（左）| 负责人（右） -->
-                <el-descriptions-item label="状态">
-                  <div style="display: flex; align-items: center; gap: 12px">
+              <div class="project-info-grid">
+                <div class="project-info-row">
+                  <span class="info-label">任务名称</span>
+                  <span class="info-value">{{ task.任务名 || task.task_name || task.title || "-" }}</span>
+                </div>
+                <div class="project-info-row">
+                  <span class="info-label">所属项目</span>
+                  <span class="info-value">{{ task.project_name || "-" }}</span>
+                </div>
+                <div class="project-info-row">
+                  <span class="info-label">项目负责人</span>
+                  <span class="info-value">{{ task.creator || "-" }}</span>
+                </div>
+                <div class="project-info-row">
+                  <span class="info-label">状态</span>
+                  <span class="info-value">
                     <el-tag :type="getStatusType(task.状态 || task.status) || undefined" size="small">
                       {{ task.状态 || task.status || "-" }}
                     </el-tag>
-                  </div>
-                </el-descriptions-item>
-                <el-descriptions-item label="当前处理人">{{
-                  task.当前处理人 || task.assignee || "-"
-                  }}</el-descriptions-item>
-                <!-- 第4行：进度（左）| 优先级（右） -->
-                <el-descriptions-item label="进度">
-                  <el-progress :percentage="task.进度 || task.progress || 0" />
-                </el-descriptions-item>
-                <el-descriptions-item label="优先级">
-                  <el-tag :type="getPriorityType(task.优先级 || task.priority) || undefined
-                    " size="small">
-                    {{ task.优先级 || task.priority || "-" }}
-                  </el-tag>
-                </el-descriptions-item>
-                <!-- 独占一行的字段 -->
-                <el-descriptions-item v-if="task.task_deadline || task.task_dead_line" label="任务截止日期" :span="2">
-                  <span class="yellow-text">{{ task.task_deadline || task.task_dead_line || "-" }}</span>
-                </el-descriptions-item>
-                <el-descriptions-item v-if="task.development_start_time" label="研发开始时间" :span="2">
-                  <span class="yellow-text">{{ task.development_start_time }}</span>
-                </el-descriptions-item>
-                <el-descriptions-item v-if="task.development_end_time" label="研发结束时间" :span="2">
-                  <span class="yellow-text">{{ task.development_end_time }}</span>
-                </el-descriptions-item>
-                <el-descriptions-item label="驳回原因" :span="2">
-                  <span class="red-text">{{ task.rejection_reason || '' }}</span>
-                </el-descriptions-item>
-              </el-descriptions>
-            </el-card>
+                  </span>
+                </div>
+                <div class="project-info-row">
+                  <span class="info-label">当前处理人</span>
+                  <span class="info-value">{{ task.当前处理人 || task.assignee || "-" }}</span>
+                  <el-button v-if="canShowTransferButton" type="primary" size="small"
+                    @click="handleTransfer">转让</el-button>
+                  <el-dialog v-model="transferDialogVisible" title="更换负责人" width="500px" append-to-body
+                    :close-on-click-modal="false" @opened="loadTransferUserOptions">
+                    <el-form :model="transferForm" :rules="transferFormRules" ref="transferFormRef">
+                      <el-form-item label="转让人" prop="person_name">
+                        <el-select v-model="transferForm.person_name" placeholder="请选择转让人"
+                          :loading="transferUserLoading" filterable clearable style="width: 100%">
+                          <el-option v-for="opt in transferUserOptions" :key="opt.value" :label="opt.label"
+                            :value="opt.value" />
+                        </el-select>
+                      </el-form-item>
+                    </el-form>
+                    <template #footer>
+                      <span class="dialog-footer">
+                        <el-button @click="transferDialogVisible = false">取消</el-button>
+                        <el-button type="primary" :loading="transferSubmitting" @click="submitTransfer">确认</el-button>
+                      </span>
+                    </template>
+                  </el-dialog>
+                </div>
+                <div class="project-info-row">
+                  <span class="info-label">进度</span>
+                  <span class="info-value">
+                    <el-progress :percentage="task.进度 || task.progress || 0" />
+                  </span>
+                </div>
+                <div class="project-info-row">
+                  <span class="info-label">优先级</span>
+                  <span class="info-value">
+                    <el-tag :type="getPriorityType(task.优先级 || task.priority) || undefined" size="small">
+                      {{ task.优先级 || task.priority || "-" }}
+                    </el-tag>
+                  </span>
+                </div>
+                <div class="project-info-row">
+                  <span class="info-label">测试轮数</span>
+                  <span class="info-value">
+                    <span>{{ task.test_rounds }}</span>
+                  </span>
+                </div>
+                <div class="project-info-row">
+                  <span class="info-label">指派时间</span>
+                  <span class="info-value">
+                    <span>{{ task.assignment_time || "-" }}</span>
+                  </span>
+                </div>
+                <div class="project-info-row project-info-row--time">
+                  <span class="info-label">任务完成期限</span>
+                  <span class="info-value info-value--editable">
+                    <template v-if="task?.creator === userStore.username">
+                      <el-date-picker v-model="taskDeadlineForm.task_deadline" type="date" placeholder="请选择任务完成期限"
+                        format="YYYY-MM-DD" value-format="YYYY-MM-DD" class="time-field-picker" />
+                      <el-button type="primary" size="small" :loading="taskDeadlineSaving" class="time-field-btn"
+                        @click="saveTaskDeadline">
+                        保存
+                      </el-button>
+                    </template>
+                    <span v-else class="yellow-text">{{ task.task_deadline || task.task_dead_line || "-" }}</span>
+                  </span>
+                </div>
+                <div class="project-info-row project-info-row--time">
+                  <span class="info-label">计划开始时间</span>
+                  <span class="info-value info-value--editable">
+                    <template v-if="canEditDevelopmentTime">
+                      <el-date-picker v-model="devTimeForm.development_start_time" type="date" placeholder="请选择计划开始时间"
+                        format="YYYY-MM-DD" value-format="YYYY-MM-DD" class="time-field-picker" />
+                    </template>
+                    <span v-else class="yellow-text">{{ task.development_start_time || "-" }}</span>
+                  </span>
+                </div>
+                <div class="project-info-row project-info-row--time">
+                  <span class="info-label">计划结束时间</span>
+                  <span class="info-value info-value--editable">
+                    <template v-if="canEditDevelopmentTime">
+                      <el-date-picker v-model="devTimeForm.development_end_time" type="date" placeholder="请选择计划结束时间"
+                        format="YYYY-MM-DD" value-format="YYYY-MM-DD" class="time-field-picker" :disabled-date="(time: Date) => {
+                          if (!task?.task_deadline) return false;
+                          const deadline = new Date(task.task_deadline);
+                          deadline.setHours(23, 59, 59, 999);
+                          return time.getTime() > deadline.getTime();
+                        }" />
+                      <el-button type="primary" size="small" :loading="devTimeSaving" class="time-field-btn"
+                        @click="saveDevelopmentTime">
+                        保存
+                      </el-button>
+                    </template>
+                    <span v-else class="yellow-text">{{ task.development_end_time || "-" }}</span>
+                  </span>
+                </div>
+                <div class="project-info-row project-info-row--time">
+                  <span class="info-label">研发状态</span>
+                  <span class="info-value">
+                    <span class="red-text">{{ task.delay?.development_is_delay ? '延期' : '正常' }}</span>
+                    <el-button v-if="canShowDelayReasonButton" style="margin-left: 16px;" type="primary" size="small"
+                      @click="openDelayReasonDialog">
+                      延期原因
+                    </el-button>
+                  </span>
+                </div>
+                <div class="project-info-row project-info-row--time" v-if="canShowDelayReasonButton">
+                  <span class="info-label">延期原因</span>
+                  <span class="info-value">
+                    <span class="red-text">{{ task.delay?.development_delay_message || '' }}</span>
+                  </span>
+                </div>
+                <div class="project-info-row">
+                  <span class="info-label">驳回原因</span>
+                  <span class="info-value">
+                    <span class="red-text">{{ task.rejection_reason || '' }}</span>
+                  </span>
+                </div>
 
-            <!-- 任务描述 -->
-            <el-card v-if="task?.describe && task.describe.length > 0" class="info-card" shadow="never">
-              <template #header>
-                <span>任务描述</span>
-              </template>
-              <div class="task-description">
-                <template v-for="(item, index) in task.describe" :key="index">
-                  <p v-if="typeof item === 'string' && !item.startsWith('/data/')" class="description-text">
-                    {{ item }}
-                  </p>
-                  <div v-else-if="
-                    typeof item === 'string' && item.startsWith('/data/')
-                  " class="description-image">
-                    <el-image :src="getImageUrl(item)" :alt="`图片 ${Number(index) + 1}`"
-                      :preview-src-list="previewImageList" :initial-index="getImageIndex(Number(index))"
-                      preview-teleported fit="contain" class="description-image-el" @error="handleImageError" />
+              </div>
+
+              <!-- 任务描述 -->
+              <div class="task-desc-section">
+                <div class="header-actions section-label">
+                  <span>任务描述</span>
+                  <template v-if="canUploadAttachment">
+                    <el-button v-if="!describeEditMode" type="primary" size="small" @click="startDescribeEdit">
+                      编辑
+                    </el-button>
+                    <template v-else>
+                      <el-button type="primary" size="small" :loading="describeSaving" @click="saveDescribe">
+                        保存
+                      </el-button>
+                      <el-button size="small" @click="cancelDescribeEdit">取消</el-button>
+                    </template>
+                  </template>
+                </div>
+                <div v-if="describeEditMode" class="task-description-edit">
+                  <RichTextEditor v-model="describeEditForm" :disable-image-upload="false" :readonly="false" />
+                </div>
+                <div v-else-if="task?.describe && task.describe.length > 0" class="task-description">
+                  <template v-for="(item, index) in task.describe" :key="index">
+                    <p v-if="typeof item === 'string' && !item.startsWith('/data/')" class="description-text">
+                      {{ item }}
+                    </p>
+                    <div v-else-if="typeof item === 'string' && item.startsWith('/data/')" class="description-image">
+                      <el-image :src="getImageUrl(item)" :alt="`图片 ${Number(index) + 1}`"
+                        :preview-src-list="previewImageList" :initial-index="getImageIndex(Number(index))"
+                        preview-teleported fit="contain" class="description-image-el" @error="handleImageError" />
+                    </div>
+                    <p v-else-if="item.type === 'text'" class="description-text">
+                      {{ item.content }}
+                    </p>
+                    <div v-else-if="item.type === 'url' || item.type === 'file'" class="description-image">
+                      <el-image :src="getImageUrl(item.content)" :alt="`图片 ${Number(index) + 1}`"
+                        :preview-src-list="previewImageList" :initial-index="getImageIndex(Number(index))"
+                        preview-teleported fit="contain" class="description-image-el" @error="handleImageError" />
+                    </div>
+                  </template>
+                </div>
+                <el-empty v-else description="暂无任务描述" :image-size="80" />
+              </div>
+
+              <!-- 任务附件 -->
+              <div class="task-desc-section">
+                <div class="header-actions section-label">
+                  <span>任务附件</span>
+                  <el-upload v-if="canUploadAttachment" :show-file-list="false"
+                    :before-upload="handleBeforeUploadAttachment" :disabled="attachmentUploading">
+                    <el-button type="primary" size="small" :loading="attachmentUploading">
+                      <el-icon>
+                        <Upload />
+                      </el-icon>
+                      上传附件
+                    </el-button>
+                  </el-upload>
+                </div>
+                <div v-if="task.attachment && task.attachment.length > 0" class="attachment-list">
+                  <div v-for="(attachment, index) in task.attachment" :key="index" class="attachment-item">
+                    <el-icon class="attachment-icon">
+                      <DocumentIcon />
+                    </el-icon>
+                    <span class="attachment-link">{{ getFileNameFromPath(attachment) }}</span>
+                    <el-button type="primary" link size="small" @click="downloadAttachment(attachment)">
+                      <el-icon>
+                        <Download />
+                      </el-icon>
+                      下载
+                    </el-button>
+                    <el-button v-if="canUploadAttachment" type="danger" link size="small"
+                      @click="handleDeleteAttachment(Number(index))">
+                      <el-icon>
+                        <Delete />
+                      </el-icon>
+                      删除
+                    </el-button>
                   </div>
-                  <p v-else-if="item.type === 'text'" class="description-text">
-                    {{ item.content }}
-                  </p>
-                  <div v-else-if="item.type === 'url' || item.type === 'file'" class="description-image">
-                    <el-image :src="getImageUrl(item.content)" :alt="`图片 ${Number(index) + 1}`"
-                      :preview-src-list="previewImageList" :initial-index="getImageIndex(Number(index))"
-                      preview-teleported fit="contain" class="description-image-el" @error="handleImageError" />
-                  </div>
-                </template>
+                </div>
               </div>
             </el-card>
-            <el-card v-else class="info-card" shadow="never">
+            <el-card v-if="hasProjectInfo" class="info-card project-info-card" shadow="never">
               <template #header>
-                <span>任务描述</span>
+                <span>项目基本信息</span>
               </template>
-              <el-empty description="暂无任务描述" :image-size="100" />
+              <div class="project-info-grid">
+                <div class="project-info-row">
+                  <span class="info-label">产品类型</span>
+                  <span class="info-value">{{ projectInfo.product_type || "-" }}</span>
+                </div>
+                <div class="project-info-row">
+                  <span class="info-label">平台</span>
+                  <span class="info-value">{{ projectInfo.platform_name || "-" }}</span>
+                </div>
+                <div class="project-info-row">
+                  <span class="info-label">主板</span>
+                  <span class="info-value">{{ projectInfo.motherboard_name || "-" }}</span>
+                </div>
+                <div class="project-info-row">
+                  <span class="info-label">分辨率</span>
+                  <span class="info-value">{{ projectInfo.resolution || "-" }}</span>
+                </div>
+              </div>
+              <div v-if="projectInfo.describe && projectInfo.describe.length > 0" class="project-desc-section">
+                <div class="section-label">项目描述</div>
+                <div class="project-description">
+                  <template v-for="(item, idx) in projectInfo.describe" :key="idx">
+                    <p v-if="item.type === 'text'" class="description-text">{{ item.content }}</p>
+                    <div v-else-if="(item.type === 'url' || item.type === 'file') && item.content"
+                      class="description-image">
+                      <el-image :src="getImageUrl(item.content)" :alt="`图片 ${Number(idx) + 1}`"
+                        :preview-src-list="projectPreviewImageList" :initial-index="getProjectImageIndex(Number(idx))"
+                        preview-teleported fit="contain" class="description-image-el" @error="handleImageError" />
+                    </div>
+                    <p v-else-if="typeof item === 'string' && !item.startsWith('/data/')" class="description-text">{{
+                      item }}</p>
+                    <div v-else-if="typeof item === 'string' && item.startsWith('/data/')" class="description-image">
+                      <el-image :src="getImageUrl(item)" :alt="`图片 ${Number(idx) + 1}`"
+                        :preview-src-list="projectPreviewImageList" :initial-index="getProjectImageIndex(Number(idx))"
+                        preview-teleported fit="contain" class="description-image-el" @error="handleImageError" />
+                    </div>
+                  </template>
+                </div>
+              </div>
+              <div v-if="projectProposalList.length > 0" class="project-desc-section">
+                <div class="section-label">立项文件</div>
+                <div class="attachment-list">
+                  <div v-for="(file, index) in projectProposalList" :key="index" class="attachment-item">
+                    <el-icon class="attachment-icon">
+                      <DocumentIcon />
+                    </el-icon>
+                    <a :href="getAttachmentUrl(file)" :download="getFileNameFromPath(file)" class="attachment-link"
+                      target="_blank">
+                      {{ getFileNameFromPath(file) }}
+                    </a>
+                    <el-button type="text" size="small" @click="downloadAttachment(file)">
+                      <el-icon>
+                        <Download />
+                      </el-icon>下载
+                    </el-button>
+                  </div>
+                </div>
+              </div>
+              <div class="project-desc-section">
+                <div class="section-label">项目附件</div>
+                <div class="attachment-list">
+                  <div v-for="(file, index) in projectAttachmentList" :key="index" class="attachment-item">
+                    <el-icon class="attachment-icon">
+                      <DocumentIcon />
+                    </el-icon>
+                    <a :href="getAttachmentUrl(file)" :download="getFileNameFromPath(file)" class="attachment-link"
+                      target="_blank">
+                      {{ getFileNameFromPath(file) }}
+                    </a>
+                    <el-button type="text" size="small" @click="downloadAttachment(file)">
+                      <el-icon>
+                        <Download />
+                      </el-icon>下载
+                    </el-button>
+                  </div>
+                </div>
+              </div>
             </el-card>
 
             <!-- 汇报记录 -->
@@ -148,29 +363,7 @@
               </div>
             </el-card>
 
-            <!-- 任务附件 -->
-            <el-card v-if="task?.attachment && task.attachment.length > 0" class="info-card" shadow="never">
-              <template #header>
-                <span>任务附件</span>
-              </template>
-              <div class="attachment-list">
-                <div v-for="(attachment, index) in task.attachment" :key="index" class="attachment-item">
-                  <el-icon class="attachment-icon">
-                    <DocumentIcon />
-                  </el-icon>
-                  <a :href="getAttachmentUrl(attachment)" :download="getFileNameFromPath(attachment)"
-                    class="attachment-link" target="_blank">
-                    {{ getFileNameFromPath(attachment) }}
-                  </a>
-                  <el-button type="text" size="small" @click="downloadAttachment(attachment)">
-                    <el-icon>
-                      <Download />
-                    </el-icon>
-                    下载
-                  </el-button>
-                </div>
-              </div>
-            </el-card>
+
           </el-tab-pane>
 
           <!-- 历史记录 Tab -->
@@ -220,6 +413,23 @@
       <TaskStatusFlowDialog v-model:visible="statusFlowDialogVisible" :task="task"
         @success="handleStatusFlowDialogSuccess" @flow-start="handleStatusFlowStart" @flow-end="handleStatusFlowEnd" />
 
+      <!-- 延期原因对话框 -->
+      <el-dialog v-model="delayReasonDialogVisible" title="延期原因" width="500px" append-to-body
+        :close-on-click-modal="false">
+        <el-form ref="delayReasonFormRef" :model="delayReasonForm" :rules="delayReasonRules" label-width="100px">
+          <el-form-item label="延期原因" prop="development_delay_message">
+            <el-input v-model="delayReasonForm.development_delay_message" type="textarea" :rows="4"
+              placeholder="请输入延期原因（必填）" />
+          </el-form-item>
+        </el-form>
+        <template #footer>
+          <span class="dialog-footer">
+            <el-button @click="delayReasonDialogVisible = false">取消</el-button>
+            <el-button type="primary" :loading="delayReasonSubmitting" @click="submitDelayReason">提交</el-button>
+          </span>
+        </template>
+      </el-dialog>
+
       <!-- BUG记录对话框 -->
       <el-dialog v-model="bugDialogVisible" title="记录BUG" width="600px" append-to-body>
         <el-form ref="bugFormRef" :model="bugForm" :rules="bugFormRules" label-width="100px">
@@ -255,12 +465,25 @@ import {
   ArrowLeft,
   Document as DocumentIcon,
   Download,
-  Share
+  Share,
+  Upload,
+  Delete
 } from "@element-plus/icons-vue";
 import { TaskStatus } from "@/types";
 import TaskStatusFlowDialog from "@/components/TaskStatusFlowDialog.vue";
+import RichTextEditor from "@/components/RichTextEditor.vue";
+import type { DescribeContent } from "@/types";
 import { createBug, selectBugsByTask, type BugRecord } from "@/api/bug";
-import { selectReportList, selectTaskInfo } from "@/api/project";
+import {
+  selectReportList,
+  selectTaskInfo,
+  uploadFile,
+  updateTask,
+  updateDevelopmentTime,
+  updateTaskDelayReason,
+  updateTaskTransfer
+} from "@/api/project";
+import { getNextStateUserList } from "@/api/system";
 import type { FormInstance, FormRules } from "element-plus";
 import { useUserStore } from "@/store/modules/user";
 const userStore = useUserStore();
@@ -279,11 +502,180 @@ const originalStatus = ref<string>("");
 const activeTab = ref("info");
 const statusFlowLoading = ref(false);
 const statusFlowDialogVisible = ref(false);
+const delayReasonDialogVisible = ref(false);
+const delayReasonForm = ref({ development_delay_message: "" });
+const delayReasonFormRef = ref<FormInstance>();
+const delayReasonSubmitting = ref(false);
+const delayReasonRules: FormRules = {
+  development_delay_message: [
+    { required: true, message: "请输入延期原因", trigger: ["blur", "change"] }
+  ]
+};
+
+// 是否可以更换当前处理人：根据 transfer_state_dict，当前状态在映射表中且对应字段值 === 当前用户时显示
+const transfer_state_dict: Record<string, { department: string }> = {
+  "任务进行中": { department: "指派人" },
+  "项目测试任务进行中": { department: "测试部负责人" },
+  "测试任务进行中": { department: "测试部负责人" }
+};
+const canShowTransferButton = computed(() => {
+  const t = task.value;
+  if (!t) return false;
+  const status = t.状态 || t.status || "";
+  const config = transfer_state_dict[status];
+  if (!config) return false;
+  const fieldName = config.department;
+  const fieldValue = (t[fieldName] || "").toString().trim();
+  const currentUser = userStore.username || userStore.nickname || "";
+  return fieldValue && (fieldValue === userStore.username || fieldValue === userStore.nickname);
+});
+
+// 更换负责人弹框
+const transferDialogVisible = ref(false);
+const transferForm = ref({ person_name: "" });
+const transferFormRef = ref<FormInstance>();
+const transferUserOptions = ref<Array<{ label: string; value: string }>>([]);
+const transferUserLoading = ref(false);
+const transferSubmitting = ref(false);
+const transferFormRules: FormRules = {
+  person_name: [{ required: true, message: "请选择负责人", trigger: ["blur", "change"] }]
+};
+
+const handleTransfer = () => {
+  transferForm.value.person_name = "";
+  transferDialogVisible.value = true;
+};
+
+const loadTransferUserOptions = async () => {
+  const t = task.value;
+  if (!t) return;
+  const status = t.状态 || t.status || "";
+  if (!status) {
+    transferUserOptions.value = [];
+    return;
+  }
+  transferUserLoading.value = true;
+  try {
+    const response = await getNextStateUserList({ next_state: status }) as { code: number; result?: any[]; data?: any[] };
+    const list = Array.isArray(response.result) ? response.result : Array.isArray(response.data) ? response.data : [];
+    const options: Array<{ label: string; value: string }> = [];
+    const seen = new Set<string>();
+    list.forEach((item: Record<string, any>) => {
+      const [dept, members] = Object.entries(item)[0] || ["", []];
+      if (!Array.isArray(members)) return;
+      members.forEach((user: any) => {
+        const name = user.username || user.nickname || "";
+        if (name && !seen.has(name)) {
+          seen.add(name);
+          options.push({ label: name, value: name });
+        }
+      });
+    });
+    transferUserOptions.value = options.sort((a, b) => a.label.localeCompare(b.label));
+  } catch (error: any) {
+    console.error("加载负责人列表失败:", error);
+    ElMessage.error(error?.response?.data?.message || error?.message || "加载负责人列表失败");
+    transferUserOptions.value = [];
+  } finally {
+    transferUserLoading.value = false;
+  }
+};
+
+const submitTransfer = async () => {
+  const valid = await transferFormRef.value?.validate().catch(() => false);
+  if (!valid) return;
+  const t = task.value;
+  if (!t) return;
+  const taskIdVal = t._id || t.id;
+  if (!taskIdVal) {
+    ElMessage.error("任务ID不存在");
+    return;
+  }
+  const personName = (transferForm.value.person_name || "").trim();
+  if (!personName) {
+    ElMessage.warning("请选择转让人");
+    return;
+  }
+  transferSubmitting.value = true;
+  try {
+    const res = await updateTaskTransfer({
+      task_id: taskIdVal,
+      person_name: personName
+    });
+    if (res.code === 200) {
+      ElMessage.success("更换负责人成功");
+      transferDialogVisible.value = false;
+      await loadTask();
+    } else {
+      ElMessage.error(res.message || "更换负责人失败");
+    }
+  } catch (err: any) {
+    ElMessage.error(err?.message || "更换负责人失败");
+  } finally {
+    transferSubmitting.value = false;
+  }
+};
+
+// 计划时间编辑
+const devTimeForm = ref({ development_start_time: "", development_end_time: "" });
+const devTimeSaving = ref(false);
+
+// 任务完成期限编辑
+const taskDeadlineForm = ref({ task_deadline: "" });
+const taskDeadlineSaving = ref(false);
 
 // 移动端检测：基本信息描述列表在移动端一行一个
 const windowWidth = ref(typeof window !== "undefined" ? window.innerWidth : 1024);
 const isMobile = computed(() => windowWidth.value <= 640);
 const infoDescriptionsColumn = computed(() => (isMobile.value ? 1 : 2));
+
+// 项目基本信息（来自 info 接口返回的 project）
+const projectInfo = computed(() => task.value?.project || null);
+const hasProjectInfo = computed(() => {
+  const p = projectInfo.value;
+  if (!p) return false;
+  const proposal = p.project_proposal || (p as any).project_proposal;
+  return !!(p.product_type || p.platform_name || p.motherboard_name || p.resolution ||
+    (p.describe && p.describe.length > 0) ||
+    (Array.isArray(proposal) && proposal.length > 0) ||
+    (p.attachment && p.attachment.length > 0));
+});
+const projectProposalList = computed(() => {
+  const p = projectInfo.value;
+  if (!p) return [];
+  const list = p.project_proposal || (p as any).project_proposal;
+  return Array.isArray(list) ? list : [];
+});
+const projectAttachmentList = computed(() => {
+  const p = projectInfo.value;
+  if (!p) return [];
+  const list = p.attachment;
+  return Array.isArray(list) ? list : [];
+});
+const projectPreviewImageList = computed(() => {
+  const p = projectInfo.value;
+  if (!p?.describe) return [];
+  const images: string[] = [];
+  p.describe.forEach((item: any) => {
+    if (typeof item === "string" && item.startsWith("/data/")) {
+      images.push(getImageUrl(item));
+    } else if (item?.type === "url" || item?.type === "file") {
+      images.push(getImageUrl(item.content));
+    }
+  });
+  return images;
+});
+const getProjectImageIndex = (index: number): number => {
+  const p = projectInfo.value;
+  if (!p?.describe) return 0;
+  let imageIndex = 0;
+  for (let i = 0; i < index; i++) {
+    const item = p.describe[i];
+    if (typeof item === "string" && item.startsWith("/data/")) imageIndex++;
+    else if (item?.type === "url" || item?.type === "file") imageIndex++;
+  }
+  return imageIndex;
+};
 
 // BUG记录相关
 const bugList = ref<BugRecord[]>([]);
@@ -405,6 +797,94 @@ const getPriorityType = (
   return map[priority] || undefined;
 };
 
+// 是否允许上传附件（当前处理人是当前用户）
+const canUploadAttachment = computed(() => {
+  const t = task.value;
+  if (!t) return false;
+  const currentHandler = t.当前处理人 || t.assignee || "";
+  if (!currentHandler) return false;
+  return currentHandler === userStore.username;
+});
+
+// 是否显示延期原因按钮：状态为进行中、当前处理人是当前用户、且 development_is_delay 为 true
+const canShowDelayReasonButton = computed(() => {
+  const t = task.value;
+  if (!t) return false;
+  const status = t.状态 || t.status || "";
+  const inProgressStatuses = ["任务进行中", "项目测试任务进行中", "测试任务进行中"];
+  if (!inProgressStatuses.includes(status)) return false;
+  const currentHandler = t.当前处理人 || t.assignee || "";
+  if (currentHandler !== userStore.username) return false;
+  return t.delay?.development_is_delay === true;
+});
+
+const attachmentUploading = ref(false);
+
+// 任务描述编辑（与附件权限一致）
+const describeEditMode = ref(false);
+const describeEditForm = ref<DescribeContent[]>([]);
+const describeSaving = ref(false);
+/** 将 task.describe 规范化为 DescribeContent[] */
+const normalizeDescribeToContent = (describe: any[]): DescribeContent[] => {
+  if (!describe || !Array.isArray(describe)) return [];
+  return describe
+    .map((item: any) => {
+      if (typeof item === "string") {
+        if (item.startsWith("/data/") || item.startsWith("http://") || item.startsWith("https://")) {
+          return { type: "url" as const, content: item };
+        }
+        return { type: "text" as const, content: item };
+      }
+      if (item && typeof item === "object" && item.type && item.content !== undefined) {
+        return { type: item.type, content: String(item.content) };
+      }
+      return null;
+    })
+    .filter((x): x is DescribeContent => x != null);
+};
+
+const startDescribeEdit = () => {
+  describeEditForm.value = normalizeDescribeToContent(task.value?.describe || []);
+  describeEditMode.value = true;
+};
+
+const cancelDescribeEdit = () => {
+  describeEditMode.value = false;
+};
+
+const saveDescribe = async () => {
+  const t = task.value;
+  if (!t) return;
+  const taskIdVal = t._id || t.id;
+  if (!taskIdVal) {
+    ElMessage.error("任务ID不存在");
+    return;
+  }
+  describeSaving.value = true;
+  try {
+    const res = await updateTask({
+      task_id: taskIdVal,
+      task_name: t.任务名 || t.task_name || t.title || "",
+      describe: describeEditForm.value,
+      priority: t.优先级 || t.priority || "",
+      task_deadline: t.task_deadline || t.task_dead_line,
+      default_person: t.default_person,
+      attachment: t.attachment || []
+    });
+    if (res.code === 200) {
+      ElMessage.success("任务描述已更新");
+      describeEditMode.value = false;
+      await loadTask();
+    } else {
+      ElMessage.error(res.message || "更新失败");
+    }
+  } catch (err: any) {
+    ElMessage.error(err?.message || "更新失败");
+  } finally {
+    describeSaving.value = false;
+  }
+};
+
 // 获取图片 URL
 const getImageUrl = (filePath: string): string => {
   if (!filePath) return "";
@@ -446,6 +926,97 @@ const downloadAttachment = (path: string) => {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+};
+
+// 上传附件（在详情页追加附件）
+const handleBeforeUploadAttachment = async (file: File) => {
+  if (!task.value) {
+    ElMessage.error("任务信息不存在，无法上传附件");
+    return false;
+  }
+  const taskIdValue = task.value._id || task.value.id;
+  if (!taskIdValue) {
+    ElMessage.error("任务ID不存在，无法上传附件");
+    return false;
+  }
+  attachmentUploading.value = true;
+  try {
+    const uploadRes = await uploadFile({ file });
+    if (uploadRes.code !== 200 || !uploadRes.url) {
+      ElMessage.error("附件上传失败");
+      return false;
+    }
+    const currentAttachments: string[] = Array.isArray(task.value.attachment)
+      ? task.value.attachment
+      : [];
+    const newAttachments = Array.from(
+      new Set([...currentAttachments, uploadRes.url])
+    );
+    const updateRes = await updateTask({
+      task_id: taskIdValue,
+      task_name:
+        task.value.任务名 || task.value.task_name || task.value.title || "",
+      describe: task.value.describe || [],
+      priority: task.value.优先级 || task.value.priority || "",
+      task_deadline: task.value.task_deadline || task.value.task_dead_line,
+      default_person: task.value.default_person,
+      attachment: newAttachments
+    });
+    if (updateRes.code === 200) {
+      ElMessage.success("附件上传成功");
+      await loadTask();
+    } else {
+      ElMessage.error(updateRes.message || "更新任务附件失败");
+      return false;
+    }
+  } catch (error: any) {
+    console.error("上传附件失败:", error);
+    ElMessage.error(
+      error?.response?.data?.message || error?.message || "附件上传失败"
+    );
+    return false;
+  } finally {
+    attachmentUploading.value = false;
+  }
+  // 阻止 el-upload 默认上传行为
+  return false;
+};
+
+// 删除附件（与上传权限一致：当前处理人是当前用户时可删除）
+const handleDeleteAttachment = async (index: number) => {
+  const t = task.value;
+  if (!t) return;
+  const taskIdVal = t._id || t.id;
+  if (!taskIdVal) {
+    ElMessage.error("任务ID不存在");
+    return;
+  }
+  const currentAttachments: string[] = Array.isArray(t.attachment) ? [...t.attachment] : [];
+  if (index < 0 || index >= currentAttachments.length) return;
+  currentAttachments.splice(index, 1);
+  attachmentUploading.value = true;
+  try {
+    const res = await updateTask({
+      task_id: taskIdVal,
+      task_name: t.任务名 || t.task_name || t.title || "",
+      describe: t.describe || [],
+      priority: t.优先级 || t.priority || "",
+      task_deadline: t.task_deadline || t.task_dead_line,
+      default_person: t.default_person,
+      attachment: currentAttachments
+    });
+    if (res.code === 200) {
+      ElMessage.success("附件已删除");
+      await loadTask();
+    } else {
+      ElMessage.error(res.message || "删除附件失败");
+    }
+  } catch (error: any) {
+    console.error("删除附件失败:", error);
+    ElMessage.error(error?.response?.data?.message || error?.message || "删除附件失败");
+  } finally {
+    attachmentUploading.value = false;
+  }
 };
 
 // 预览图片列表
@@ -527,6 +1098,30 @@ const handleStatusFlowEnd = () => {
   statusFlowLoading.value = false;
 };
 
+// 状态与对应指派人字段的映射（用于判断当前用户是否有权修改计划时间）
+const STATUS_ASSIGNEE_FIELD_MAP: Record<string, string> = {
+  "研发任务待指派": "指派人",
+  "任务进行中": "指派人",
+  "项目测试任务待指派": "测试部负责人",
+  "项目测试任务进行中": "测试部负责人",
+  "测试任务待指派": "测试部负责人",
+  "测试任务进行中": "测试部负责人"
+};
+
+
+
+// 是否可编辑计划开始/结束时间（当前状态在映射表中且当前用户是对应指派人）
+const canEditDevelopmentTime = computed(() => {
+  const t = task.value;
+  if (!t) return false;
+  const status = (t.状态 || t.status || "").trim();
+  const assigneeField = STATUS_ASSIGNEE_FIELD_MAP[status];
+  if (!assigneeField) return false;
+  const assignee = t[assigneeField] || "";
+  if (!assignee) return false;
+  return assignee === userStore.username || assignee === userStore.nickname;
+});
+
 // 是否可进行分配（有下一状态且非终态，且当前处理人为当前用户）
 const canOpenStatusFlow = computed(() => {
   const t = task.value;
@@ -551,6 +1146,79 @@ const openStatusFlowDialog = () => {
   statusFlowDialogVisible.value = true;
 };
 
+// 保存任务完成期限（调用 updateTask 接口）
+const saveTaskDeadline = async () => {
+  const t = task.value;
+  if (!t) return;
+  const taskIdVal = t._id || t.id;
+  if (!taskIdVal) {
+    ElMessage.error("任务ID不存在");
+    return;
+  }
+  const deadline = taskDeadlineForm.value.task_deadline;
+  if (!deadline) {
+    ElMessage.warning("请选择任务完成期限");
+    return;
+  }
+  taskDeadlineSaving.value = true;
+  try {
+    const res = await updateTask({
+      task_id: taskIdVal,
+      task_name: t.任务名 || t.task_name || t.title || "",
+      describe: t.describe || [],
+      priority: t.优先级 || t.priority || "",
+      task_deadline: deadline,
+      default_person: t.default_person || "",
+      attachment: t.attachment || []
+    });
+    if (res.code === 200) {
+      ElMessage.success("任务完成期限已更新");
+      await loadTask();
+    } else {
+      ElMessage.error(res.message || "更新失败");
+    }
+  } catch (err: any) {
+    ElMessage.error(err?.message || "更新失败");
+  } finally {
+    taskDeadlineSaving.value = false;
+  }
+};
+
+// 保存计划时间（逻辑不变，仍使用 updateDevelopmentTime）
+const saveDevelopmentTime = async () => {
+  const t = task.value;
+  if (!t) return;
+  const taskIdVal = t._id || t.id;
+  if (!taskIdVal) {
+    ElMessage.error("任务ID不存在");
+    return;
+  }
+  const startTime = devTimeForm.value.development_start_time;
+  const endTime = devTimeForm.value.development_end_time;
+  if (!startTime || !endTime) {
+    ElMessage.warning("请填写计划开始时间和计划结束时间");
+    return;
+  }
+  devTimeSaving.value = true;
+  try {
+    const res = await updateDevelopmentTime({
+      task_id: taskIdVal,
+      development_start_time: startTime,
+      development_end_time: endTime
+    });
+    if (res.code === 200) {
+      ElMessage.success("计划时间已更新");
+      await loadTask();
+    } else {
+      ElMessage.error(res.message || "更新失败");
+    }
+  } catch (err: any) {
+    ElMessage.error(err?.message || "更新失败");
+  } finally {
+    devTimeSaving.value = false;
+  }
+};
+
 // 加载任务详情（调用 API）
 const loadTask = async () => {
   if (!taskId.value) {
@@ -566,7 +1234,13 @@ const loadTask = async () => {
     });
 
     if (response.code === 200) {
-      task.value = response.result || response.data || null;
+      const raw = response.result || response.data || response;
+      task.value = raw;
+
+      // 兼容 project 在响应顶层（如 { result: task, project: project }）
+      if (task.value && !task.value.project && (response as any).project) {
+        task.value.project = (response as any).project;
+      }
 
       if (!task.value) {
         ElMessage.error("未找到任务详情");
@@ -593,6 +1267,15 @@ const loadTask = async () => {
 
       // 加载汇报记录
       loadReports();
+      // 同步计划时间表单（供可编辑时使用）
+      devTimeForm.value = {
+        development_start_time: task.value.development_start_time ? String(task.value.development_start_time).trim() : "",
+        development_end_time: task.value.development_end_time ? String(task.value.development_end_time).trim() : ""
+      };
+      // 同步任务完成期限表单
+      taskDeadlineForm.value = {
+        task_deadline: task.value.task_deadline || task.value.task_dead_line ? String(task.value.task_deadline || task.value.task_dead_line).trim() : ""
+      };
     } else {
       ElMessage.error(response.message || "获取任务详情失败");
       router.push({ name: "TasksList" });
@@ -696,6 +1379,44 @@ const loadBugs = async () => {
 };
 
 // 打开BUG记录对话框
+const openDelayReasonDialog = () => {
+  delayReasonForm.value.development_delay_message = task.value?.delay?.development_delay_message || "";
+  delayReasonDialogVisible.value = true;
+  nextTick(() => {
+    delayReasonFormRef.value?.clearValidate();
+  });
+};
+
+const submitDelayReason = async () => {
+  const valid = await delayReasonFormRef.value?.validate().catch(() => false);
+  if (!valid) return;
+  const t = task.value;
+  if (!t) return;
+  const taskIdVal = t._id || t.id;
+  if (!taskIdVal) {
+    ElMessage.error("任务ID不存在");
+    return;
+  }
+  delayReasonSubmitting.value = true;
+  try {
+    const res = await updateTaskDelayReason({
+      task_id: taskIdVal,
+      message: delayReasonForm.value.development_delay_message.trim()
+    });
+    if (res.code === 200) {
+      ElMessage.success("延期原因已保存");
+      delayReasonDialogVisible.value = false;
+      await loadTask();
+    } else {
+      ElMessage.error(res.message || "保存失败");
+    }
+  } catch (err: any) {
+    ElMessage.error(err?.message || "保存失败");
+  } finally {
+    delayReasonSubmitting.value = false;
+  }
+};
+
 const openBugDialog = () => {
   if (!task.value) return;
   bugForm.value = {
@@ -888,6 +1609,210 @@ onUnmounted(() => {
             display: flex;
             align-items: center;
             gap: 8px;
+          }
+        }
+
+        .task-info-card {
+          background: linear-gradient(135deg, rgba(64, 158, 255, 0.07) 0%, rgba(64, 158, 255, 0.03) 100%);
+          border: 1px solid rgba(64, 158, 255, 0.28);
+          border-left: 4px solid var(--el-color-primary);
+
+          :deep(.el-card__header) {
+            background: rgba(64, 158, 255, 0.08);
+            border-bottom-color: rgba(64, 158, 255, 0.22);
+          }
+
+          .project-info-row {
+            background: rgba(255, 255, 255, 0.88);
+            border: 1px solid rgba(64, 158, 255, 0.1);
+          }
+        }
+
+        .project-info-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+          gap: 12px 24px;
+          margin-bottom: 0;
+        }
+
+        .project-info-row {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          padding: 8px 12px;
+          background: var(--el-fill-color-lighter);
+          border-radius: 6px;
+        }
+
+        .project-info-row--time {
+          grid-column: 1 / -1;
+          flex-direction: row;
+          align-items: center;
+          gap: 12px;
+          min-height: 40px;
+
+          .info-label {
+            flex-shrink: 0;
+            width: 100px;
+          }
+
+          .info-value--editable {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+            min-width: 0;
+          }
+
+          .time-field-picker {
+            width: 180px;
+          }
+
+          .time-field-btn {
+            flex-shrink: 0;
+          }
+        }
+
+        .info-label {
+          font-size: 12px;
+          color: var(--el-text-color-secondary);
+        }
+
+        .info-value {
+          font-size: 14px;
+          font-weight: 500;
+          color: var(--el-text-color-primary);
+        }
+
+        .task-desc-section {
+          margin-top: 16px;
+          padding-top: 16px;
+          border-top: 1px solid var(--el-border-color-lighter);
+
+          .section-label {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--el-text-color-regular);
+            margin-bottom: 8px;
+          }
+
+          .header-actions.section-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          }
+
+          .task-description-edit {
+            min-height: 120px;
+
+            :deep(.rich-text-editor) {
+              border: 1px solid var(--el-border-color);
+              border-radius: 4px;
+              padding: 8px;
+            }
+          }
+        }
+
+        .project-info-card {
+          margin-top: 16px;
+          background: linear-gradient(135deg, rgba(103, 194, 58, 0.07) 0%, rgba(103, 194, 58, 0.03) 100%);
+          border: 1px solid rgba(103, 194, 58, 0.28);
+          border-left: 4px solid var(--el-color-success);
+
+          :deep(.el-card__header) {
+            background: rgba(103, 194, 58, 0.08);
+            border-bottom-color: rgba(103, 194, 58, 0.22);
+          }
+
+          .project-info-row {
+            background: rgba(255, 255, 255, 0.88);
+            border: 1px solid rgba(103, 194, 58, 0.1);
+          }
+
+          .project-desc-section {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--el-border-color-lighter);
+          }
+
+          .section-label {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--el-text-color-regular);
+            margin-bottom: 8px;
+          }
+
+          .project-description {
+            .description-text {
+              margin: 0 0 8px;
+              font-size: 13px;
+              line-height: 1.6;
+              color: var(--el-text-color-regular);
+            }
+
+            .description-image .description-image-el {
+              max-width: 100%;
+              max-height: 300px;
+            }
+          }
+
+          .attachment-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+          }
+
+          .attachment-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            background: var(--el-fill-color-lighter);
+            border-radius: 6px;
+            font-size: 13px;
+          }
+
+          .attachment-icon {
+            color: var(--el-color-primary);
+            font-size: 16px;
+          }
+
+          .attachment-link {
+            color: var(--el-color-primary);
+            text-decoration: none;
+            max-width: 180px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+
+          .attachment-link:hover {
+            text-decoration: underline;
+          }
+        }
+
+        @media (max-width: 640px) {
+          .project-info-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .project-info-row--time {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+
+            .info-label {
+              width: auto;
+            }
+
+            .info-value--editable {
+              width: 100%;
+            }
+
+            .time-field-picker {
+              width: 100%;
+              max-width: 100%;
+            }
           }
         }
 
@@ -1110,19 +2035,6 @@ onUnmounted(() => {
 
       :deep(.el-card__body) {
         padding: 16px 12px;
-      }
-    }
-
-    :deep(.el-descriptions) {
-      .el-descriptions__table {
-        .el-descriptions__label {
-          width: 100px;
-          font-size: 13px;
-        }
-
-        .el-descriptions__content {
-          font-size: 13px;
-        }
       }
     }
 

@@ -32,16 +32,16 @@ export default {
         roles: ["Admin", "ProjectManager", "DepartmentManager", 'ProjectDirector', 'BusinessDepartmentMembers']
       }
     },
-    {
-      path: "/tasks/department-task",
-      name: "DepartmentTask",
-      component: () => import("@/views/tasks/department-task-statistics.vue"),
-      meta: {
-        title: "部门任务统计",
-        showLink: true,
-        roles: ["Admin", "ProjectManager", 'ProjectDirector', 'BusinessDepartmentMembers']
-      }
-    },
+    // {
+    //   path: "/tasks/department-task",
+    //   name: "DepartmentTask",
+    //   component: () => import("@/views/tasks/department-task-statistics.vue"),
+    //   meta: {
+    //     title: "部门任务统计",
+    //     showLink: true,
+    //     roles: ["Admin", "ProjectManager", 'ProjectDirector', 'BusinessDepartmentMembers']
+    //   }
+    // },
     {
       path: "/tasks/detail/:id",
       name: "TaskDetail",

@@ -8,7 +8,7 @@
           @tab-change="handleDepartmentTabChange">
           <el-tab-pane v-for="(departmentUsers, departmentName) in tasks" :key="departmentName"
             :label="`${departmentName} (${getDepartmentTaskCount(departmentName)})`" :name="departmentName">
-            <!-- 第二层Tab：人员 -->
+            <!-- 第二层Tab：人员（全部 / 具体人员） -->
             <el-tabs v-model="activeUserTab[departmentName]" v-if="Object.keys(departmentUsers).length > 0">
               <el-tab-pane v-for="(userData, username) in departmentUsers" :key="username"
                 :label="getUserTabLabel(username, userData)" :name="username">
@@ -51,7 +51,7 @@
                       <el-progress :percentage="row.进度 || 0" :status="row.进度 === 100 ? 'success' : undefined" />
                     </template>
                   </el-table-column>
-                  <el-table-column prop="task_deadline" label="任务截至日期" />
+                  <el-table-column prop="task_deadline" label="任务完成期限" />
                   <el-table-column prop="create_time" label="创建时间" />
                 </el-table>
               </el-tab-pane>
@@ -142,10 +142,12 @@ const getUserTabLabel = (username: string, userData: { taskList: any[], role: st
   return `${username} (${taskCount})`;
 };
 
-// 获取部门任务总数
+// 获取部门任务总数（排除「全部」避免重复统计）
 const getDepartmentTaskCount = (departmentName: string): number => {
   const departmentUsers = tasks.value[departmentName];
   if (!departmentUsers) return 0;
+  const allData = departmentUsers["全部"];
+  if (allData) return allData.taskList.length;
   return Object.values(departmentUsers).reduce((total, userData) => total + userData.taskList.length, 0);
 };
 
@@ -165,13 +167,13 @@ const getFilteredTasks = (departmentName: string, username: string): any[] => {
   });
 };
 
+
 // 处理部门Tab切换
 const handleDepartmentTabChange = (departmentName: string) => {
-  // 当切换部门时，自动选中该部门的第一个用户
+  // 当切换部门时，默认选中「全部」，显示该部门所有任务
   const departmentUsers = tasks.value[departmentName];
   if (departmentUsers && Object.keys(departmentUsers).length > 0) {
-    const firstUser = Object.keys(departmentUsers)[0];
-    activeUserTab.value[departmentName] = firstUser;
+    activeUserTab.value[departmentName] = "全部";
   }
 };
 
@@ -283,6 +285,18 @@ const getTaskStatisticsData = async () => {
                 role: user.role || []
               };
             });
+
+            // 为部门添加「全部」选项，聚合该部门所有人员的任务
+            const allTasks: any[] = [];
+            const allRoles = new Set<string>();
+            Object.values(processedTasks[departmentName]).forEach((ud) => {
+              allTasks.push(...ud.taskList);
+              (ud.role || []).forEach((r: string) => allRoles.add(r));
+            });
+            processedTasks[departmentName] = {
+              全部: { taskList: allTasks, role: Array.from(allRoles) },
+              ...processedTasks[departmentName]
+            };
           }
         });
 
@@ -292,11 +306,11 @@ const getTaskStatisticsData = async () => {
         const departmentNames = Object.keys(tasks.value);
         if (departmentNames.length > 0 && !activeDepartmentTab.value) {
           activeDepartmentTab.value = departmentNames[0];
-          // 设置该部门的第一个用户
+          // 默认选中「全部」，显示该部门所有任务
           const firstDepartment = departmentNames[0];
           const firstDepartmentUsers = tasks.value[firstDepartment];
           if (firstDepartmentUsers && Object.keys(firstDepartmentUsers).length > 0) {
-            activeUserTab.value[firstDepartment] = Object.keys(firstDepartmentUsers)[0];
+            activeUserTab.value[firstDepartment] = "全部";
           }
         }
       } else {

@@ -30,7 +30,7 @@ export default {
         title: "项目概览",
         showLink: true,
         showParent: true,
-        roles: ["Admin", 'ProjectDirector']
+        roles: ["Admin", 'ProjectDirector', 'ProjectManager']
       }
     },
     {

@@ -22,6 +22,14 @@
           </div>
         </template>
       </el-form-item>
+      <template v-if="isPendingAssignToDeptLeader">
+        <el-form-item label="部门" prop="department">
+          <el-select v-model="form.department" placeholder="请选择部门" :loading="departmentLoading" style="width: 100%"
+            clearable>
+            <el-option v-for="dept in departmentOptions" :key="dept.value" :label="dept.label" :value="dept.value" />
+          </el-select>
+        </el-form-item>
+      </template>
       <el-form-item v-if="needAssign" label="分配给" prop="personName">
         <el-tree-select v-model="form.personName" placeholder="请选择分配给" :loading="allUsersLoading" filterable
           check-strictly default-expand-all :data="allUsersTree" :props="treeSelectProps" node-key="value"
@@ -35,7 +43,7 @@
             <span class="time-limit-unit">时</span>
           </div>
         </el-form-item>
-        <el-form-item label="截止期限" prop="task_assign_limit">
+        <el-form-item label="完成期限" prop="task_assign_limit">
           <el-date-picker v-model="form.task_assign_limit" type="date" placeholder="请选择任务截止期限" format="YYYY-MM-DD"
             value-format="YYYY-MM-DD" style="width: 100%" :disabled-date="disabledPastDate" clearable />
         </el-form-item>
@@ -108,8 +116,8 @@ import type { FormInstance, FormRules, UploadFile, UploadFiles } from "element-p
 import { ElMessage } from "element-plus";
 import { Upload } from "@element-plus/icons-vue";
 import { TaskStatus } from "@/types";
-import { updateTaskState, updateTask, reportTaskProgress, uploadFile, updateDevelopmentTime, bulkAssignment } from "@/api/project";
-import { selectAllUsers, sendNotification, selectNotificationPerson } from "@/api/system";
+import { updateTaskState, updateTask, reportTaskProgress, uploadFile, updateDevelopmentTime, updateTaskDeadline } from "@/api/project";
+import { getNextStateUserList, sendNotification, selectNotificationPerson } from "@/api/system";
 import { sendWorkchatMessage } from "@/api/report";
 import { useUserStoreHook } from "@/store/modules/user";
 
@@ -132,6 +140,7 @@ const dialogVisible = computed({
 
 const formRef = ref<FormInstance>();
 interface FormData {
+  department: string;
   personName: string;
   rejectionReason: string;
   testRounds: number;
@@ -145,6 +154,7 @@ interface FormData {
   notification_recipients: string[];
 }
 const form = reactive<FormData>({
+  department: "",
   personName: "",
   rejectionReason: "",
   testRounds: null,
@@ -159,6 +169,12 @@ const form = reactive<FormData>({
 });
 const rules = computed<FormRules>(() => {
   const baseRules: FormRules = {};
+  // 当前状态为待分配给部门负责人时，部门必填
+  if (isPendingAssignToDeptLeader.value) {
+    baseRules.department = [
+      { required: false, message: "请选择部门", trigger: ["blur", "change"] }
+    ];
+  }
   // 只有当 need_assign 为 true 时，personName 才必填
   if (needAssign.value) {
     baseRules.personName = [
@@ -225,7 +241,7 @@ const rules = computed<FormRules>(() => {
               return;
             }
           }
-          // 检查是否超过任务截止日期
+          // 检查是否超过任务完成期限
           if (props.task?.task_deadline) {
             const deadline = new Date(props.task.task_deadline);
             deadline.setHours(23, 59, 59, 999);
@@ -234,7 +250,7 @@ const rules = computed<FormRules>(() => {
             const deadlineDate = new Date(props.task.task_deadline);
             deadlineDate.setHours(0, 0, 0, 0);
             if (endDate.getTime() > deadlineDate.getTime()) {
-              callback(new Error("开发结束日期不能超过任务截止日期"));
+              callback(new Error("开发结束日期不能超过任务完成期限"));
               return;
             }
           }
@@ -266,12 +282,18 @@ const allUsersLoading = ref(false);
 const confirmLoading = ref(false);
 const userStore = useUserStoreHook();
 
+// 部门筛选相关（基于 selectAllUsers 返回的数据动态构建）
+const departmentOptions = ref<Array<{ label: string; value: string }>>([]);
+const departmentLoading = ref(false);
+
 // 根据当前状态动态过滤用户列表
 const allUsersTree = computed<TreeNode[]>(() => {
   if (!allUsersRawData.value.length) return [];
   // 依赖 selectedNextState 和 nextOptions，确保状态变化时重新计算
   selectedNextState.value;
   nextOptions.value;
+  // 依赖部门筛选
+  form.department;
   return buildTreeData(allUsersRawData.value);
 });
 
@@ -344,7 +366,7 @@ const isPendingAssignToDeptLeader = computed<boolean>(() => {
     (status && String(status).includes("待分配给部门负责人"));
 });
 
-// 根据下一状态选项，判断是否需要显示分配给输入框（待分配给部门负责人与其他状态一致：有需要分配就显示，默认部门负责人由 initForm 预填）
+// 根据选中的下一状态，判断是否需要显示分配给输入框（与 needRejectionReason 一致：多选项时根据选中项联动）
 const needAssign = computed<boolean>(() => {
   if (nextOptions.value.length === 0 || needAssignArray.value.length === 0) {
     return false;
@@ -352,8 +374,15 @@ const needAssign = computed<boolean>(() => {
   if (nextOptions.value.length === 1) {
     return needAssignArray.value[0] === true;
   }
-  // 多个下一状态选项时：只要有任一下一状态需要分配给就显示，不要求先选下一状态
-  return needAssignArray.value.some(need => need === true);
+  // 多个下一状态选项时：根据选中的状态对应的 need_assign 决定是否显示
+  if (!selectedNextState.value) {
+    return false;
+  }
+  const selectedIndex = nextOptions.value.indexOf(selectedNextState.value);
+  if (selectedIndex !== -1 && selectedIndex < needAssignArray.value.length) {
+    return needAssignArray.value[selectedIndex] === true;
+  }
+  return false;
 });
 
 // 根据选中的下一状态，判断是否需要显示驳回理由输入框
@@ -423,7 +452,7 @@ const isTestFailure = computed<boolean>(() => {
 // 判断当前状态是否需要填写预计工时（工时审核未通过）
 const needDevelopmentTime = computed<boolean>(() => {
   const status = currentStatus.value;
-  return status === "工时审核未通过" || status === "填写测试预计工时" || status === "填写研发预计工时" || status === "研发工时未通过" || status === "测试工时未通过";
+  return status === "测试任务待指派" || status === "研发任务待指派" || status === "项目测试任务待指派"
 });
 
 // 禁用过去的日期（与 index 批量分配一致）
@@ -434,6 +463,7 @@ const disabledPastDate = (time: Date): boolean => {
 };
 
 const resetForm = () => {
+  form.department = "";
   form.personName = "";
   form.rejectionReason = "";
   form.testRounds = 1;
@@ -449,6 +479,7 @@ const resetForm = () => {
 };
 
 const initForm = async () => {
+  form.department = "";
   form.rejectionReason = "";
   form.testRounds = 1;
   form.completionReport = "";
@@ -465,7 +496,7 @@ const initForm = async () => {
   } else {
     selectedNextState.value = "";
   }
-  // 当前状态为「待分配给部门负责人」时，分配给默认填任务的 default_person
+  // 当前状态为「待分配给部门负责人」时，分配给默认填任务的 default_person（仅作为初始值，选择部门后会根据部门负责人覆盖）
   form.personName = isPendingAssignToDeptLeader.value && props.task?.default_person
     ? String(props.task.default_person).trim()
     : "";
@@ -480,8 +511,8 @@ const initForm = async () => {
       // 不显示错误，使用空数组
     }
   }
-  // 每次打开对话框都加载用户列表
-  loadAllUsers();
+  // 根据下一状态加载用户列表（包含部门信息）
+  loadUsersByNextState();
   nextTick(() => {
     formRef.value?.clearValidate();
   });
@@ -511,10 +542,10 @@ watch(
   }
 );
 
-// 监听选中的状态变化，清空驳回理由和完成汇报
+// 监听选中的状态变化，清空驳回理由和完成汇报；多选项时切换状态需重新加载用户列表
 watch(
   () => selectedNextState.value,
-  () => {
+  (newState) => {
     form.rejectionReason = "";
     // 如果切换状态后不是已完成，清空完成汇报和附件
     if (!isCompleted.value) {
@@ -525,6 +556,10 @@ watch(
     if (!isTestFailure.value) {
       form.failureReport = "";
     }
+    // 多选项时，切换下一状态需重新调用 getNextStateUserList 获取对应的部门和用户
+    if (nextOptions.value.length > 1 && newState) {
+      loadUsersByNextState();
+    }
     nextTick(() => {
       formRef.value?.clearValidate("rejectionReason");
       formRef.value?.clearValidate("completionReport");
@@ -532,6 +567,82 @@ watch(
       formRef.value?.clearValidate("recipient");
       formRef.value?.clearValidate("deadline");
     });
+  }
+);
+
+// 监听部门变化：选择部门后，自动将该部门的负责人填入「分配给」字段；
+// 如果新部门下没有可选负责人，则清空「分配给」
+watch(
+  () => form.department,
+  (dept) => {
+    if (!dept || !isPendingAssignToDeptLeader.value) return;
+    // 如果当前分配给已经是该部门下的 ProjectManager 或 DepartmentManager，则不覆盖
+    if (form.personName) {
+      for (const item of allUsersRawData.value) {
+        const [department, members] = Object.entries(item)[0] || ["", []];
+        if (String(department) !== String(dept)) continue;
+        if (!Array.isArray(members)) continue;
+        const currentUser = members.find((user: any) => {
+          const name = user.username || user.nickname;
+          const roles = Array.isArray(user.role) ? user.role : user.role ? [user.role] : [];
+          return name === form.personName && (roles.includes("ProjectManager") || roles.includes("DepartmentManager"));
+        });
+        if (currentUser) {
+          nextTick(() => {
+            formRef.value?.clearValidate("personName");
+          });
+          return;
+        }
+      }
+    }
+    // 走到这里说明当前「分配给」要么为空，要么不是本部门的负责人，先清空
+    form.personName = "";
+    // 从该部门下找到第一个 DepartmentManager 作为默认部门负责人
+    let defaultLeader: string | null = null;
+    for (const item of allUsersRawData.value) {
+      const [department, members] = Object.entries(item)[0] || ["", []];
+      if (String(department) !== String(dept)) continue;
+      if (!Array.isArray(members)) continue;
+      const target = members.find((user: any) => {
+        const roles = Array.isArray(user.role) ? user.role : user.role ? [user.role] : [];
+        return roles.includes("DepartmentManager");
+      });
+      if (target) {
+        defaultLeader = target.username || target.nickname || null;
+        break;
+      }
+    }
+    if (defaultLeader) {
+      form.personName = defaultLeader;
+      nextTick(() => {
+        formRef.value?.clearValidate("personName");
+      });
+    }
+  }
+);
+
+// 监听「分配给」变化：如果当前状态为待分配给部门负责人，且部门未选择，则根据负责人反推部门
+watch(
+  () => form.personName,
+  (name) => {
+    if (!name || !isPendingAssignToDeptLeader.value) return;
+    if (form.department) return;
+    for (const item of allUsersRawData.value) {
+      const [department, members] = Object.entries(item)[0] || ["", []];
+      if (!Array.isArray(members)) continue;
+      const target = members.find((user: any) => {
+        const userName = user.username || user.nickname;
+        const roles = Array.isArray(user.role) ? user.role : user.role ? [user.role] : [];
+        return userName === name && (roles.includes("ProjectManager") || roles.includes("DepartmentManager"));
+      });
+      if (target) {
+        form.department = String(department);
+        nextTick(() => {
+          formRef.value?.clearValidate("department");
+        });
+        break;
+      }
+    }
   }
 );
 
@@ -554,15 +665,27 @@ const handleBeforeUpload = (file: File) => {
   return true;
 };
 
-const loadAllUsers = async () => {
+/** 根据下一状态获取后台返回的部门和用户列表 */
+const loadUsersByNextState = async () => {
+  const effectiveNextState = nextOptions.value.length > 1
+    ? selectedNextState.value
+    : (nextOptions.value[0] || "");
+  if (!effectiveNextState) {
+    allUsersRawData.value = [];
+    departmentOptions.value = [];
+    return;
+  }
   allUsersLoading.value = true;
+  departmentLoading.value = true;
   try {
-    const response = await selectAllUsers();
-    if (response.code === 200 && Array.isArray(response.result)) {
-      // 存储原始数据，计算属性会自动根据状态过滤
-      allUsersRawData.value = response.result;
+    const response = await getNextStateUserList({ next_state: effectiveNextState }) as { code: number; result?: any[]; data?: any[] };
+    const list = Array.isArray(response.result) ? response.result : Array.isArray(response.data) ? response.data : [];
+    if (response.code === 200) {
+      allUsersRawData.value = list;
+      buildDepartmentOptions(list);
     } else {
       allUsersRawData.value = [];
+      departmentOptions.value = [];
       ElMessage.error("加载人员列表失败");
     }
   } catch (error: any) {
@@ -571,9 +694,26 @@ const loadAllUsers = async () => {
       error?.response?.data?.message || error?.message || "加载人员列表失败"
     );
     allUsersRawData.value = [];
+    departmentOptions.value = [];
   } finally {
     allUsersLoading.value = false;
+    departmentLoading.value = false;
   }
+};
+
+// 基于 selectAllUsers 的返回结果构建部门下拉选项
+const buildDepartmentOptions = (data: Array<Record<string, any>>) => {
+  const options: Array<{ label: string; value: string }> = [];
+  data.forEach((item) => {
+    const [department] = Object.entries(item)[0] || ["", []];
+    if (department) {
+      const deptName = String(department);
+      if (!options.find(o => o.value === deptName)) {
+        options.push({ label: deptName, value: deptName });
+      }
+    }
+  });
+  departmentOptions.value = options;
 };
 
 // 用户信息映射，用于根据 username 查找完整的用户信息
@@ -584,6 +724,8 @@ const buildTreeData = (data: Array<Record<string, any>>): TreeNode[] => {
   const currentUsername = userStore.username;
   const currentUserRoles = userStore.roles || [];
   const isPendingAssignToMember = normalizedStatus.value === TaskStatus.PENDING_ASSIGN_TO_MEMBER;
+  const selectedDeptName = form.department;
+  const isPendingAssignToDeptLeaderState = normalizedStatus.value === TaskStatus.PENDING_ASSIGN_TO_DEPT_LEADER;
 
   // 获取下一状态
   const targetNextState = nextOptions.value.length > 1
@@ -623,6 +765,12 @@ const buildTreeData = (data: Array<Record<string, any>>): TreeNode[] => {
             return true;
           }
 
+          // 部门筛选：在「待分配给部门负责人」状态下，若选择了部门，保留该部门下 ProjectManager 或 DepartmentManager
+          if (isPendingAssignToDeptLeaderState && selectedDeptName) {
+            if (department !== selectedDeptName) return false;
+            const isDeptLeader = userRoles.includes("ProjectManager") || userRoles.includes("DepartmentManager");
+            if (!isDeptLeader) return false;
+          }
           // 规则1：如果当前用户是部门负责人，不能分配给其他项目负责人
           // 但如果下一状态是"待验收"，允许分配（已在上面处理）
           if (isCurrentUserDepartmentManager && isUserProjectManager && !isPendingAcceptance) {
@@ -884,32 +1032,23 @@ const handleConfirm = () => {
           return;
         }
 
-        // 2. 再调用批量分配接口（单任务，与 index 同一逻辑）
+        // 2. 再调用分配接口
         const taskIdStr = String(taskId);
         if (taskIdStr && taskIdStr !== "0" && form.task_assign_limit) {
-          const taskJson: Record<string, { task_name: string; state: string; current_assignee: string; default_person: string }> = {
-            [taskIdStr]: {
-              task_name: String(props.task?.任务名 || props.task?.task_name || props.task?.title || ""),
-              state: String(props.task?.状态 || props.task?.status || ""),
-              current_assignee: String(props.task?.当前处理人 || props.task?.current_handler || props.task?.assignee || ""),
-              default_person: String(props.task?.default_person || props.task?.默认部门负责人 || "")
-            }
-          };
           try {
-            const bulkRes = await bulkAssignment({
-              hour: Number(form.time_limit ?? 1),
-              task_json: taskJson,
+            const res = await updateTaskDeadline({
+              task_id: taskId,
               task_deadline: form.task_assign_limit
             });
-            if (bulkRes.code !== 200) {
-              ElMessage.error(bulkRes.message || "设置任务时限与截止期限失败");
+            if (res.code !== 200) {
+              ElMessage.error(res.message || "设置任务时限与截止期限失败");
               confirmLoading.value = false;
               return;
             }
-          } catch (bulkError: any) {
-            console.error("设置任务时限与截止期限失败:", bulkError);
+          } catch (error: any) {
+            console.error("设置任务时限与截止期限失败:", error);
             ElMessage.error(
-              bulkError?.response?.data?.message || bulkError?.message || "设置任务时限与截止期限失败"
+              error?.response?.data?.message || error?.message || "设置任务时限与截止期限失败"
             );
             confirmLoading.value = false;
             return;

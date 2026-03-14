@@ -8,7 +8,7 @@ export default {
   meta: {
     icon: "ri:pie-chart-line",
     title: "统计",
-    rank: 2
+    rank: 1
   },
   children: [
     {

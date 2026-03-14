@@ -1543,7 +1543,7 @@ const developmentTimeRules: FormRules = {
           }
         }
 
-        // 检查是否超过任务截止日期
+        // 检查是否超过任务完成期限
         if (developmentTimeForm.task_deadline) {
           const deadline = new Date(developmentTimeForm.task_deadline).getTime();
           // 只比较日期部分，忽略时分秒
@@ -1553,7 +1553,7 @@ const developmentTimeRules: FormRules = {
           deadlineDate.setHours(0, 0, 0, 0);
 
           if (endDate.getTime() > deadlineDate.getTime()) {
-            callback(new Error("开发结束日期不能超过任务截止日期"));
+            callback(new Error("开发结束日期不能超过任务完成期限"));
             return;
           }
         }
@@ -1570,7 +1570,7 @@ const openDevelopmentTimeDialog = (task: any) => {
   const taskId = task._id || task.id || "";
   developmentTimeForm.task_id = taskId;
   developmentTimeForm.task_name = task.任务名 || task.task_name || task.title || "";
-  // 获取任务截止日期，可能是 task_deadline 或 task_dead_line
+  // 获取任务完成期限，可能是 task_deadline 或 task_dead_line
   developmentTimeForm.task_deadline = task.task_deadline || task.task_dead_line || "";
   developmentTimeForm.development_start_time = "";
   developmentTimeForm.development_end_time = "";
@@ -1883,7 +1883,7 @@ const calculateTableHeights = () => {
       const cardTopToViewportBottom = viewportHeight - cardRect.top;
       const cardHeaderHeight = 50; // card header高度
       const cardPadding = 40; // card内部padding
-      const paginationHeight = 60; // 分页高度
+      const paginationHeight = 30; // 分页高度
       const bottomPadding = 20;
       todoTasksTableHeight.value = Math.max(300, cardTopToViewportBottom - cardHeaderHeight - cardPadding - paginationHeight - bottomPadding);
     }

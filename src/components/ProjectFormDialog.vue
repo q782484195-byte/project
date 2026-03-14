@@ -959,7 +959,8 @@ const handleSubmit = async () => {
         plant_end_time: projectForm.endDate,
         describe: describeUrls,
         attachment: allAttachmentUrls,
-        project_proposal: allProposalUrls
+        project_proposal: allProposalUrls,
+        project_initiation_date: new Date().toISOString().slice(0, 10).replace("T", " ")
       };
 
       try {
