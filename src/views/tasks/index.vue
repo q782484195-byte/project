@@ -9,7 +9,11 @@
               :type="searchForm.projectId === project.id ? 'primary' : 'info'"
               :effect="searchForm.projectId === project.id ? 'dark' : 'plain'" class="project-tag"
               @click="handleProjectTagClick(project.id)">
-              <span class="project-tag-text">{{ project.name }}</span>
+              <span class="project-tag-text">
+                <span class="project-name-part">{{ project.project_name || project.name }}</span>
+                <span v-if="project.motherboard_name" class="project-motherboard-part">-{{ project.motherboard_name
+                  }}</span>
+              </span>
             </el-tag>
           </div>
         </el-form-item>
@@ -687,17 +691,17 @@ const loadProjects = async () => {
     });
 
     if (response.code === 200 && response.result) {
-      projects.value = response.result.map((item: ProjectListItem): Project => {
-        return {
-          id: item._id,
-          name: item.project_name,
-          status: item.state as any,
-          startDate: item.plant_start_time,
-          endDate: item.plant_end_time,
-          creator: item.creator,
-          createdAt: item.create_time
-        };
-      });
+      projects.value = response.result.map((item: ProjectListItem) => ({
+        id: item._id,
+        name: `${item.project_name || ""} - ${item.motherboard_name || ""}`,
+        project_name: item.project_name || "",
+        motherboard_name: item.motherboard_name || "",
+        status: item.state as any,
+        startDate: item.plant_start_time,
+        endDate: item.plant_end_time,
+        creator: item.creator,
+        createdAt: item.create_time
+      })) as Project[];
     } else {
       ElMessage.error(response.message || "加载项目列表失败");
       projects.value = [];
@@ -1940,6 +1944,19 @@ onUnmounted(() => {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+
+      .project-name-part {
+        font-weight: 600;
+        color: inherit;
+      }
+
+      .project-motherboard-part {
+        font-weight: 400;
+        opacity: 0.85;
+      }
     }
 
     &:hover {

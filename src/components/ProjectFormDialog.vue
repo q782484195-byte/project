@@ -119,6 +119,10 @@
           </template>
         </el-upload>
       </el-form-item>
+      <el-form-item label="立项时间" prop="project_initiation_date">
+        <el-date-picker v-model="projectForm.project_initiation_date" type="date" placeholder="选择立项时间（年月日）"
+          format="YYYY-MM-DD" value-format="YYYY-MM-DD" style="width: 100%" />
+      </el-form-item>
       <el-row :gutter="20">
         <el-col :span="12">
           <el-form-item label="计划开始时间" prop="startDate" class="date-form-item">
@@ -300,7 +304,8 @@ const projectForm = reactive({
   startDate: "",
   endDate: "",
   memberIds: [] as string[],
-  project_proposal: [] as string[] // 用于表单验证
+  project_proposal: [] as string[], // 用于表单验证
+  project_initiation_date: "" // 立项时间（年月日）
 });
 
 const rules: FormRules = {
@@ -318,6 +323,9 @@ const rules: FormRules = {
       },
       trigger: "change",
     }
+  ],
+  project_initiation_date: [
+    { required: true, message: "请选择立项时间", trigger: ["blur", "change"] }
   ],
   startDate: [
     {
@@ -633,6 +641,14 @@ watch(
         }
       }
 
+      const initiationDate = (project as any).project_initiation_date || "";
+      let initiationDateNorm = initiationDate;
+      if (initiationDateNorm && initiationDateNorm.includes("-")) {
+        const parts = initiationDateNorm.split("-");
+        if (parts.length >= 3) {
+          initiationDateNorm = `${parts[0]}-${parts[1].padStart(2, "0")}-${parts[2].padStart(2, "0")}`;
+        }
+      }
       Object.assign(projectForm, {
         name: project.name,
         customer_name: (project as any).customer_name || "",
@@ -647,7 +663,8 @@ watch(
         templateId: project.templateId || "",
         startDate: startDate,
         endDate: endDate,
-        memberIds: project.members?.map(member => member.id) || []
+        memberIds: project.members?.map(member => member.id) || [],
+        project_initiation_date: initiationDateNorm
       });
 
       // 填充附件列表（编辑模式下）
@@ -724,7 +741,8 @@ const handleClose = () => {
     startDate: "",
     endDate: "",
     memberIds: [],
-    project_proposal: []
+    project_proposal: [],
+    project_initiation_date: ""
   });
   fileList.value = [];
   proposalFileList.value = [];
@@ -759,6 +777,13 @@ const handleSubmit = async () => {
     // 验证立项文件
     if (!proposalFileList.value || proposalFileList.value.length === 0) {
       ElMessage.warning("请上传立项文件");
+      submitting.value = false;
+      return;
+    }
+
+    // 验证立项时间
+    if (!projectForm.project_initiation_date) {
+      ElMessage.warning("请选择立项时间");
       submitting.value = false;
       return;
     }
@@ -892,7 +917,8 @@ const handleSubmit = async () => {
         plant_end_time: projectForm.endDate,
         describe: describeUrls,
         attachment: allAttachmentUrls,
-        project_proposal: allProposalUrls
+        project_proposal: allProposalUrls,
+        project_initiation_date: projectForm.project_initiation_date || ""
       };
 
       try {
@@ -960,7 +986,7 @@ const handleSubmit = async () => {
         describe: describeUrls,
         attachment: allAttachmentUrls,
         project_proposal: allProposalUrls,
-        project_initiation_date: new Date().toISOString().slice(0, 10).replace("T", " ")
+        project_initiation_date: projectForm.project_initiation_date || ""
       };
 
       try {

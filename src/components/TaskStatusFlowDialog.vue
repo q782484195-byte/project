@@ -47,7 +47,7 @@
           <el-date-picker v-model="form.task_assign_limit" type="date" placeholder="请选择任务截止期限" format="YYYY-MM-DD"
             value-format="YYYY-MM-DD" style="width: 100%" :disabled-date="disabledPastDate" clearable />
         </el-form-item>
-        <el-form-item label="超时提醒人" prop="notification_recipients">
+        <el-form-item label="超时提醒" prop="notification_recipients">
           <el-tree-select v-model="form.notification_recipients" placeholder="请选择指派超时提醒人" :loading="allUsersLoading"
             filterable check-strictly default-expand-all :data="allUsersTree" :props="treeSelectProps" node-key="value"
             :render-after-expand="false" style="width: 100%" clearable multiple />
@@ -117,7 +117,7 @@ import { ElMessage } from "element-plus";
 import { Upload } from "@element-plus/icons-vue";
 import { TaskStatus } from "@/types";
 import { updateTaskState, updateTask, reportTaskProgress, uploadFile, updateDevelopmentTime, updateTaskDeadline } from "@/api/project";
-import { getNextStateUserList, sendNotification, selectNotificationPerson } from "@/api/system";
+import { getNextStateUserList, sendNotification, selectNotificationPerson, addNotification } from "@/api/system";
 import { sendWorkchatMessage } from "@/api/report";
 import { useUserStoreHook } from "@/store/modules/user";
 
@@ -185,7 +185,7 @@ const rules = computed<FormRules>(() => {
   if (isPendingAssignToDeptLeader.value) {
     baseRules.time_limit = [
       { required: true, message: "请输入任务指派时限（小时）", trigger: "blur" },
-      { type: "number", min: 0, message: "任务指派时限必须大于0", trigger: "blur" }
+      { type: "number", min: 0, max: 24, message: "任务指派时限必须大于0且小于24", trigger: "blur" }
     ];
     baseRules.task_assign_limit = [
       { required: true, message: "请选择任务截止期限", trigger: ["blur", "change"] }
@@ -1030,6 +1030,32 @@ const handleConfirm = () => {
           );
           confirmLoading.value = false;
           return;
+        }
+
+        // 1.5 调用 addNotification 新增超时消息接收人（失败时暴露错误但不阻塞后续流程）
+        try {
+          const taskName = props.task?.任务名 || props.task?.task_name || props.task?.title || "";
+          const recipients = Array.isArray(form.notification_recipients)
+            ? form.notification_recipients
+            : form.notification_recipients
+              ? [form.notification_recipients]
+              : [];
+          const deadline = form.time_limit
+          const addNotifRes = await addNotification({
+            task_id: String(taskId),
+            task_name: taskName,
+            deadline,
+            recipient: recipients
+          });
+          if (addNotifRes.code !== 200) {
+            ElMessage.error(addNotifRes.message || "新增超时消息接收人失败");
+          }
+        } catch (addNotifError: any) {
+          console.error("新增超时消息接收人失败:", addNotifError);
+          ElMessage.error(
+            addNotifError?.response?.data?.message || addNotifError?.message || "新增超时消息接收人失败"
+          );
+          // 不 return，继续后续流程
         }
 
         // 2. 再调用分配接口

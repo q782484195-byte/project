@@ -156,6 +156,7 @@ export interface Project {
   customer_name?: string; // 客户名称
   product_type?: string; // 产品类型
   platform_name?: string; // 平台名称
+  project_name?: string; // 项目名称（用于展示）
   motherboard_name?: string; // 主板名称
   resolution?: string; // 分辨率
   business_owner?: string; // 业务负责人

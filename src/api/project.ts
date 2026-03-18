@@ -84,6 +84,7 @@ export interface ProjectListItem {
   describe: DescribeContent[];
   attachment: any[];
   create_time: string;
+  motherboard_name: string;
 }
 
 /** 创建项目 */

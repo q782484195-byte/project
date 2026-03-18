@@ -151,7 +151,7 @@
             </el-tooltip>
           </div>
         </div>
-        <!-- 第四行：分辨率，业务负责人 -->
+        <!-- -->
         <div class="project-row project-row-third">
           <div class="field-item">
             <span class="field-label">立项时间:</span>
@@ -435,6 +435,7 @@ const loadProjects = async () => {
           motherboard_name: item.motherboard_name || "", // 主板名称
           resolution: item.resolution || "", // 分辨率
           business_owner: item.business_owner || "", // 业务负责人
+          project_initiation_date: item.project_initiation_date || "", // 立项时间
           createdAt:
             item.create_time ||
             item.created_at ||

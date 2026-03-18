@@ -227,3 +227,17 @@ export const sendNotification = (data: {
     data
   });
 };
+
+/** 新增超时消息接收人 */
+export const addNotification = (data: {
+  task_id: string;
+  task_name: string;
+  deadline: number;
+  recipient: string[];
+}) => {
+  return http.request<ApiResponse<any>>("post", "/notification/add", {
+    data
+  });
+};
+
+
