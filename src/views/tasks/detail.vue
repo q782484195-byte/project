@@ -116,34 +116,36 @@
                     <span v-else class="yellow-text">{{ task.task_deadline || task.task_dead_line || "-" }}</span>
                   </span>
                 </div>
-                <div class="project-info-row project-info-row--time">
-                  <span class="info-label">计划开始时间</span>
-                  <span class="info-value info-value--editable">
-                    <template v-if="canEditDevelopmentTime">
-                      <el-date-picker v-model="devTimeForm.development_start_time" type="date" placeholder="请选择计划开始时间"
-                        format="YYYY-MM-DD" value-format="YYYY-MM-DD" class="time-field-picker" />
-                    </template>
-                    <span v-else class="yellow-text">{{ task.development_start_time || "-" }}</span>
-                  </span>
-                </div>
-                <div class="project-info-row project-info-row--time">
-                  <span class="info-label">计划结束时间</span>
-                  <span class="info-value info-value--editable">
-                    <template v-if="canEditDevelopmentTime">
-                      <el-date-picker v-model="devTimeForm.development_end_time" type="date" placeholder="请选择计划结束时间"
-                        format="YYYY-MM-DD" value-format="YYYY-MM-DD" class="time-field-picker" :disabled-date="(time: Date) => {
-                          if (!task?.task_deadline) return false;
-                          const deadline = new Date(task.task_deadline);
-                          deadline.setHours(23, 59, 59, 999);
-                          return time.getTime() > deadline.getTime();
-                        }" />
-                      <el-button type="primary" size="small" :loading="devTimeSaving" class="time-field-btn"
-                        @click="saveDevelopmentTime">
-                        保存
-                      </el-button>
-                    </template>
-                    <span v-else class="yellow-text">{{ task.development_end_time || "-" }}</span>
-                  </span>
+                <div class="project-info-row project-info-row--time project-info-row--time-inline">
+                  <div class="time-inline-group">
+                    <span class="info-label">计划开始时间</span>
+                    <span class="info-value info-value--editable">
+                      <template v-if="canEditDevelopmentTime">
+                        <el-date-picker v-model="devTimeForm.development_start_time" type="date" placeholder="请选择计划开始时间"
+                          format="YYYY-MM-DD" value-format="YYYY-MM-DD" class="time-field-picker" />
+                      </template>
+                      <span v-else class="yellow-text">{{ task.development_start_time || "-" }}</span>
+                    </span>
+                  </div>
+                  <div class="time-inline-group">
+                    <span class="info-label">计划结束时间</span>
+                    <span class="info-value info-value--editable">
+                      <template v-if="canEditDevelopmentTime">
+                        <el-date-picker v-model="devTimeForm.development_end_time" type="date" placeholder="请选择计划结束时间"
+                          format="YYYY-MM-DD" value-format="YYYY-MM-DD" class="time-field-picker" :disabled-date="(time: Date) => {
+                            if (!task?.task_deadline) return false;
+                            const deadline = new Date(task.task_deadline);
+                            deadline.setHours(23, 59, 59, 999);
+                            return time.getTime() > deadline.getTime();
+                          }" />
+                        <el-button type="primary" size="small" :loading="devTimeSaving" class="time-field-btn"
+                          @click="saveDevelopmentTime">
+                          保存
+                        </el-button>
+                      </template>
+                      <span v-else class="yellow-text">{{ task.development_end_time || "-" }}</span>
+                    </span>
+                  </div>
                 </div>
                 <div class="project-info-row project-info-row--time">
                   <span class="info-label">研发状态</span>
@@ -161,7 +163,24 @@
                     <span class="red-text">{{ task.delay?.development_delay_message || '' }}</span>
                   </span>
                 </div>
-                <div class="project-info-row">
+                <div class="project-info-row project-info-row--time" v-if="canEditTaskDelayMessage">
+                  <span class="info-label">任务延期原因</span>
+                  <span class="info-value info-value--editable task-delay-message-editor">
+                    <el-input v-model="taskDelayMessageForm.message" type="textarea" :rows="3"
+                      placeholder="请输入任务延期原因（必填）" />
+                    <el-button type="primary" size="small" :loading="taskDelayMessageSaving"
+                      @click="saveTaskDelayMessage">
+                      保存
+                    </el-button>
+                  </span>
+                </div>
+                <div class="project-info-row project-info-row--time" v-else-if="showTaskDelayMessageReadOnly">
+                  <span class="info-label">任务延期原因</span>
+                  <span class="info-value">
+                    <span class="red-text">{{ task.delay?.task_delay_message || '' }}</span>
+                  </span>
+                </div>
+                <div class="project-info-row project-info-row--time">
                   <span class="info-label">驳回原因</span>
                   <span class="info-value">
                     <span class="red-text">{{ task.rejection_reason || '' }}</span>
@@ -479,6 +498,7 @@ import {
   selectTaskInfo,
   uploadFile,
   updateTask,
+  updateTaskDelayMessage,
   updateDevelopmentTime,
   updateTaskDelayReason,
   updateTaskTransfer
@@ -506,6 +526,8 @@ const delayReasonDialogVisible = ref(false);
 const delayReasonForm = ref({ development_delay_message: "" });
 const delayReasonFormRef = ref<FormInstance>();
 const delayReasonSubmitting = ref(false);
+const taskDelayMessageForm = ref({ message: "" });
+const taskDelayMessageSaving = ref(false);
 const delayReasonRules: FormRules = {
   development_delay_message: [
     { required: true, message: "请输入延期原因", trigger: ["blur", "change"] }
@@ -816,6 +838,36 @@ const canShowDelayReasonButton = computed(() => {
   const currentHandler = t.当前处理人 || t.assignee || "";
   if (currentHandler !== userStore.username) return false;
   return t.delay?.development_is_delay === true;
+});
+
+// 任务延期的“完成人”字段（接口可能为 task_delay＿completed 全角下划线）
+const taskDelayCompletedUser = computed(() => {
+  const t = task.value;
+  if (!t?.delay) return "";
+  return String(
+    t.delay.task_delay_completed ?? (t.delay as any)["task_delay＿completed"] ?? ""
+  ).trim();
+});
+
+// 是否允许填写任务延期原因：任务延期且 task_delay_completed 为当前用户
+const canEditTaskDelayMessage = computed(() => {
+  const t = task.value;
+  if (!t?.delay) return false;
+  if (t.delay.task_is_delay !== true) return false;
+  const delayCompletedUser = taskDelayCompletedUser.value;
+  if (!delayCompletedUser) return false;
+  return delayCompletedUser === userStore.username || delayCompletedUser === userStore.nickname;
+});
+
+// 是否仅展示任务延期原因：task_delay_message 不为空且完成人不是当前用户（只读显示）
+const showTaskDelayMessageReadOnly = computed(() => {
+  const t = task.value;
+  if (!t?.delay) return false;
+  const msg = String(t.delay.task_delay_message ?? "").trim();
+  if (!msg) return false;
+  const delayCompletedUser = taskDelayCompletedUser.value;
+  if (!delayCompletedUser) return true; // 无完成人时只读展示
+  return delayCompletedUser !== userStore.username && delayCompletedUser !== userStore.nickname;
 });
 
 const attachmentUploading = ref(false);
@@ -1276,6 +1328,9 @@ const loadTask = async () => {
       taskDeadlineForm.value = {
         task_deadline: task.value.task_deadline || task.value.task_dead_line ? String(task.value.task_deadline || task.value.task_dead_line).trim() : ""
       };
+      taskDelayMessageForm.value = {
+        message: task.value?.delay?.task_delay_message ? String(task.value.delay.task_delay_message).trim() : ""
+      };
     } else {
       ElMessage.error(response.message || "获取任务详情失败");
       router.push({ name: "TasksList" });
@@ -1414,6 +1469,38 @@ const submitDelayReason = async () => {
     ElMessage.error(err?.message || "保存失败");
   } finally {
     delayReasonSubmitting.value = false;
+  }
+};
+
+const saveTaskDelayMessage = async () => {
+  const t = task.value;
+  if (!t) return;
+  const taskIdVal = t._id || t.id;
+  if (!taskIdVal) {
+    ElMessage.error("任务ID不存在");
+    return;
+  }
+  const message = taskDelayMessageForm.value.message.trim();
+  if (!message) {
+    ElMessage.warning("请输入任务延期原因");
+    return;
+  }
+  taskDelayMessageSaving.value = true;
+  try {
+    const res = await updateTaskDelayMessage({
+      task_id: taskIdVal,
+      message
+    });
+    if (res.code === 200) {
+      ElMessage.success("任务延期原因已保存");
+      await loadTask();
+    } else {
+      ElMessage.error(res.message || "保存失败");
+    }
+  } catch (err: any) {
+    ElMessage.error(err?.message || "保存失败");
+  } finally {
+    taskDelayMessageSaving.value = false;
   }
 };
 
@@ -1673,6 +1760,51 @@ onUnmounted(() => {
           }
         }
 
+        .project-info-row--time-inline {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 12px 24px;
+          align-items: center;
+
+          .time-inline-group {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+            min-width: 280px;
+
+            .info-label {
+              flex-shrink: 0;
+              width: 100px;
+            }
+
+            .info-value--editable {
+              display: flex;
+              align-items: center;
+              gap: 12px;
+              flex: 1;
+              min-width: 0;
+            }
+
+            .time-field-picker {
+              width: 180px;
+            }
+
+            .time-field-btn {
+              flex-shrink: 0;
+            }
+          }
+        }
+
+        .task-delay-message-editor {
+          align-items: flex-start;
+
+          :deep(.el-textarea) {
+            flex: 1;
+          }
+        }
+
         .info-label {
           font-size: 12px;
           color: var(--el-text-color-secondary);
@@ -1813,6 +1945,23 @@ onUnmounted(() => {
               width: 100%;
               max-width: 100%;
             }
+          }
+
+          .project-info-row--time-inline .time-inline-group {
+            min-width: 100%;
+
+            .info-label {
+              width: auto;
+            }
+
+            .time-field-picker {
+              width: 100%;
+              max-width: 100%;
+            }
+          }
+
+          .task-delay-message-editor {
+            width: 100%;
           }
         }
 

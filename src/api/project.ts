@@ -918,4 +918,12 @@ export const updateTaskTransfer = (params: any) => {
 };
 
 
-
+/**更新任务延期原因 */
+export const updateTaskDelayMessage = (params: any) => {
+  return http.request<ApiResponse<any[]>>("post", "/task/task_delay_message", {
+    data: {
+      task_id: params.task_id,
+      message: params.message
+    }
+  });
+};
