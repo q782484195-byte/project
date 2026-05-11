@@ -116,35 +116,50 @@
                     <span v-else class="yellow-text">{{ task.task_deadline || task.task_dead_line || "-" }}</span>
                   </span>
                 </div>
-                <div class="project-info-row project-info-row--time project-info-row--time-inline">
-                  <div class="time-inline-group">
-                    <span class="info-label">计划开始时间</span>
-                    <span class="info-value info-value--editable">
-                      <template v-if="canEditDevelopmentTime">
-                        <el-date-picker v-model="devTimeForm.development_start_time" type="date" placeholder="请选择计划开始时间"
-                          format="YYYY-MM-DD" value-format="YYYY-MM-DD" class="time-field-picker" />
-                      </template>
-                      <span v-else class="yellow-text">{{ task.development_start_time || "-" }}</span>
-                    </span>
-                  </div>
-                  <div class="time-inline-group">
-                    <span class="info-label">计划结束时间</span>
-                    <span class="info-value info-value--editable">
-                      <template v-if="canEditDevelopmentTime">
-                        <el-date-picker v-model="devTimeForm.development_end_time" type="date" placeholder="请选择计划结束时间"
-                          format="YYYY-MM-DD" value-format="YYYY-MM-DD" class="time-field-picker" :disabled-date="(time: Date) => {
-                            if (!task?.task_deadline) return false;
-                            const deadline = new Date(task.task_deadline);
-                            deadline.setHours(23, 59, 59, 999);
-                            return time.getTime() > deadline.getTime();
-                          }" />
-                        <el-button type="primary" size="small" :loading="devTimeSaving" class="time-field-btn"
-                          @click="saveDevelopmentTime">
-                          保存
-                        </el-button>
-                      </template>
-                      <span v-else class="yellow-text">{{ task.development_end_time || "-" }}</span>
-                    </span>
+                <div class="project-info-row project-info-row--time project-info-row--plan-range">
+                  <div class="plan-range-shell">
+                    <div class="plan-range-grid">
+                      <div class="plan-range-card plan-range-card--start">
+                        <div class="plan-range-card__label">计划开始时间</div>
+                        <div class="plan-range-card__body">
+                          <template v-if="canEditDevelopmentTime">
+                            <el-date-picker v-model="devTimeForm.development_start_time" type="date"
+                              placeholder="请选择计划开始时间" format="YYYY-MM-DD" value-format="YYYY-MM-DD"
+                              class="time-field-picker plan-range-picker" />
+                          </template>
+                          <span v-else class="yellow-text plan-range-readonly">{{ task.development_start_time || "-"
+                            }}</span>
+                        </div>
+                      </div>
+                      <div class="plan-range-bridge" aria-hidden="true">
+                        <span class="plan-range-bridge__line" />
+                        <span class="plan-range-bridge__text">至</span>
+                        <span class="plan-range-bridge__line" />
+                      </div>
+                      <div class="plan-range-card plan-range-card--end">
+                        <div class="plan-range-card__label">计划结束时间</div>
+                        <div class="plan-range-card__body">
+                          <template v-if="canEditDevelopmentTime">
+                            <el-date-picker v-model="devTimeForm.development_end_time" type="date"
+                              placeholder="请选择计划结束时间" format="YYYY-MM-DD" value-format="YYYY-MM-DD"
+                              class="time-field-picker plan-range-picker" :disabled-date="(time: Date) => {
+                                if (!task?.task_deadline) return false;
+                                const deadline = new Date(task.task_deadline);
+                                deadline.setHours(23, 59, 59, 999);
+                                return time.getTime() > deadline.getTime();
+                              }" />
+                          </template>
+                          <span v-else class="yellow-text plan-range-readonly">{{ task.development_end_time || "-"
+                            }}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div v-if="canEditDevelopmentTime" class="plan-range-actions">
+                      <el-button type="primary" size="small" :loading="devTimeSaving" class="time-field-btn"
+                        @click="saveDevelopmentTime">
+                        保存
+                      </el-button>
+                    </div>
                   </div>
                 </div>
                 <div class="project-info-row project-info-row--time">
@@ -153,14 +168,16 @@
                     <span class="red-text">{{ task.delay?.development_is_delay ? '延期' : '正常' }}</span>
                     <el-button v-if="canShowDelayReasonButton" style="margin-left: 16px;" type="primary" size="small"
                       @click="openDelayReasonDialog">
-                      延期原因
+                      填写延期原因
                     </el-button>
                   </span>
                 </div>
                 <div class="project-info-row project-info-row--time" v-if="canShowDelayReasonButton">
                   <span class="info-label">延期原因</span>
                   <span class="info-value">
-                    <span class="red-text">{{ task.delay?.development_delay_message || '' }}</span>
+                    <span class="red-text delay-reason-message">{{
+                      task.delay?.development_delay_message || ''
+                      }}</span>
                   </span>
                 </div>
                 <div class="project-info-row project-info-row--time project-info-row--task-delay"
@@ -262,7 +279,7 @@
                       <el-icon>
                         <Download />
                       </el-icon>
-                      下载
+                      下载/查看
                     </el-button>
                     <el-button v-if="canUploadAttachment" type="danger" link size="small"
                       @click="handleDeleteAttachment(Number(index))">
@@ -332,7 +349,7 @@
                     <el-button type="text" size="small" @click="downloadAttachment(file)">
                       <el-icon>
                         <Download />
-                      </el-icon>下载
+                      </el-icon>下载/查看
                     </el-button>
                   </div>
                 </div>
@@ -351,7 +368,7 @@
                     <el-button type="text" size="small" @click="downloadAttachment(file)">
                       <el-icon>
                         <Download />
-                      </el-icon>下载
+                      </el-icon>下载/查看
                     </el-button>
                   </div>
                 </div>
@@ -1444,7 +1461,7 @@ const loadBugs = async () => {
 
 // 打开BUG记录对话框
 const openDelayReasonDialog = () => {
-  delayReasonForm.value.development_delay_message = task.value?.delay?.development_delay_message || "";
+  delayReasonForm.value.development_delay_message = "";
   delayReasonDialogVisible.value = true;
   nextTick(() => {
     delayReasonFormRef.value?.clearValidate();
@@ -1783,40 +1800,114 @@ onUnmounted(() => {
           }
         }
 
-        .project-info-row--time-inline {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 12px 24px;
-          align-items: center;
+        .project-info-row--plan-range {
+          flex-direction: column;
+          align-items: stretch;
+          gap: 0;
+          min-height: auto;
+          padding: 12px 14px;
 
-          .time-inline-group {
+          .plan-range-shell {
             display: flex;
-            flex-direction: row;
+            flex-direction: column;
+            gap: 14px;
+            width: 100%;
+          }
+
+          .plan-range-grid {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 12px 16px;
+            align-items: stretch;
+          }
+
+          .plan-range-card {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 12px 14px;
+            border-radius: 8px;
+            border: 1px solid var(--el-border-color-lighter);
+            background: var(--el-bg-color);
+            min-width: 0;
+          }
+
+          .plan-range-card--start {
+            border-left: 3px solid var(--el-color-primary);
+            background: linear-gradient(135deg,
+                rgba(64, 158, 255, 0.06) 0%,
+                var(--el-bg-color) 48%);
+          }
+
+          .plan-range-card--end {
+            border-left: 3px solid var(--el-color-success);
+            background: linear-gradient(135deg,
+                rgba(103, 194, 58, 0.07) 0%,
+                var(--el-bg-color) 48%);
+          }
+
+          .plan-range-card__label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--el-text-color-secondary);
+            letter-spacing: 0.02em;
+          }
+
+          .plan-range-card__body {
+            display: flex;
+            flex-wrap: wrap;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
+            min-height: 32px;
+          }
+
+          .plan-range-readonly {
+            font-size: 15px;
+          }
+
+          .plan-range-picker,
+          .plan-range-card__body .time-field-picker {
+            width: 100%;
+            max-width: 220px;
+          }
+
+          .plan-range-bridge {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 0 4px;
+            align-self: center;
+            min-height: 100%;
+          }
+
+          .plan-range-bridge__line {
             flex: 1;
-            min-width: 280px;
+            width: 1px;
+            min-height: 18px;
+            background: linear-gradient(180deg,
+                transparent,
+                var(--el-border-color) 20%,
+                var(--el-border-color) 80%,
+                transparent);
+          }
 
-            .info-label {
-              flex-shrink: 0;
-              width: 100px;
-            }
+          .plan-range-bridge__text {
+            font-size: 12px;
+            color: var(--el-text-color-placeholder);
+            font-weight: 500;
+            white-space: nowrap;
+            line-height: 1;
+          }
 
-            .info-value--editable {
-              display: flex;
-              align-items: center;
-              gap: 12px;
-              flex: 1;
-              min-width: 0;
-            }
-
-            .time-field-picker {
-              width: 180px;
-            }
-
-            .time-field-btn {
-              flex-shrink: 0;
-            }
+          .plan-range-actions {
+            display: flex;
+            justify-content: flex-end;
+            padding-top: 2px;
+            border-top: 1px dashed var(--el-border-color-lighter);
+            margin: 0 -2px;
+            padding-right: 2px;
           }
         }
 
@@ -1994,16 +2085,45 @@ onUnmounted(() => {
             }
           }
 
-          .project-info-row--time-inline .time-inline-group {
-            min-width: 100%;
+          .project-info-row--plan-range {
+            padding: 10px 12px;
 
-            .info-label {
-              width: auto;
+            .plan-range-grid {
+              grid-template-columns: 1fr;
+              gap: 10px;
             }
 
-            .time-field-picker {
+            .plan-range-bridge {
+              flex-direction: row;
+              width: 100%;
+              padding: 4px 0;
+              min-height: auto;
+            }
+
+            .plan-range-bridge__line {
+              flex: 1;
+              width: auto;
+              min-height: 1px;
+              height: 1px;
+              background: linear-gradient(90deg,
+                  transparent,
+                  var(--el-border-color) 15%,
+                  var(--el-border-color) 85%,
+                  transparent);
+            }
+
+            .plan-range-picker,
+            .plan-range-card__body .time-field-picker {
               width: 100%;
               max-width: 100%;
+            }
+
+            .plan-range-actions {
+              justify-content: stretch;
+
+              .time-field-btn {
+                width: 100%;
+              }
             }
           }
 
@@ -2152,6 +2272,11 @@ onUnmounted(() => {
   .red-text {
     color: #f56c6c;
     font-weight: 500;
+  }
+
+  .delay-reason-message {
+    white-space: pre-wrap;
+    word-break: break-word;
   }
 }
 
