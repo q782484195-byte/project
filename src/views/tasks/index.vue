@@ -12,7 +12,7 @@
               <span class="project-tag-text">
                 <span class="project-name-part">{{ project.project_name || project.name }}</span>
                 <span v-if="project.motherboard_name" class="project-motherboard-part">-{{ project.motherboard_name
-                  }}</span>
+                }}</span>
               </span>
             </el-tag>
           </div>
@@ -50,7 +50,7 @@
             </template>
           </el-table-column>
           <!-- <el-table-column prop="requirement_name" label="关联层级" width="140" /> -->
-          <el-table-column prop="当前处理人" label="当前处理人/部门">
+          <el-table-column prop="当前处理人" label="当前部门/处理人">
             <template #default="{ row }">
               <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                 <el-tag type="success" size="small">
@@ -655,7 +655,7 @@ const normalizeStatus = (status: string): TaskStatus | "" => {
 // 判断是否是待分配状态（待分配给部门负责人或待指派给成员）
 const isPendingAssignStatus = (status: string): boolean => {
   const normalized = normalizeStatus(status);
-  return normalized === TaskStatus.PENDING_ASSIGN_TO_MEMBER
+  return normalized === TaskStatus.PENDING_ASSIGN_TO_MEMBER || normalized === TaskStatus.PENDING_ACCEPTANCE
 };
 
 const getNextStatus = (currentStatus: string): TaskStatus | "" => {

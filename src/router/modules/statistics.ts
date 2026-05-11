@@ -19,7 +19,7 @@ export default {
         title: "部门任务统计",
         showLink: true,
         showParent: true,
-        roles: ["Admin", "ProjectManager"]
+        roles: ["Admin", "ProjectManager", "ProjectDirector"]
       }
     },
     {
@@ -30,7 +30,7 @@ export default {
         title: "甘特图",
         showLink: true,
         showParent: true,
-        roles: ["Admin", "ProjectManager"]
+        roles: ["Admin", "ProjectManager", "ProjectDirector"]
       }
     }
   ]

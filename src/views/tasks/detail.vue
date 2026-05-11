@@ -163,15 +163,22 @@
                     <span class="red-text">{{ task.delay?.development_delay_message || '' }}</span>
                   </span>
                 </div>
-                <div class="project-info-row project-info-row--time" v-if="canEditTaskDelayMessage">
+                <div class="project-info-row project-info-row--time project-info-row--task-delay"
+                  v-if="canEditTaskDelayMessage">
                   <span class="info-label">任务延期原因</span>
                   <span class="info-value info-value--editable task-delay-message-editor">
-                    <el-input v-model="taskDelayMessageForm.message" type="textarea" :rows="3"
-                      placeholder="请输入任务延期原因（必填）" />
-                    <el-button type="primary" size="small" :loading="taskDelayMessageSaving"
-                      @click="saveTaskDelayMessage">
-                      保存
-                    </el-button>
+                    <div v-if="taskDelayMessageExistingText" class="task-delay-message-existing">
+                      <span class="red-text">{{ taskDelayMessageExistingText }}</span>
+                    </div>
+                    <div class="task-delay-message-input-row">
+                      <el-input v-model="taskDelayMessageForm.message" type="textarea" :rows="3" :placeholder="taskDelayMessageExistingText
+                        ? '请填写本次提交内容（保存时仅提交此处，不包含上方已记录文本）'
+                        : '请输入任务延期原因（必填）'" />
+                      <el-button type="primary" size="small" :loading="taskDelayMessageSaving"
+                        @click="saveTaskDelayMessage">
+                        保存
+                      </el-button>
+                    </div>
                   </span>
                 </div>
                 <div class="project-info-row project-info-row--time" v-else-if="showTaskDelayMessageReadOnly">
@@ -501,7 +508,8 @@ import {
   updateTaskDelayMessage,
   updateDevelopmentTime,
   updateTaskDelayReason,
-  updateTaskTransfer
+  updateTaskTransfer,
+  updateTaskDeadline
 } from "@/api/project";
 import { getNextStateUserList } from "@/api/system";
 import type { FormInstance, FormRules } from "element-plus";
@@ -840,34 +848,44 @@ const canShowDelayReasonButton = computed(() => {
   return t.delay?.development_is_delay === true;
 });
 
-// 任务延期的“完成人”字段（接口可能为 task_delay＿completed 全角下划线）
+// 任务延期的“完成人”字段（接口可能为 task_delay_completed 全角下划线）
 const taskDelayCompletedUser = computed(() => {
   const t = task.value;
   if (!t?.delay) return "";
   return String(
-    t.delay.task_delay_completed ?? (t.delay as any)["task_delay＿completed"] ?? ""
+    t.delay.task_delay_completed ?? (t.delay as any)["task_delay_completed"] ?? ""
   ).trim();
 });
 
-// 是否允许填写任务延期原因：任务延期且 task_delay_completed 为当前用户
+// 是否允许填写任务延期原因：任务延期且（task_delay_completed 为当前用户 或 当前用户为 task.creator）
 const canEditTaskDelayMessage = computed(() => {
   const t = task.value;
   if (!t?.delay) return false;
   if (t.delay.task_is_delay !== true) return false;
   const delayCompletedUser = taskDelayCompletedUser.value;
-  if (!delayCompletedUser) return false;
-  return delayCompletedUser === userStore.username || delayCompletedUser === userStore.nickname;
+  const isDelayCompletedByMe =
+    !!delayCompletedUser &&
+    (delayCompletedUser === userStore.username || delayCompletedUser === userStore.nickname);
+  const creator = String(t.creator || "").trim();
+  const isCreator =
+    !!creator && (creator === userStore.username || creator === userStore.nickname);
+  return isDelayCompletedByMe || isCreator;
 });
 
-// 是否仅展示任务延期原因：task_delay_message 不为空且完成人不是当前用户（只读显示）
+// 是否仅展示任务延期原因：task_delay_message 不为空且当前用户不可编辑（只读显示）
 const showTaskDelayMessageReadOnly = computed(() => {
   const t = task.value;
   if (!t?.delay) return false;
   const msg = String(t.delay.task_delay_message ?? "").trim();
   if (!msg) return false;
-  const delayCompletedUser = taskDelayCompletedUser.value;
-  if (!delayCompletedUser) return true; // 无完成人时只读展示
-  return delayCompletedUser !== userStore.username && delayCompletedUser !== userStore.nickname;
+  if (canEditTaskDelayMessage.value) return false;
+  return true;
+});
+
+/** 当前已保存的任务延期原因（只读展示）；可编辑时 textarea 不预填，接口只提交 textarea */
+const taskDelayMessageExistingText = computed(() => {
+  const t = task.value;
+  return String(t?.delay?.task_delay_message ?? "").trim();
 });
 
 const attachmentUploading = ref(false);
@@ -919,7 +937,6 @@ const saveDescribe = async () => {
       task_name: t.任务名 || t.task_name || t.title || "",
       describe: describeEditForm.value,
       priority: t.优先级 || t.priority || "",
-      task_deadline: t.task_deadline || t.task_dead_line,
       default_person: t.default_person,
       attachment: t.attachment || []
     });
@@ -1010,7 +1027,6 @@ const handleBeforeUploadAttachment = async (file: File) => {
         task.value.任务名 || task.value.task_name || task.value.title || "",
       describe: task.value.describe || [],
       priority: task.value.优先级 || task.value.priority || "",
-      task_deadline: task.value.task_deadline || task.value.task_dead_line,
       default_person: task.value.default_person,
       attachment: newAttachments
     });
@@ -1053,7 +1069,6 @@ const handleDeleteAttachment = async (index: number) => {
       task_name: t.任务名 || t.task_name || t.title || "",
       describe: t.describe || [],
       priority: t.优先级 || t.priority || "",
-      task_deadline: t.task_deadline || t.task_dead_line,
       default_person: t.default_person,
       attachment: currentAttachments
     });
@@ -1214,14 +1229,9 @@ const saveTaskDeadline = async () => {
   }
   taskDeadlineSaving.value = true;
   try {
-    const res = await updateTask({
+    const res = await updateTaskDeadline({
       task_id: taskIdVal,
-      task_name: t.任务名 || t.task_name || t.title || "",
-      describe: t.describe || [],
-      priority: t.优先级 || t.priority || "",
       task_deadline: deadline,
-      default_person: t.default_person || "",
-      attachment: t.attachment || []
     });
     if (res.code === 200) {
       ElMessage.success("任务完成期限已更新");
@@ -1328,9 +1338,8 @@ const loadTask = async () => {
       taskDeadlineForm.value = {
         task_deadline: task.value.task_deadline || task.value.task_dead_line ? String(task.value.task_deadline || task.value.task_dead_line).trim() : ""
       };
-      taskDelayMessageForm.value = {
-        message: task.value?.delay?.task_delay_message ? String(task.value.delay.task_delay_message).trim() : ""
-      };
+      // 任务延期原因：历史内容仅只读展示，输入框始终为空，保存时只提交输入框内容
+      taskDelayMessageForm.value = { message: "" };
     } else {
       ElMessage.error(response.message || "获取任务详情失败");
       router.push({ name: "TasksList" });
@@ -1738,6 +1747,20 @@ onUnmounted(() => {
           gap: 12px;
           min-height: 40px;
 
+          &.project-info-row--task-delay {
+            align-items: flex-start;
+            min-height: auto;
+
+            .info-label {
+              text-align: left;
+              padding-top: 6px;
+            }
+
+            .info-value--editable {
+              align-items: flex-start;
+            }
+          }
+
           .info-label {
             flex-shrink: 0;
             width: 100px;
@@ -1798,10 +1821,34 @@ onUnmounted(() => {
         }
 
         .task-delay-message-editor {
-          align-items: flex-start;
+          flex-direction: column;
+          align-items: stretch;
+          align-self: stretch;
+          text-align: left;
+          gap: 10px;
+
+          .task-delay-message-existing {
+            width: 100%;
+            text-align: left;
+            white-space: pre-wrap;
+            word-break: break-word;
+          }
+
+          .task-delay-message-input-row {
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-start;
+            gap: 12px;
+            width: 100%;
+          }
 
           :deep(.el-textarea) {
             flex: 1;
+            min-width: 0;
+          }
+
+          :deep(.el-textarea__inner) {
+            text-align: left;
           }
         }
 
