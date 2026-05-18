@@ -100,12 +100,13 @@ export interface DepartmentUserMap {
   }>;
 }
 
-/** 查询所有部门人员 */
+/** 查询所有部门人员（result 多为 [{ 部门名: 成员[] }, ...]） */
 export const selectAllUsers = () => {
   return http.request<{
     code: number;
-    result: DepartmentUserMap[];
-  }>("get", "department/select_all_users ");
+    result: DepartmentUserMap[] | DepartmentUserMap;
+    data?: DepartmentUserMap[] | DepartmentUserMap;
+  }>("get", "/department/select_all_users");
 };
 
 export interface DepartmentUserItem {

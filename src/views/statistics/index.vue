@@ -1,383 +1,474 @@
 <template>
-  <div class="tasks-page" ref="pageRef">
-    <!-- 任务列表 -->
-    <el-card v-loading="loading">
-      <div class="tasks-table-container" ref="containerRef">
-        <!-- 第一层Tab：部门 -->
-        <el-tabs v-model="activeDepartmentTab" v-if="Object.keys(tasks).length > 0"
-          @tab-change="handleDepartmentTabChange">
-          <el-tab-pane v-for="(departmentUsers, departmentName) in tasks" :key="departmentName"
-            :label="`${departmentName} (${getDepartmentTaskCount(departmentName)})`" :name="departmentName">
-            <!-- 第二层Tab：人员（全部 / 具体人员） -->
-            <el-tabs v-model="activeUserTab[departmentName]" v-if="Object.keys(departmentUsers).length > 0">
-              <el-tab-pane v-for="(userData, username) in departmentUsers" :key="username"
-                :label="getUserTabLabel(username, userData)" :name="username">
-                <el-table :data="getFilteredTasks(departmentName, username)" :style="{ width: '100%' }"
-                  :height="tableHeight" row-key="rowKey">
-                  <el-table-column prop="任务名" label="任务名称" width="140">
-                    <template #default="{ row }">
-                      {{ row.任务名 || row.task_name || row.title || "-" }}
-                    </template>
-                  </el-table-column>
-                  <el-table-column prop="requirement_name" label="关联层级" />
-                  <el-table-column prop="当前处理人" label="当前处理人/部门">
-                    <template #default="{ row }">
-                      <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                        <el-tag type="success" size="small">
-                          <span class="assignee-text-dept" style="color: #67C23A;">{{ row.部门 || "-" }}</span>
-                        </el-tag>
-                        <el-tag type="primary" size="small">
-                          <span class="assignee-text">{{ row.当前处理人 || row.assignee || "-" }}</span>
-                        </el-tag>
-                      </div>
-                    </template>
-                  </el-table-column>
-                  <el-table-column prop="状态" label="状态">
-                    <template #default="{ row }">
-                      <el-tag :type="getStatusType(row.状态 || row.status) || undefined" size="small" effect="light">
-                        {{ row.状态 || row.status || "-" }}
+  <div class="dept-task-stat" :class="{ 'is-mobile': isMobile }">
+
+    <el-card class="main-card" shadow="never" v-loading="orgLoading || tasksLoading">
+      <template v-if="hasData">
+        <div class="toolbar">
+          <div class="toolbar__filters">
+            <div class="filter-field">
+              <label class="filter-label">
+                部门
+              </label>
+              <el-select v-model="selectedDepartment" class="filter-control" placeholder="请选择部门" filterable clearable
+                size="default" @change="handleDepartmentChange">
+                <el-option v-for="dept in departmentKeys" :key="dept"
+                  :label="`${dept}（${getDepartmentMemberCount(dept)} 人）`" :value="dept" />
+              </el-select>
+            </div>
+            <div class="filter-field">
+              <label class="filter-label">
+                人员
+              </label>
+              <el-select v-model="selectedUser" class="filter-control" placeholder="请选择人员" filterable clearable
+                size="default" :disabled="!selectedDepartment">
+                <el-option v-for="opt in userOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+              </el-select>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-panel" ref="containerRef">
+          <el-table v-if="!isMobile && showTaskPanel" class="data-table" :data="currentTableTasks"
+            :style="{ width: '100%' }" :height="tableHeight" row-key="rowKey" stripe border>
+            <el-table-column prop="project_name" label="项目名称" min-width="80" show-overflow-tooltip>
+              <template #default="{ row }">
+                <el-link v-if="getProjectId(row)" type="primary" :underline="false" class="cell-link"
+                  @click.stop="goProjectDetail(row)">
+                  {{ row.project_name || "-" }}
+                </el-link>
+                <span v-else>{{ row.project_name || "-" }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="任务名" label="任务名称" min-width="140" show-overflow-tooltip>
+              <template #default="{ row }">
+                <el-link v-if="getTaskId(row)" type="primary" :underline="false" class="cell-link"
+                  @click.stop="goTaskDetail(row)">
+                  {{ row.任务名 || row.task_name || row.title || "-" }}
+                </el-link>
+                <span v-else>{{ row.任务名 || row.task_name || row.title || "-" }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="requirement_name" label="关联层级" min-width="120" show-overflow-tooltip />
+            <el-table-column prop="当前处理人" label="责任人" min-width="120">
+              <template #default="{ row }">
+                <div class="assignee-chips">
+                  <el-tag type="primary" size="small" effect="light" class="assignee-chips__tag">
+                    <span class="assignee-text">{{ row.当前处理人 || row.assignee || "-" }}</span>
+                  </el-tag>
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column prop="状态" label="状态" width="150" align="center">
+              <template #default="{ row }">
+                <el-tag :type="getStatusType(row.状态 || row.status, row) || undefined" size="small" effect="light">
+                  {{ row.delay.task_is_delay ? "延期" : row.状态 || row.status || "-" }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="优先级" label="优先级" width="96" align="center">
+              <template #default="{ row }">
+                <el-tag :type="getPriorityType(row.优先级 || row.priority) || undefined" size="small">
+                  {{ row.优先级 || row.priority || "-" }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="进度" label="进度" min-width="140">
+              <template #default="{ row }">
+                <el-progress :percentage="row.进度 || 0" :stroke-width="10"
+                  :status="row.进度 === 100 ? 'success' : undefined" />
+              </template>
+            </el-table-column>
+            <el-table-column prop="task_deadline" label="任务完成期限" min-width="120" show-overflow-tooltip />
+            <el-table-column prop="create_time" label="创建时间" min-width="160" show-overflow-tooltip />
+          </el-table>
+          <div v-else-if="isMobile && showTaskPanel" class="mobile-task-list">
+            <template v-if="currentTableTasks.length > 0">
+              <div v-for="row in currentTableTasks" :key="row.rowKey" class="mobile-task-card">
+                <div class="mobile-task-card__row mobile-task-card__row--project">
+                  <span class="mobile-task-card__label">项目</span>
+                  <span class="mobile-task-card__value">
+                    <el-link v-if="getProjectId(row)" type="primary" :underline="false" class="cell-link"
+                      @click.stop="goProjectDetail(row)">
+                      {{ row.project_name || "-" }}
+                    </el-link>
+                    <span v-else>{{ row.project_name || "-" }}</span>
+                  </span>
+                </div>
+                <div class="mobile-task-card__title">
+                  <el-link v-if="getTaskId(row)" type="primary" :underline="false"
+                    class="cell-link mobile-task-card__title-link" @click.stop="goTaskDetail(row)">
+                    {{ row.任务名 || row.task_name || row.title || "-" }}
+                  </el-link>
+                  <span v-else>{{ row.任务名 || row.task_name || row.title || "-" }}</span>
+                </div>
+                <div class="mobile-task-card__meta">
+                  <el-tag :type="getStatusType(row.状态 || row.status, row) || undefined" size="small" effect="light">
+                    {{ row.状态 || row.status || "-" }}
+                  </el-tag>
+                  <el-tag :type="getPriorityType(row.优先级 || row.priority) || undefined" size="small">
+                    {{ row.优先级 || row.priority || "-" }}
+                  </el-tag>
+                </div>
+                <div class="mobile-task-card__row">
+                  <span class="mobile-task-card__label">关联层级</span>
+                  <span class="mobile-task-card__value">{{ row.requirement_name || "-" }}</span>
+                </div>
+                <div class="mobile-task-card__row">
+                  <span class="mobile-task-card__label">责任人</span>
+                  <span class="mobile-task-card__value mobile-task-card__value--chips">
+                    <span class="assignee-chips assignee-chips--compact">
+                      <el-tag type="primary" size="small" effect="light" class="assignee-chips__tag">
+                        <span class="assignee-text">{{ row.当前处理人 || row.assignee || "-" }}</span>
                       </el-tag>
-                    </template>
-                  </el-table-column>
-                  <el-table-column prop="优先级" label="优先级">
-                    <template #default="{ row }">
-                      <el-tag :type="getPriorityType(row.优先级 || row.priority) || undefined" size="small">
-                        {{ row.优先级 || row.priority || "-" }}
-                      </el-tag>
-                    </template>
-                  </el-table-column>
-                  <el-table-column prop="进度" label="进度">
-                    <template #default="{ row }">
-                      <el-progress :percentage="row.进度 || 0" :status="row.进度 === 100 ? 'success' : undefined" />
-                    </template>
-                  </el-table-column>
-                  <el-table-column prop="task_deadline" label="任务完成期限" />
-                  <el-table-column prop="create_time" label="创建时间" />
-                </el-table>
-              </el-tab-pane>
-            </el-tabs>
-            <el-empty v-else description="该部门暂无人员数据" :image-size="100" />
-          </el-tab-pane>
-        </el-tabs>
-        <el-empty v-else description="暂无任务数据" :image-size="100" />
+                    </span>
+                  </span>
+                </div>
+                <div class="mobile-task-card__row">
+                  <span class="mobile-task-card__label">进度</span>
+                  <span class="mobile-task-card__value mobile-task-card__progress-wrap">
+                    <el-progress :percentage="row.进度 || 0" :stroke-width="8"
+                      :status="row.进度 === 100 ? 'success' : undefined" class="mobile-task-card__progress" />
+                  </span>
+                </div>
+                <div class="mobile-task-card__row">
+                  <span class="mobile-task-card__label">完成期限</span>
+                  <span class="mobile-task-card__value">{{ row.task_deadline || "-" }}</span>
+                </div>
+                <div class="mobile-task-card__row">
+                  <span class="mobile-task-card__label">创建时间</span>
+                  <span class="mobile-task-card__value">{{ row.create_time || "-" }}</span>
+                </div>
+              </div>
+            </template>
+            <el-empty v-else description="当前范围暂无任务" :image-size="72" class="mobile-task-list__empty" />
+          </div>
+          <div v-else class="table-placeholder">
+            <el-empty description="请在上方选择部门与人员" :image-size="120" />
+          </div>
+        </div>
+      </template>
+      <div v-else class="empty-page">
+        <el-empty description="暂无部门人员数据" :image-size="140" />
       </div>
     </el-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, onUnmounted, nextTick, watch } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from "vue";
+import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
-import { getTaskStatistics } from "@/api/system";
+import { deviceDetection } from "@pureadmin/utils";
+import { selectTaskStatistics } from "@/api/project";
+import { selectAllUsers } from "@/api/system";
 import { TaskStatus } from "@/types";
 
-const loading = ref(false);
-// 数据结构：Record<部门名, Record<用户名, { taskList: 任务列表, role: 角色 }>>
-const tasks = ref<Record<string, Record<string, { taskList: any[], role: string[] }>>>({});
-const activeDepartmentTab = ref<string>("");
-const activeUserTab = ref<Record<string, string>>({});
-const pageRef = ref<HTMLElement>();
+const router = useRouter();
+
+/** 人员「全部」选项值，对应 task_select 传 user_name 空串 */
+const USER_ALL = "__ALL__";
+
+type DeptMember = {
+  username: string;
+  role?: string[];
+  department?: string;
+  _id?: string;
+};
+
+const orgLoading = ref(false);
+const tasksLoading = ref(false);
+/** 部门名 -> 成员列表（来自 department/select_all_users） */
+const deptMembersMap = ref<Record<string, DeptMember[]>>({});
+/** 当前部门 + 人员筛选下的任务列表（来自 selectTaskStatistics） */
+const currentTaskList = ref<any[]>([]);
+const selectedDepartment = ref<string>("");
+const selectedUser = ref<string>("");
 const containerRef = ref<HTMLElement>();
 const tableHeight = ref<number>(800);
 
-// Tab 栏滑动：绑定在 nav-wrap（实际可滚动容器）上，PC 端滚轮横向滚动；滚动时显示滚动条，停止后隐藏
-const SCROLLBAR_VISIBLE_MS = 800;
-let tabsWheelCleanups: (() => void)[] = [];
-const setupTabsHeaderWheel = () => {
-  nextTick(() => {
-    tabsWheelCleanups.forEach((fn) => fn());
-    tabsWheelCleanups = [];
-    const container = containerRef.value;
-    if (!container) return;
-    container.querySelectorAll<HTMLElement>(".el-tabs__nav-wrap").forEach((wrap) => {
-      let scrollbarTimeout: ReturnType<typeof setTimeout> | null = null;
-      const onWheel = (e: WheelEvent) => {
-        if (wrap.scrollWidth <= wrap.clientWidth) return;
-        e.preventDefault();
-        wrap.scrollLeft += e.deltaY;
-      };
-      const onScroll = () => {
-        wrap.classList.add("nav-wrap-scrolling");
-        if (scrollbarTimeout) clearTimeout(scrollbarTimeout);
-        scrollbarTimeout = setTimeout(() => {
-          wrap.classList.remove("nav-wrap-scrolling");
-          scrollbarTimeout = null;
-        }, SCROLLBAR_VISIBLE_MS);
-      };
-      wrap.addEventListener("wheel", onWheel, { passive: false });
-      wrap.addEventListener("scroll", onScroll, { passive: true });
-      tabsWheelCleanups.push(() => {
-        wrap.removeEventListener("wheel", onWheel);
-        wrap.removeEventListener("scroll", onScroll);
-        if (scrollbarTimeout) clearTimeout(scrollbarTimeout);
-        wrap.classList.remove("nav-wrap-scrolling");
-      });
-    });
+const MOBILE_BREAKPOINT = 768;
+const isNarrowScreen = ref(typeof window !== "undefined" && window.innerWidth <= MOBILE_BREAKPOINT);
+const isMobile = computed(() => deviceDetection() || isNarrowScreen.value);
+
+const hasData = computed(() => Object.keys(deptMembersMap.value).length > 0);
+
+const departmentKeys = computed(() => Object.keys(deptMembersMap.value));
+
+const userOptions = computed(() => {
+  const dept = selectedDepartment.value;
+  const members = deptMembersMap.value[dept];
+  if (!dept || !members?.length) return [];
+  return [
+    { value: USER_ALL, label: "全部成员（部门汇总）" },
+    ...members.map((m) => ({
+      value: m.username,
+      label: getMemberOptionLabel(m)
+    }))
+  ];
+});
+
+const currentTableTasks = computed(() => {
+  return currentTaskList.value.map((task: any, index: number) => {
+    const taskId = task._id || task.id;
+    const rowKey = taskId ? String(taskId) : `task_${index}`;
+    return {
+      ...task,
+      rowKey
+    };
   });
-};
+});
 
-// 角色映射
+/** 有初始空参任务数据，或已选部门+人员时展示任务区 */
+const showTaskPanel = computed(
+  () =>
+    currentTableTasks.value.length > 0 ||
+    !!(selectedDepartment.value && selectedUser.value)
+);
+
 const roleMap: Record<string, string> = {
-  "Admin": "管理员",
-  "ProjectManager": "项目经理",
-  "ProjectDirector": "项目总监",
-  "DepartmentManager": "部门负责人",
-  "Member": "普通成员",
-  "BusinessDepartmentMembers": "业务部门成员"
+  Admin: "管理员",
+  ProjectManager: "项目经理",
+  ProjectDirector: "项目总监",
+  DepartmentManager: "部门负责人",
+  Member: "普通成员",
+  BusinessDepartmentMembers: "业务部门成员"
 };
 
-// 格式化角色显示
 const formatRole = (roles: string[]): string => {
   if (!roles || roles.length === 0) return "";
   return roles.map(role => roleMap[role] || role).join("、");
 };
 
-// 获取用户Tab标签（包含角色信息）
-const getUserTabLabel = (username: string, userData: { taskList: any[], role: string[] }): string => {
-  const roleText = formatRole(userData.role);
-  const taskCount = userData.taskList.length;
-  if (roleText) {
-    return `${username} [${roleText}] (${taskCount})`;
+const getMemberOptionLabel = (m: DeptMember): string => {
+  const roleText = formatRole(m.role || []);
+  return roleText ? `${m.username} [${roleText}]` : m.username;
+};
+
+const getDepartmentMemberCount = (departmentName: string): number => {
+  return deptMembersMap.value[departmentName]?.length ?? 0;
+};
+
+const getProjectId = (row: Record<string, unknown>): string => {
+  const v =
+    row.project_id ??
+    row.projectId ??
+    (row.project as Record<string, unknown> | undefined)?._id ??
+    (row.project as Record<string, unknown> | undefined)?.id;
+  return v != null && v !== "" ? String(v).trim() : "";
+};
+
+const getTaskId = (row: Record<string, unknown>): string => {
+  const v = row._id ?? row.id;
+  return v != null && v !== "" ? String(v).trim() : "";
+};
+
+const goProjectDetail = (row: Record<string, unknown>) => {
+  const pid = getProjectId(row);
+  if (!pid) {
+    ElMessage.warning("缺少项目信息，无法跳转");
+    return;
   }
-  return `${username} (${taskCount})`;
+  router.push({ name: "ProjectDetail", params: { id: pid } }).catch(() => { });
 };
 
-// 获取部门任务总数（排除「全部」避免重复统计）
-const getDepartmentTaskCount = (departmentName: string): number => {
-  const departmentUsers = tasks.value[departmentName];
-  if (!departmentUsers) return 0;
-  const allData = departmentUsers["全部"];
-  if (allData) return allData.taskList.length;
-  return Object.values(departmentUsers).reduce((total, userData) => total + userData.taskList.length, 0);
-};
-
-// 获取过滤后的任务列表（根据选中的部门和用户）
-const getFilteredTasks = (departmentName: string, username: string): any[] => {
-  const departmentUsers = tasks.value[departmentName];
-  if (!departmentUsers || !departmentUsers[username]) {
-    return [];
+const goTaskDetail = (row: Record<string, unknown>) => {
+  const tid = getTaskId(row);
+  if (!tid) {
+    ElMessage.warning("缺少任务信息，无法跳转");
+    return;
   }
-  return departmentUsers[username].taskList.map((task: any, index: number) => {
-    const taskId = task._id || task.id;
-    const rowKey = taskId ? String(taskId) : `task_${index}_${Date.now()}`;
-    return {
-      ...task,
-      rowKey: rowKey
-    };
-  });
-};
-
-
-// 处理部门Tab切换
-const handleDepartmentTabChange = (departmentName: string) => {
-  // 当切换部门时，默认选中「全部」，显示该部门所有任务
-  const departmentUsers = tasks.value[departmentName];
-  if (departmentUsers && Object.keys(departmentUsers).length > 0) {
-    activeUserTab.value[departmentName] = "全部";
+  try {
+    sessionStorage.setItem(`task_${tid}`, JSON.stringify(row));
+  } catch {
+    /* ignore quota / private mode */
   }
+  const projectId = getProjectId(row);
+  const query: Record<string, string> = { from: "department-task-statistics" };
+  if (projectId) {
+    query.project_id = projectId;
+    const pn = row.project_name;
+    if (pn != null && String(pn) !== "") query.project_name = String(pn);
+  }
+  router.push({ name: "TaskDetail", params: { id: tid }, query }).catch(() => { });
 };
 
-// 获取状态类型
+const handleDepartmentChange = () => {
+  if (!selectedDepartment.value) {
+    selectedUser.value = "";
+    return;
+  }
+  selectedUser.value = USER_ALL;
+};
+
 const getStatusType = (
-  status: string
+  status: string,
+  row: any
 ): "success" | "info" | "warning" | "danger" | "" => {
   if (!status) return "";
   const map: Record<string, "success" | "info" | "warning" | "danger" | ""> = {
-    [TaskStatus.PENDING_ASSIGN_TO_DEPT_LEADER]: "warning", // 待分配给部门负责人 - 黄色
-    [TaskStatus.PENDING_ASSIGN_TO_MEMBER]: "warning", // 待指派给成员 - 黄色
-    [TaskStatus.NOT_STARTED]: "info", // 任务未开始 - 蓝色
-    [TaskStatus.IN_PROGRESS]: "warning", // 任务进行中 - 黄色
-    [TaskStatus.PENDING_TEST]: "info", // 待测试 - 蓝色
-    [TaskStatus.TESTING]: "warning", // 测试中 - 黄色
-    [TaskStatus.TEST_COMPLETED]: "success", // 测试完毕 - 绿色
-    [TaskStatus.PENDING_REVIEW]: "info", // 待审阅 - 蓝色
-    [TaskStatus.REVIEWING]: "warning", // 审阅中 - 黄色
-    [TaskStatus.REVIEW_COMPLETED]: "success", // 审阅完毕 - 绿色
-    [TaskStatus.CANCELLED]: "danger", // 已取消 - 红色
-    [TaskStatus.COMPLETED]: "success" // 已完成 - 绿色
+    [TaskStatus.PENDING_ASSIGN_TO_DEPT_LEADER]: "warning",
+    [TaskStatus.PENDING_ASSIGN_TO_MEMBER]: "warning",
+    [TaskStatus.NOT_STARTED]: "info",
+    [TaskStatus.IN_PROGRESS]: "warning",
+    [TaskStatus.PENDING_TEST]: "info",
+    [TaskStatus.TESTING]: "warning",
+    [TaskStatus.TEST_COMPLETED]: "success",
+    [TaskStatus.PENDING_REVIEW]: "info",
+    [TaskStatus.REVIEWING]: "warning",
+    [TaskStatus.REVIEW_COMPLETED]: "success",
+    [TaskStatus.CANCELLED]: "danger",
+    [TaskStatus.COMPLETED]: "success"
   };
+  if (row.delay.task_is_delay) {
+    return "danger";
+  }
   return map[status] || "info";
 };
 
-// 获取优先级类型
 const getPriorityType = (
   priority: string
 ): "success" | "info" | "warning" | "danger" | "" => {
   const map: Record<string, "success" | "info" | "warning" | "danger" | ""> = {
-    低: "info", // 蓝色
-    中: "warning", // 黄色
-    高: "danger", // 红色
+    低: "info",
+    中: "warning",
+    高: "danger",
     紧急: "danger"
   };
   return map[priority] || "";
 };
 
-// 计算表格高度
 const calculateTableHeight = () => {
   nextTick(() => {
-    if (!containerRef.value) return;
+    if (!containerRef.value || isMobile.value) return;
 
     const viewportHeight = window.innerHeight;
     const containerRect = containerRef.value.getBoundingClientRect();
-
-    // 计算从容器顶部到视口底部的距离
     const containerTopToViewportBottom = viewportHeight - containerRect.top;
+    const bottomPadding = 28;
+    const chromeBelowTable = 32;
+    const availableHeight =
+      containerTopToViewportBottom - bottomPadding - chromeBelowTable;
 
-    // tabs header 高度（两层Tab，约80px）
-    const tabsHeaderHeight = 100;
-
-    // 底部预留空间（约20px）
-    const bottomPadding = 20;
-
-    // card 内部 padding（上下各约20px）
-    const cardPadding = 40;
-
-    // 计算表格可用高度：视口高度 - 容器顶部到视口顶部的距离 - tabs header - card padding - 底部padding
-    const availableHeight = containerTopToViewportBottom - tabsHeaderHeight - cardPadding - bottomPadding;
-
-    // 设置最小高度为400px
     tableHeight.value = Math.max(400, availableHeight);
   });
 };
 
-// 窗口大小改变时重新计算
 const handleResize = () => {
+  isNarrowScreen.value = window.innerWidth <= MOBILE_BREAKPOINT;
   calculateTableHeight();
 };
 
-// 加载任务统计数据
-const getTaskStatisticsData = async () => {
-  loading.value = true;
-  try {
-    const res = await getTaskStatistics();
-    if (res.code === 200 && res.result) {
-      // 处理新的数据格式：对象，键是部门名，值是用户数组，每个用户有task_list
-      if (typeof res.result === 'object' && !Array.isArray(res.result)) {
-        const processedTasks: Record<string, Record<string, { taskList: any[], role: string[] }>> = {};
+/** 解析 select_all_users：result 为 [{ 部门名: 成员[] }, ...] 或单层对象 */
+const parseDeptMembersFromSelectAllUsers = (raw: unknown): Record<string, DeptMember[]> => {
+  const out: Record<string, DeptMember[]> = {};
+  if (raw == null) return out;
 
-        // 遍历所有部门
-        Object.keys(res.result).forEach((departmentName) => {
-          const users = res.result[departmentName];
-          processedTasks[departmentName] = {};
+  const ingest = (chunk: Record<string, unknown>) => {
+    for (const dept of Object.keys(chunk)) {
+      const arr = chunk[dept];
+      if (!Array.isArray(arr)) continue;
+      if (!out[dept]) out[dept] = [];
+      out[dept].push(...(arr as DeptMember[]));
+    }
+  };
 
-          // 如果部门下有用户数据
-          if (Array.isArray(users) && users.length > 0) {
-            // 遍历每个用户
-            users.forEach((user: any) => {
-              const username = user?.username || "未知用户";
-              const userTasks: any[] = [];
-
-              // 收集该用户的所有任务
-              if (user && user.task_list && Array.isArray(user.task_list)) {
-                user.task_list.forEach((task: any) => {
-                  userTasks.push({
-                    ...task,
-                    部门: departmentName,
-                    用户名: username,
-                    角色: user.role || []
-                  });
-                });
-              }
-
-              // 无论是否有任务，都添加到结果中（空数组也要显示）
-              processedTasks[departmentName][username] = {
-                taskList: userTasks,
-                role: user.role || []
-              };
-            });
-
-            // 为部门添加「全部」选项，聚合该部门所有人员的任务
-            const allTasks: any[] = [];
-            const allRoles = new Set<string>();
-            Object.values(processedTasks[departmentName]).forEach((ud) => {
-              allTasks.push(...ud.taskList);
-              (ud.role || []).forEach((r: string) => allRoles.add(r));
-            });
-            processedTasks[departmentName] = {
-              全部: { taskList: allTasks, role: Array.from(allRoles) },
-              ...processedTasks[departmentName]
-            };
-          }
-        });
-
-        tasks.value = processedTasks;
-
-        // 设置默认选中的部门和用户
-        const departmentNames = Object.keys(tasks.value);
-        if (departmentNames.length > 0 && !activeDepartmentTab.value) {
-          activeDepartmentTab.value = departmentNames[0];
-          // 默认选中「全部」，显示该部门所有任务
-          const firstDepartment = departmentNames[0];
-          const firstDepartmentUsers = tasks.value[firstDepartment];
-          if (firstDepartmentUsers && Object.keys(firstDepartmentUsers).length > 0) {
-            activeUserTab.value[firstDepartment] = "全部";
-          }
-        }
-      } else {
-        // 兼容旧的数据格式（数组或旧的对象格式）
-        if (Array.isArray(res.result)) {
-          tasks.value = {
-            "全部任务": {
-              "全部": {
-                taskList: res.result,
-                role: []
-              }
-            }
-          };
-          activeDepartmentTab.value = "全部任务";
-          activeUserTab.value["全部任务"] = "全部";
-        } else {
-          // 旧的对象格式（键是任务类型，值是任务数组）
-          const oldTasks: Record<string, Record<string, { taskList: any[], role: string[] }>> = {};
-          Object.keys(res.result).forEach(key => {
-            oldTasks[key] = {
-              "全部": {
-                taskList: res.result[key],
-                role: []
-              }
-            };
-          });
-          tasks.value = oldTasks;
-          const taskTypes = Object.keys(tasks.value);
-          if (taskTypes.length > 0 && !activeDepartmentTab.value) {
-            activeDepartmentTab.value = taskTypes[0];
-            activeUserTab.value[taskTypes[0]] = "全部";
-          }
-        }
+  if (Array.isArray(raw)) {
+    raw.forEach((item) => {
+      if (item && typeof item === "object" && !Array.isArray(item)) {
+        ingest(item as Record<string, unknown>);
       }
-      // 数据加载完成后重新计算表格高度
+    });
+    return out;
+  }
+
+  if (typeof raw === "object" && !Array.isArray(raw)) {
+    ingest(raw as Record<string, unknown>);
+  }
+
+  return out;
+};
+
+/** 将 task_select 返回体规范为任务数组 */
+const normalizeTaskSelectRows = (raw: unknown): any[] => {
+  if (raw == null) return [];
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === "object") {
+    const o = raw as Record<string, unknown>;
+    if (Array.isArray(o.task_list)) return o.task_list as any[];
+    if (Array.isArray(o.tasks)) return o.tasks as any[];
+    if (Array.isArray(o.list)) return o.list as any[];
+    if (Array.isArray(o.data)) return o.data as any[];
+  }
+  return [];
+};
+
+const loadDepartmentMembers = async () => {
+  orgLoading.value = true;
+  try {
+    const res = await selectAllUsers();
+    const raw = (res.result ?? res.data) as unknown;
+    if (res.code === 200 && raw != null) {
+      deptMembersMap.value = parseDeptMembersFromSelectAllUsers(raw);
+      selectedDepartment.value = "";
+      selectedUser.value = "";
       calculateTableHeight();
     } else {
-      ElMessage.error("加载数据失败");
-      tasks.value = {};
-      activeDepartmentTab.value = "";
-      activeUserTab.value = {};
+      ElMessage.error("加载部门人员失败");
+      deptMembersMap.value = {};
+      selectedDepartment.value = "";
+      selectedUser.value = "";
+      currentTaskList.value = [];
     }
   } catch (error: any) {
-    console.error("加载数据失败:", error);
-    ElMessage.error(
-      error?.response?.data?.message || error?.message || "加载数据失败"
-    );
-    tasks.value = {};
-    activeDepartmentTab.value = "";
-    activeUserTab.value = {};
+    console.error("加载部门人员失败:", error);
+    ElMessage.error(error?.response?.data?.message || error?.message || "加载部门人员失败");
+    deptMembersMap.value = {};
+    selectedDepartment.value = "";
+    selectedUser.value = "";
+    currentTaskList.value = [];
   } finally {
-    loading.value = false;
+    orgLoading.value = false;
   }
 };
 
+/** 请求任务统计：允许部门、人员均为空（页面初始化与清空筛选时传空参） */
+const fetchTaskStatistics = async (department: string, user: string) => {
+  tasksLoading.value = true;
+  try {
+    const userNameParam = user === USER_ALL ? "" : user;
+    const res = await selectTaskStatistics({
+      department: (department || "").trim(),
+      user_name: (userNameParam || "").trim()
+    });
+    const raw = (res.result ?? res.data) as unknown;
+    if (res.code === 200 && raw != null) {
+      currentTaskList.value = normalizeTaskSelectRows(raw);
+      calculateTableHeight();
+    } else {
+      ElMessage.error("加载任务统计失败");
+      currentTaskList.value = [];
+    }
+  } catch (error: any) {
+    console.error("加载任务统计失败:", error);
+    ElMessage.error(error?.response?.data?.message || error?.message || "加载任务统计失败");
+    currentTaskList.value = [];
+  } finally {
+    tasksLoading.value = false;
+  }
+};
+
+watch(
+  () => [selectedDepartment.value, selectedUser.value] as const,
+  ([dept, user]) => {
+    void fetchTaskStatistics(dept || "", user || "");
+  },
+  { immediate: true }
+);
+
 onMounted(() => {
-  getTaskStatisticsData();
+  void loadDepartmentMembers();
   calculateTableHeight();
   window.addEventListener("resize", handleResize);
-  setTimeout(setupTabsHeaderWheel, 400);
-});
-watch(activeDepartmentTab, () => {
-  setTimeout(setupTabsHeaderWheel, 100);
-});
-onBeforeUnmount(() => {
-  tabsWheelCleanups.forEach((fn) => fn());
-  tabsWheelCleanups = [];
 });
 onUnmounted(() => {
   window.removeEventListener("resize", handleResize);
@@ -385,87 +476,260 @@ onUnmounted(() => {
 </script>
 
 <style scoped lang="scss">
-.tasks-page {
-  .tasks-table-container {
-    min-height: 800px;
-    display: flex;
-    flex-direction: column;
+.dept-task-stat {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0 0 20px;
+}
 
-    /* 使用原生横向滚动，让 tab 栏真正可滑动，隐藏的 tab 能滑出 */
-    :deep(.el-tabs__header) {
-      min-width: 0;
-      width: 100%;
-    }
+.main-card {
+  width: 100%;
+  max-width: 100%;
+  border-radius: 8px;
+  border: 1px solid var(--el-border-color-lighter);
 
-    /* 默认隐藏滚动条，滚动时显示，停止后延迟隐藏 */
-    :deep(.el-tabs__nav-wrap) {
-      overflow-x: auto !important;
-      overflow-y: hidden !important;
-      -webkit-overflow-scrolling: touch;
-      touch-action: pan-x;
-      scrollbar-width: none;
-
-      &::-webkit-scrollbar {
-        height: 0;
-        transition: height 0.2s ease;
-      }
-
-      &::-webkit-scrollbar-thumb {
-        background: transparent;
-        border-radius: 3px;
-      }
-
-      &.nav-wrap-scrolling {
-        scrollbar-width: thin;
-
-        &::-webkit-scrollbar {
-          height: 2px;
-        }
-
-        &::-webkit-scrollbar-thumb {
-          background: var(--el-border-borer-color);
-        }
-      }
-    }
-
-    :deep(.el-tabs__nav-scroll) {
-      overflow: visible !important;
-      width: max-content;
-      min-width: 100%;
-      display: inline-block;
-    }
-
-    :deep(.el-tabs__nav) {
-      white-space: nowrap;
-      transform: none !important;
-      /* 禁用组件自带的 transform 滚动，改用容器原生滚动 */
-    }
-
-    /* 隐藏组件自带的 <> 按钮，避免与原生滚动重复 */
-    :deep(.el-tabs__nav-prev),
-    :deep(.el-tabs__nav-next) {
-      display: none;
-    }
-  }
-
-  .assignee-text {
-    color: #409eff;
-  }
-
-  .assignee-text-dept {
-    color: #67C23A;
+  :deep(.el-card__body) {
+    padding: 16px;
+    box-sizing: border-box;
   }
 }
 
-@media (max-width: 640px) {
-  .tasks-page .tasks-table-container {
-    :deep(.el-tabs__nav-wrap) {
-      scrollbar-width: none;
+.toolbar {
+  margin-bottom: 16px;
+  width: 99%;
+}
 
-      &::-webkit-scrollbar {
-        display: none;
-      }
-    }
+.toolbar__filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  width: 100%;
+}
+
+.filter-field {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.filter-label {
+  flex: 0 0 auto;
+  min-width: 3em;
+  margin: 0;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--el-text-color-regular);
+  line-height: 32px;
+  text-align: right;
+}
+
+.filter-control {
+  flex: 0 0 auto;
+  width: 200px;
+  max-width: 100%;
+}
+
+.table-panel {
+  width: 99%;
+  max-width: 100%;
+  min-height: 280px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--el-border-color-lighter);
+  box-sizing: border-box;
+}
+
+.data-table {
+  :deep(.el-table__header th) {
+    font-weight: 600;
+    background: var(--el-fill-color-light) !important;
+  }
+}
+
+.table-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 320px;
+  padding: 24px 16px;
+  background: var(--el-fill-color-blank);
+}
+
+.empty-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 360px;
+  padding: 40px 16px;
+}
+
+.assignee-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.assignee-chips__tag {
+  margin: 0;
+  border: none;
+  max-width: 100%;
+}
+
+.assignee-text {
+  color: var(--el-color-primary);
+}
+
+.assignee-text-dept {
+  color: var(--el-color-success);
+}
+
+.assignee-chips--compact {
+  gap: 6px;
+}
+
+.cell-link {
+  font-weight: inherit;
+}
+
+.mobile-task-card__row--project {
+  border-top: none;
+  padding-top: 0;
+  padding-bottom: 2px;
+}
+
+.mobile-task-card__title-link {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.mobile-task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px 0 8px;
+}
+
+.mobile-task-list__empty {
+  padding: 24px 0;
+}
+
+.mobile-task-card {
+  padding: 14px 14px 12px;
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
+}
+
+.mobile-task-card__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+  line-height: 1.45;
+  margin-bottom: 10px;
+  word-break: break-word;
+}
+
+.mobile-task-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.mobile-task-card__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 6px 0;
+  font-size: 13px;
+  border-top: 1px solid var(--el-border-color-extra-light);
+}
+
+.mobile-task-card__row:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+.mobile-task-card__label {
+  flex: 0 0 5.5em;
+  color: var(--el-text-color-secondary);
+  line-height: 1.5;
+}
+
+.mobile-task-card__value {
+  flex: 1 1 0;
+  min-width: 0;
+  color: var(--el-text-color-regular);
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.mobile-task-card__value--chips {
+  line-height: inherit;
+}
+
+.mobile-task-card__progress-wrap {
+  padding-top: 2px;
+}
+
+.mobile-task-card__progress {
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .dept-task-stat.is-mobile {
+    padding: 0 0 16px;
+  }
+
+  .dept-task-stat.is-mobile .main-card :deep(.el-card__body) {
+    padding: 12px;
+  }
+
+  .toolbar__filters {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+  }
+
+  .filter-field {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1 1 auto;
+  }
+
+  .filter-label {
+    width: auto;
+    min-width: 0;
+    text-align: left;
+    line-height: 1.4;
+  }
+
+  .filter-control {
+    width: 100%;
+  }
+
+  .dept-task-stat.is-mobile .table-panel {
+    min-height: 0;
+    overflow: visible;
+    border: none;
+    background: transparent;
+  }
+
+  .dept-task-stat.is-mobile .table-placeholder {
+    min-height: 240px;
+    padding: 20px 12px;
   }
 }
 </style>

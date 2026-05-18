@@ -40,6 +40,7 @@ export interface CreateProjectParams {
   resolution: string; // 分辨率
   business_owner: string; // 业务负责人
   creator?: string; // 项目负责人
+  state_description?: string; // 状态描述
   plant_start_time: string;
   plant_end_time: string;
   describe: string[]; // URL 字符串数组
@@ -129,7 +130,8 @@ export const updateProject = (params: UpdateProjectParams) => {
       describe: params.describe,
       attachment: params.attachment,
       project_proposal: params.project_proposal || [],
-      project_initiation_date: params.project_initiation_date || ""
+      project_initiation_date: params.project_initiation_date || "",
+      state_description: params.state_description || ""
     }
   });
 };
@@ -924,6 +926,16 @@ export const updateTaskDelayMessage = (params: any) => {
     data: {
       task_id: params.task_id,
       message: params.message
+    }
+  });
+};
+
+/** 查询任务统计 */
+export const selectTaskStatistics = (params: any) => {
+  return http.request<ApiResponse<any[]>>("post", "department/task_select", {
+    data: {
+      department: params.department || "",
+      user_name: params.user_name || ""
     }
   });
 };

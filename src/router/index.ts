@@ -11,6 +11,7 @@ import {
   isAllEmpty,
   storageLocal
 } from "@pureadmin/utils";
+import { setRouterInstance } from "./context";
 import {
   ascending,
   getTopMenu,
@@ -52,7 +53,8 @@ const modules: Record<string, any> = import.meta.glob(
 const routes = [];
 
 Object.keys(modules).forEach(key => {
-  routes.push(modules[key].default);
+  const def = modules[key].default;
+  if (def != null) routes.push(def);
 });
 
 /** 计算静态路由（延迟计算，避免模块加载时的初始化问题） */
@@ -140,6 +142,8 @@ function createRouterInstance(): Router {
         });
       }
     });
+    // 与 main.ts 中 setRouterInstance 同步，确保 initRouter / getRouterAsync 在任意时机都能拿到实例
+    setRouterInstance(routerInstance);
     // 延迟注册路由守卫，确保所有依赖都已初始化
     if (!routerInitialized) {
       setupRouterGuards(routerInstance);

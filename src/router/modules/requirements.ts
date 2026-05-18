@@ -8,7 +8,7 @@ export default {
   meta: {
     icon: "ri:file-list-line",
     title: "层级",
-    rank: 2
+    rank: 5
   },
   children: [
     {

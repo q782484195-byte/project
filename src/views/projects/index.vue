@@ -6,7 +6,9 @@
         <el-input v-model="searchKeyword" placeholder="搜索项目..." prefix-icon="Search" clearable style="width: 200px" />
         <el-select v-model="statusFilter" placeholder="状态筛选" clearable style="width: 120px"
           v-perms="['project:update_state']">
-          <el-option label="未开始" value="未开始" />
+          <el-option label="草稿" value="草稿" />
+          <el-option label="延期" value="延期" />
+          <el-option label="暂停" value="暂停" />
           <el-option label="进行中" value="进行中" />
           <el-option label="已完成" value="已完成" />
         </el-select>
@@ -66,11 +68,12 @@
     <!-- 卡片视图 -->
     <div v-if="viewMode === 'card'" v-loading="loading" class="projects-grid">
       <div v-for="project in filteredProjects" :key="project.id" class="project-card"
-        @click="openProjectDetail(project, $event)">
+        @click="goToTaskList(project, $event)">
         <div class="card-header">
           <div class="project-info">
             <el-tag :type="getStatusTagType(project.status)">
-              {{ getStatusText(project.status) }}
+              {{ getStatusText(project.status) }}{{ project.state_description ? '（' + project.state_description + '）' :
+              '' }}
             </el-tag>
           </div>
           <div class="more-button-wrapper" v-if="hasPerms(['project:update']) || hasPerms(['project:delete_project'])">
@@ -160,12 +163,20 @@
             </el-tooltip>
           </div>
         </div>
-        <!-- 第五行：进度 -->
+        <!-- 第五行：左侧进度条，右侧当前节点 -->
         <div class="project-row project-row-progress">
-          <div class="progress-info">
-            <span>进度</span>
+          <div class="progress-block">
+            <div class="progress-info">
+              <span>进度</span>
+            </div>
+            <el-progress :percentage="getProjectProgress(project)" :stroke-width="6" />
           </div>
-          <el-progress :percentage="getProjectProgress(project)" :stroke-width="6" />
+          <div class="progress-node">
+            <span class="progress-node__label">节点</span>
+            <el-tooltip :content="getProjectNode(project)" placement="top" :disabled="getProjectNode(project) === '-'">
+              <span class="progress-node__value">{{ getProjectNode(project) }}</span>
+            </el-tooltip>
+          </div>
         </div>
         <!-- 第三行：项目负责人，业务负责人 -->
         <div class="project-row project-row-owners">
@@ -192,10 +203,9 @@
           </div>
         </div>
 
-        <!-- 右下角：查看任务列表 -->
         <div class="project-row project-row-actions">
-          <el-button type="primary" size="small" class="go-task-list-btn" @click.stop="goToTaskList(project)">
-            查看任务列表
+          <el-button type="primary" size="small" class="go-task-list-btn" @click.stop="openProjectDetail(project)">
+            查看项目详情
           </el-button>
         </div>
 
@@ -426,6 +436,7 @@ const loadProjects = async () => {
             item.end_date ||
             item.endDate,
           progress: item.progress || 0,
+          state_description: item.state_description || "", // 状态描述
           总进度: item.总进度 || item.progress || 0, // 优先使用后端返回的 总进度 字段
           attachment: item.attachment || [], // 保存附件数组
           project_proposal: item.project_proposal || [], // 保存立项文件数组
@@ -436,6 +447,10 @@ const loadProjects = async () => {
           resolution: item.resolution || "", // 分辨率
           business_owner: item.business_owner || "", // 业务负责人
           project_initiation_date: item.project_initiation_date || "", // 立项时间
+          node: (() => {
+            const raw = item.node ?? item.node_name ?? item["节点"];
+            return raw != null && String(raw).trim() !== "" ? String(raw).trim() : "";
+          })(),
           createdAt:
             item.create_time ||
             item.created_at ||
@@ -486,23 +501,34 @@ const getProjectProgress = (project: Project & Record<string, unknown>) => {
   return 0;
 };
 
+/** 当前流程节点文案（如 1.立项表），兼容接口 node / 节点 */
+const getProjectNode = (project: Project & Record<string, unknown>) => {
+  const raw = project.node ?? project["节点"] ?? project["node_name"];
+  if (raw == null) return "-";
+  const s = String(raw).trim();
+  return s !== "" ? s : "-";
+};
+
 // 打开项目详情（跳转到详情页）
-const openProjectDetail = (project: Project, event?: Event) => {
-  // 如果点击的是三个点按钮区域，不跳转
-  if (event?.target) {
-    const target = event.target as HTMLElement;
-    if (target.closest('.more-button-wrapper') || target.closest('.more-button-trigger') || target.closest('.more-button')) {
-      return;
-    }
-  }
+const openProjectDetail = (project: Project) => {
   router.push({
     name: "ProjectDetail",
     params: { id: project.id }
   });
 };
 
-// 前往任务列表页，并默认选中当前项目
-const goToTaskList = (project: Project) => {
+// 点击卡片主体：前往任务列表并带上当前项目；忽略「更多」区域点击
+const goToTaskList = (project: Project, event?: Event) => {
+  if (event?.target) {
+    const target = event.target as HTMLElement;
+    if (
+      target.closest(".more-button-wrapper") ||
+      target.closest(".more-button-trigger") ||
+      target.closest(".more-button")
+    ) {
+      return;
+    }
+  }
   router.push({
     path: "/tasks/list",
     query: { project_id: project.id }
@@ -894,8 +920,18 @@ onMounted(() => {
   }
 
   .project-row-progress {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: stretch;
+    column-gap: 0;
     width: 100%;
     box-sizing: border-box;
+
+    .progress-block {
+      min-width: 0;
+      padding-right: 12px;
+      box-sizing: border-box;
+    }
 
     .progress-info {
       display: flex;
@@ -904,7 +940,39 @@ onMounted(() => {
       font-size: 15px;
       color: #606266;
       font-weight: 500;
-      min-width: 0; // 允许收缩
+      min-width: 0;
+    }
+
+    .progress-node {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      gap: 6px;
+      padding-left: 12px;
+      border-left: 1px solid rgba(0, 0, 0, 0.08);
+      box-sizing: border-box;
+
+      &__label {
+        font-size: 13px;
+        color: #909399;
+        font-weight: 500;
+        line-height: 1.2;
+      }
+
+      &__value {
+        font-size: 15px;
+        color: #303133;
+        font-weight: 500;
+        line-height: 1.45;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+        -webkit-box-orient: vertical;
+        word-break: break-word;
+      }
     }
 
     :deep(.el-progress) {
@@ -1177,6 +1245,23 @@ onMounted(() => {
     }
 
     .project-row-progress {
+      grid-template-columns: 1fr;
+      row-gap: 12px;
+
+      .progress-block {
+        width: 100%;
+        padding-right: 0;
+      }
+
+      .progress-node {
+        max-width: 100%;
+        width: 100%;
+        padding-left: 0;
+        padding-top: 10px;
+        border-left: none;
+        border-top: 1px solid rgba(0, 0, 0, 0.08);
+      }
+
       :deep(.el-progress) {
         width: 100%;
         max-width: 100%;

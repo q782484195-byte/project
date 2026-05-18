@@ -8,7 +8,9 @@ export default {
   meta: {
     icon: "ri:task-line",
     title: "任务",
-    rank: 3
+    rank: 5,
+    /** 不在侧边栏展示「任务」模块，仍保留路由供项目卡片等跳转 */
+    showLink: false
   },
   children: [
     {

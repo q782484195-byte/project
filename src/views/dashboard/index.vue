@@ -2,7 +2,7 @@
   <div class="dashboard">
     <el-row :gutter="20">
       <!-- 左侧：汇报列表 -->
-      <el-col :span="12" :xs="24">
+      <el-col :span="12" :xs="24" class="dashboard-col-reports">
         <el-card class="report-card">
           <template #header>
             <div class="card-header-title">
@@ -1123,6 +1123,11 @@ onBeforeUnmount(() => {
     padding: 16px;
   }
 
+  /* 窄屏下两列纵向堆叠时，汇报列表与右侧图表区块之间的间距 */
+  .dashboard-col-reports {
+    margin-bottom: 20px;
+  }
+
   .stat-card {
     padding: 20px 16px;
 
@@ -1150,6 +1155,10 @@ onBeforeUnmount(() => {
 @media (max-width: 640px) {
   .dashboard {
     padding: 12px;
+  }
+
+  .dashboard-col-reports {
+    margin-bottom: 12px;
   }
 
   .stat-card {

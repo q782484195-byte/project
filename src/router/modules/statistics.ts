@@ -4,24 +4,13 @@ export default {
   path: "/statistics",
   name: "Statistics",
   component: Layout,
-  redirect: "/statistics/list",
+  redirect: "/statistics/gantt",
   meta: {
     icon: "ri:pie-chart-line",
     title: "统计",
-    rank: 1
+    rank: 4
   },
   children: [
-    {
-      path: "/statistics/list",
-      name: "StatisticsList",
-      component: () => import("@/views/statistics/index.vue"),
-      meta: {
-        title: "部门任务统计",
-        showLink: true,
-        showParent: true,
-        roles: ["Admin", "ProjectManager", "ProjectDirector"]
-      }
-    },
     {
       path: "/statistics/gantt",
       name: "Gantt",

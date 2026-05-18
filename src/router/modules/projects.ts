@@ -8,7 +8,7 @@ export default {
   meta: {
     icon: "ri/folder-line",
     title: "项目",
-    rank: 1
+    rank: 3
   },
   children: [
     {
@@ -18,19 +18,8 @@ export default {
       meta: {
         title: "项目列表",
         showLink: true,
-        showParent: true,
+        showParent: false,
         roles: ["Admin", "ProjectManager", "Member", "DepartmentManager", 'ProjectDirector', 'BusinessDepartmentMembers']
-      }
-    },
-    {
-      path: "/projects/overview",
-      name: "ProjectsOverview",
-      component: () => import("@/views/projects/overview.vue"),
-      meta: {
-        title: "项目概览",
-        showLink: true,
-        showParent: true,
-        roles: ["Admin", 'ProjectDirector', 'ProjectManager']
       }
     },
     {

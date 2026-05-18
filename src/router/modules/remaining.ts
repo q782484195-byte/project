@@ -1,6 +1,20 @@
 const Layout = () => import("@/layout/index.vue");
 
 export default [
+  // {
+  //   path: "/projects/overview",
+  //   redirect: "/project-overview/index",
+  //   meta: {
+  //     showLink: false
+  //   }
+  // },
+  // {
+  //   path: "/statistics/list",
+  //   redirect: "/department-task-statistics/index",
+  //   meta: {
+  //     showLink: false
+  //   }
+  // },
   {
     path: "/login",
     name: "Login",

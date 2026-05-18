@@ -84,7 +84,9 @@
           />
         </el-select>
       </el-form-item> -->
-
+      <el-form-item label="状态描述" prop="state_description" v-if="isEdit">
+        <el-input v-model="projectForm.state_description" placeholder="请输入状态描述" />
+      </el-form-item>
       <el-form-item label="项目描述" prop="describe">
         <RichTextEditor ref="richTextEditorRef" v-model="projectForm.describe" />
       </el-form-item>
@@ -303,6 +305,7 @@ const projectForm = reactive({
   templateId: "",
   startDate: "",
   endDate: "",
+  state_description: "",
   memberIds: [] as string[],
   project_proposal: [] as string[], // 用于表单验证
   project_initiation_date: "" // 立项时间（年月日）
@@ -902,6 +905,7 @@ const handleSubmit = async () => {
     });
 
     if (isEdit.value && props.project) {
+
       // 编辑模式 - 使用新的参数格式
       const submitData: UpdateProjectParams = {
         project_id: props.project.id,
@@ -911,6 +915,7 @@ const handleSubmit = async () => {
         platform_name: projectForm.platform_name,
         motherboard_name: projectForm.motherboard_name,
         resolution: projectForm.resolution,
+        state_description: projectForm.state_description,
         business_owner: projectForm.business_owner,
         creator: projectForm.creator,
         plant_start_time: projectForm.startDate,
@@ -920,7 +925,6 @@ const handleSubmit = async () => {
         project_proposal: allProposalUrls,
         project_initiation_date: projectForm.project_initiation_date || ""
       };
-
       try {
         const response = await updateProject(submitData);
 

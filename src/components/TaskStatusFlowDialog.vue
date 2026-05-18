@@ -48,9 +48,10 @@
             value-format="YYYY-MM-DD" style="width: 100%" :disabled-date="disabledPastDate" clearable />
         </el-form-item>
         <el-form-item label="超时提醒" prop="notification_recipients">
-          <el-tree-select v-model="form.notification_recipients" placeholder="请选择指派超时提醒人" :loading="allUsersLoading"
-            filterable check-strictly default-expand-all :data="allUsersTree" :props="treeSelectProps" node-key="value"
-            :render-after-expand="false" style="width: 100%" clearable multiple />
+          <el-tree-select v-model="form.notification_recipients" placeholder="请选择指派超时提醒人"
+            :loading="notificationRecipientsLoading" filterable check-strictly default-expand-all
+            :data="notificationRecipientsTree" :props="treeSelectProps" node-key="value" :render-after-expand="false"
+            style="width: 100%" clearable multiple />
         </el-form-item>
       </template>
       <!-- <el-form-item v-if="isFirstRoundTest" label="测试轮数" prop="testRounds">
@@ -117,7 +118,16 @@ import { ElMessage } from "element-plus";
 import { Upload } from "@element-plus/icons-vue";
 import { TaskStatus } from "@/types";
 import { updateTaskState, updateTask, reportTaskProgress, uploadFile, updateDevelopmentTime, updateTaskDeadline } from "@/api/project";
-import { getNextStateUserList, sendNotification, selectNotificationPerson, addNotification } from "@/api/system";
+import {
+  getNextStateUserList,
+  sendNotification,
+  selectNotificationPerson,
+  addNotification,
+  selectAllUsers,
+  getDepartmentNameList,
+  type DepartmentListItem,
+  type DepartmentUserMap
+} from "@/api/system";
 import { sendWorkchatMessage } from "@/api/report";
 import { useUserStoreHook } from "@/store/modules/user";
 
@@ -279,6 +289,8 @@ const treeSelectProps = {
 
 const allUsersRawData = ref<Array<Record<string, any>>>([]);
 const allUsersLoading = ref(false);
+const notificationRecipientsTree = ref<TreeNode[]>([]);
+const notificationRecipientsLoading = ref(false);
 const confirmLoading = ref(false);
 const userStore = useUserStoreHook();
 
@@ -500,8 +512,9 @@ const initForm = async () => {
   form.personName = isPendingAssignToDeptLeader.value && props.task?.default_person
     ? String(props.task.default_person).trim()
     : "";
-  // 当前状态为「待分配给部门负责人」时，超时提醒人默认填入接口返回的接收人（与 index 批量分配一致）
+  // 当前状态为「待分配给部门负责人」时，加载全部门人员供超时提醒选择（与 index 批量分配一致）
   if (isPendingAssignToDeptLeader.value) {
+    await loadNotificationRecipientsTree();
     try {
       const response = await selectNotificationPerson();
       if (response.code === 200 && response.result?.recipient && Array.isArray(response.result.recipient)) {
@@ -663,6 +676,79 @@ const handleBeforeUpload = (file: File) => {
     return false;
   }
   return true;
+};
+
+/** 构建全部门人员树（用于超时提醒人选择，与 tasks/index 批量分配一致） */
+const buildNotificationRecipientsTree = (
+  departmentList: DepartmentListItem[],
+  userMaps: DepartmentUserMap[]
+): TreeNode[] => {
+  if (!Array.isArray(departmentList)) return [];
+
+  const departmentUsersMap: Record<string, string[]> = {};
+  if (Array.isArray(userMaps)) {
+    userMaps.forEach(map => {
+      Object.keys(map).forEach(department => {
+        departmentUsersMap[department] = map[department].map(user => user.username);
+      });
+    });
+  }
+
+  return departmentList.map((item, index) => {
+    const departmentName = String(item.部门名 || "未分配部门");
+    const users = departmentUsersMap[departmentName] || [];
+    const allUsers = users.length > 0 ? users : (item.负责人 || []);
+
+    const children: TreeNode[] = allUsers
+      .filter(user => user && String(user).trim())
+      .map(user => ({
+        label: String(user),
+        value: String(user)
+      }));
+
+    return {
+      label: departmentName,
+      value: `dept_${index}_${departmentName.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, "_")}`,
+      disabled: true,
+      children
+    };
+  });
+};
+
+/** 加载全部门人员（超时提醒人可选所有部门成员） */
+const loadNotificationRecipientsTree = async () => {
+  if (notificationRecipientsTree.value.length) return;
+
+  notificationRecipientsLoading.value = true;
+  try {
+    const departmentResponse = await getDepartmentNameList();
+    if (departmentResponse.code !== 200 || !Array.isArray(departmentResponse.result)) {
+      ElMessage.error("加载部门列表失败");
+      notificationRecipientsTree.value = [];
+      return;
+    }
+
+    const usersResponse = await selectAllUsers();
+    if (usersResponse.code === 200 && Array.isArray(usersResponse.result)) {
+      notificationRecipientsTree.value = buildNotificationRecipientsTree(
+        departmentResponse.result,
+        usersResponse.result
+      );
+    } else {
+      notificationRecipientsTree.value = buildNotificationRecipientsTree(
+        departmentResponse.result,
+        []
+      );
+    }
+  } catch (error: any) {
+    console.error("加载超时提醒人员列表失败:", error);
+    ElMessage.error(
+      error?.response?.data?.message || error?.message || "加载超时提醒人员列表失败"
+    );
+    notificationRecipientsTree.value = [];
+  } finally {
+    notificationRecipientsLoading.value = false;
+  }
 };
 
 /** 根据下一状态获取后台返回的部门和用户列表 */

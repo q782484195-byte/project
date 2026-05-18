@@ -5,6 +5,10 @@ import {
   createWebHistory,
   createWebHashHistory
 } from "vue-router";
+import {
+  setRouterInstance as writeRouterRef,
+  getRouterInstanceOrNull
+} from "./context";
 import { isProxy, toRaw } from "vue";
 import { useTimeoutFn } from "@vueuse/core";
 import {
@@ -22,28 +26,35 @@ const IFrame = () => import("@/layout/frame.vue");
 // https://cn.vitejs.dev/guide/features.html#glob-import
 const modulesRoutes = import.meta.glob("/src/views/**/*.{vue,tsx}");
 
-// 延迟获取 router，避免循环依赖
-let routerInstance: any = null;
-
-// 设置 router 实例（在 main.ts 中调用）
+/** 与 main.ts 约定：注册 router 供本文件内 getRouter / 动态路由使用 */
 export function setRouterInstance(router: any) {
-  routerInstance = router;
+  writeRouterRef(router);
 }
 
 function getRouter() {
-  if (!routerInstance) {
+  const router = getRouterInstanceOrNull();
+  if (!router) {
     // 如果还没有设置，尝试延迟导入（这不应该发生，但作为后备方案）
     throw new Error("Router not initialized. Please call setRouterInstance() first.");
   }
-  return routerInstance;
+  return router;
 }
 
-// 异步获取 router
+// 异步获取 router（若未 setRouterInstance，则从 router 模块回退获取，避免 HMR/竞态导致实例丢失）
 async function getRouterAsync() {
-  if (routerInstance) {
-    return routerInstance;
+  const existing = getRouterInstanceOrNull();
+  if (existing) {
+    return existing;
   }
-  // 如果还没有设置，抛出错误（这不应该发生，router 应该在 main.ts 中初始化）
+  try {
+    const mod = await import("@/router/index");
+    if (mod.default) {
+      writeRouterRef(mod.default);
+      return mod.default;
+    }
+  } catch {
+    /* 仅依赖下方明确错误 */
+  }
   throw new Error("Router not initialized. Please call setRouterInstance() in main.ts before using router functions.");
 }
 
@@ -87,6 +98,7 @@ function getStoreHooks() {
 // import { getAsyncRoutes } from "@/api/routes";
 
 function handRank(routeInfo: any) {
+  if (routeInfo == null) return false;
   const { name, path, parentId, meta } = routeInfo;
   return isAllEmpty(parentId)
     ? isAllEmpty(meta?.rank) ||
@@ -100,7 +112,10 @@ function handRank(routeInfo: any) {
 function ascending(arr: any[]) {
   arr.forEach((v, index) => {
     // 当rank不存在时，根据顺序自动创建，首页路由永远在第一位
-    if (handRank(v)) v.meta.rank = index + 2;
+    if (handRank(v)) {
+      if (!v.meta) v.meta = {};
+      v.meta.rank = index + 2;
+    }
   });
   return arr.sort(
     (a: { meta: { rank: number } }, b: { meta: { rank: number } }) => {

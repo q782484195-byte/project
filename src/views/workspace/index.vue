@@ -538,12 +538,11 @@
       </el-tab-pane> -->
 
       <!-- 项目 Tab -->
-      <el-tab-pane label="项目" name="projects">
+      <!-- <el-tab-pane label="项目" name="projects">
         <el-card ref="projectsCardRef">
           <template #header>
             <div class="card-header">
               <span>项目列表</span>
-              <!-- <el-button type="primary" size="small" @click="goToProjects">查看更多</el-button> -->
             </div>
           </template>
           <template v-if="!isMobile">
@@ -571,7 +570,6 @@
               </el-table-column>
             </el-table>
           </template>
-          <!-- 移动端：项目列表卡片 -->
           <template v-else>
             <div v-loading="projectsLoading" class="workspace-mobile-cards">
               <template v-if="projects.length">
@@ -602,8 +600,8 @@
               <el-empty v-else-if="!projectsLoading" description="暂无项目" :image-size="80" />
             </div>
           </template>
-        </el-card>
-      </el-tab-pane>
+        </el-card> 
+      </el-tab-pane> -->
     </el-tabs>
 
     <!-- 任务状态分配对话框 -->
