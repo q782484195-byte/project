@@ -36,23 +36,23 @@
           :render-after-expand="false" style="width: 100%" clearable />
       </el-form-item>
       <template v-if="isPendingAssignToDeptLeader">
-        <el-form-item label="指派时限" prop="time_limit">
+        <!-- <el-form-item label="指派时限" prop="time_limit">
           <div class="time-limit-inline">
             <el-input-number v-model="form.time_limit" :min="0" :precision="3" placeholder="请输入任务指派时限"
               class="time-limit-input" />
             <span class="time-limit-unit">时</span>
           </div>
-        </el-form-item>
+        </el-form-item> -->
         <el-form-item label="完成期限" prop="task_assign_limit">
           <el-date-picker v-model="form.task_assign_limit" type="date" placeholder="请选择任务截止期限" format="YYYY-MM-DD"
             value-format="YYYY-MM-DD" style="width: 100%" :disabled-date="disabledPastDate" clearable />
         </el-form-item>
-        <el-form-item label="超时提醒" prop="notification_recipients">
+        <!-- <el-form-item label="超时提醒" prop="notification_recipients">
           <el-tree-select v-model="form.notification_recipients" placeholder="请选择指派超时提醒人"
             :loading="notificationRecipientsLoading" filterable check-strictly default-expand-all
             :data="notificationRecipientsTree" :props="treeSelectProps" node-key="value" :render-after-expand="false"
             style="width: 100%" clearable multiple />
-        </el-form-item>
+        </el-form-item> -->
       </template>
       <!-- <el-form-item v-if="isFirstRoundTest" label="测试轮数" prop="testRounds">
         <el-select v-model="form.testRounds" placeholder="请选择测试轮数" style="width: 100%">
@@ -316,6 +316,7 @@ const currentStatus = computed(
 const statusAliasMap: Record<string, TaskStatus> = {
   待分配给部门负责人: TaskStatus.PENDING_ASSIGN_TO_DEPT_LEADER,
   待分配给部门主管: TaskStatus.PENDING_ASSIGN_TO_DEPT_LEADER,
+  "未完成 ": TaskStatus.PENDING_ASSIGN_TO_DEPT_LEADER,
   待指派给成员: TaskStatus.PENDING_ASSIGN_TO_MEMBER,
   待开始: TaskStatus.NOT_STARTED,
   任务未开始: TaskStatus.NOT_STARTED,
@@ -334,10 +335,14 @@ const statusAliasMap: Record<string, TaskStatus> = {
 
 const normalizeStatus = (status: string): TaskStatus | "" => {
   if (!status) return "";
+  // 别名优先：如「未完成 」在枚举中为 NOT_COMPLETED_K，但业务上等同「待分配给部门负责人」
+  if (statusAliasMap[status]) {
+    return statusAliasMap[status];
+  }
   if (Object.values(TaskStatus).includes(status as TaskStatus)) {
     return status as TaskStatus;
   }
-  return statusAliasMap[status] || "";
+  return "";
 };
 
 const normalizedStatus = computed(() => normalizeStatus(currentStatus.value));
@@ -370,12 +375,16 @@ const needAssignArray = computed<boolean[]>(() => {
 
 const selectedNextState = ref<string>("");
 
-// 当前状态是否为「待分配给部门负责人」（当前状态时显示接收人、截至日期、时限，分配给默认 default_person）
+// 当前状态是否为「待分配给部门负责人」（含别名「未完成 」；显示部门、完成期限，分配给默认 default_person）
 const isPendingAssignToDeptLeader = computed<boolean>(() => {
-  const status = currentStatus.value;
-  return status === "待分配给部门负责人" ||
-    status === TaskStatus.PENDING_ASSIGN_TO_DEPT_LEADER ||
-    (status && String(status).includes("待分配给部门负责人"));
+  if (normalizedStatus.value === TaskStatus.PENDING_ASSIGN_TO_DEPT_LEADER) {
+    return true;
+  }
+  const status = String(currentStatus.value || "");
+  return (
+    status === TaskStatus.NOT_COMPLETED_K ||
+    status.includes("待分配给部门负责人")
+  );
 });
 
 // 根据选中的下一状态，判断是否需要显示分配给输入框（与 needRejectionReason 一致：多选项时根据选中项联动）

@@ -336,7 +336,16 @@
                   </div>
                 </el-tab-pane>
                 <el-tab-pane v-if="canViewReceivedReports" label="收到的汇报" name="receivedReports">
-                  <div class="activity-list">
+                  <div class="received-reports-toolbar">
+                    <el-select v-model="receivedReportsProjectId" class="received-reports-project-select"
+                      placeholder="全部项目" clearable filterable :loading="projectsLoading"
+                      @change="handleReceivedReportsProjectChange">
+                      <el-option label="全部项目" value="" />
+                      <el-option v-for="project in projects" :key="project._id" :label="project.project_name"
+                        :value="project._id" />
+                    </el-select>
+                  </div>
+                  <div v-loading="receivedReportsLoading" class="activity-list">
                     <div v-for="(report, index) in receivedReports" :key="index" class="activity-item">
                       <div class="activity-time">{{ report.time }}</div>
                       <div class="activity-content">
@@ -841,6 +850,19 @@ const projectActivities = ref<Array<{ time: string; content: string; icon: strin
 const activityTab = ref("activities"); // 动态tab切换
 const myReports = ref<Array<{ time: string; content: string; icon: string; taskName?: string; progress?: number; state?: string; creator?: string }>>([]); // 我汇报的
 const receivedReports = ref<Array<{ time: string; content: string; icon: string; taskName?: string; progress?: number; state?: string; creator?: string }>>([]); // 收到的汇报
+const receivedReportsProjectId = ref("");
+const receivedReportsLoading = ref(false);
+
+const getReceivedReportsProjectFilter = () => {
+  if (!receivedReportsProjectId.value) {
+    return { project_name: "" };
+  }
+  const project = projects.value.find(item => item._id === receivedReportsProjectId.value);
+  return {
+    project_id: receivedReportsProjectId.value,
+    project_name: project?.project_name || ""
+  };
+};
 
 // 检查是否可以查看收到的汇报（只有admin和部门主管可以查看）
 const canViewReceivedReports = computed(() => {
@@ -1130,8 +1152,13 @@ const viewTask = (task: TaskListItem) => {
 const handleActivityTabChange = (tabName: string) => {
   if (tabName === "myReports" && myReports.value.length === 0) {
     loadMyReports();
-  } else if (tabName === "receivedReports" && receivedReports.value.length === 0) {
-    loadReceivedReports();
+  } else if (tabName === "receivedReports") {
+    if (projects.value.length === 0) {
+      loadProjects();
+    }
+    if (receivedReports.value.length === 0) {
+      loadReceivedReports();
+    }
   }
 };
 
@@ -1204,8 +1231,13 @@ const loadMyReports = async () => {
 
 // 加载收到的汇报记录
 const loadReceivedReports = async () => {
+  receivedReportsLoading.value = true;
   try {
+    const projectFilter = getReceivedReportsProjectFilter();
     const response = await selectReports({
+      username: userStore.username || "",
+      project_name: projectFilter.project_name,
+      project_id: '',
       page: 1,
       page_size: 50
     });
@@ -1223,7 +1255,13 @@ const loadReceivedReports = async () => {
       error?.response?.data?.message || error?.message || "加载收到的汇报记录失败"
     );
     receivedReports.value = [];
+  } finally {
+    receivedReportsLoading.value = false;
   }
+};
+
+const handleReceivedReportsProjectChange = () => {
+  loadReceivedReports();
 };
 
 // Tab 切换处理
@@ -2028,6 +2066,15 @@ onBeforeUnmount(() => {
     .activity-list {
       min-height: 260px;
       flex: 1;
+    }
+
+    .received-reports-toolbar {
+      margin-bottom: 12px;
+    }
+
+    .received-reports-project-select {
+      width: 100%;
+      max-width: 280px;
     }
   }
 

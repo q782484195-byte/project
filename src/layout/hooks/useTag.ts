@@ -171,33 +171,53 @@ export function useTags() {
     visible.value = false;
   };
 
+  /** 安全获取模板 ref 对应的 DOM（v-for 下为数组） */
+  function getRefEl(refKey: string): HTMLElement | null {
+    if (!instance?.refs) return null;
+    const refVal = instance.refs[refKey];
+    if (!refVal) return null;
+    const el = Array.isArray(refVal) ? refVal[0] : refVal;
+    return (el as HTMLElement) ?? null;
+  }
+
   /** 鼠标移入添加激活样式 */
-  function onMouseenter(index) {
+  function onMouseenter(index: number) {
     if (index) activeIndex.value = index;
+
+    const tabEl = getRefEl("dynamic" + index);
+    if (!tabEl) return;
+
     if (unref(showModel) === "smart") {
-      if (hasClass(instance.refs["schedule" + index][0], "schedule-active"))
-        return;
-      toggleClass(true, "schedule-in", instance.refs["schedule" + index][0]);
-      toggleClass(false, "schedule-out", instance.refs["schedule" + index][0]);
+      const scheduleEl = getRefEl("schedule" + index);
+      // 新标签栏样式无 schedule 节点，悬停由 CSS 处理
+      if (!scheduleEl) return;
+      if (hasClass(scheduleEl, "schedule-active")) return;
+      toggleClass(true, "schedule-in", scheduleEl);
+      toggleClass(false, "schedule-out", scheduleEl);
     } else {
-      if (hasClass(instance.refs["dynamic" + index][0], "is-active")) return;
-      toggleClass(true, "card-in", instance.refs["dynamic" + index][0]);
-      toggleClass(false, "card-out", instance.refs["dynamic" + index][0]);
+      if (hasClass(tabEl, "is-active")) return;
+      toggleClass(true, "card-in", tabEl);
+      toggleClass(false, "card-out", tabEl);
     }
   }
 
   /** 鼠标移出恢复默认样式 */
-  function onMouseleave(index) {
+  function onMouseleave(index: number) {
     activeIndex.value = -1;
+
+    const tabEl = getRefEl("dynamic" + index);
+    if (!tabEl) return;
+
     if (unref(showModel) === "smart") {
-      if (hasClass(instance.refs["schedule" + index][0], "schedule-active"))
-        return;
-      toggleClass(false, "schedule-in", instance.refs["schedule" + index][0]);
-      toggleClass(true, "schedule-out", instance.refs["schedule" + index][0]);
+      const scheduleEl = getRefEl("schedule" + index);
+      if (!scheduleEl) return;
+      if (hasClass(scheduleEl, "schedule-active")) return;
+      toggleClass(false, "schedule-in", scheduleEl);
+      toggleClass(true, "schedule-out", scheduleEl);
     } else {
-      if (hasClass(instance.refs["dynamic" + index][0], "is-active")) return;
-      toggleClass(false, "card-in", instance.refs["dynamic" + index][0]);
-      toggleClass(true, "card-out", instance.refs["dynamic" + index][0]);
+      if (hasClass(tabEl, "is-active")) return;
+      toggleClass(false, "card-in", tabEl);
+      toggleClass(true, "card-out", tabEl);
     }
   }
 

@@ -12,7 +12,7 @@
               <span class="project-tag-text">
                 <span class="project-name-part">{{ project.project_name || project.name }}</span>
                 <span v-if="project.motherboard_name" class="project-motherboard-part">-{{ project.motherboard_name
-                }}</span>
+                  }}</span>
               </span>
             </el-tag>
           </div>
@@ -32,6 +32,12 @@
             分配选中任务 ({{ selectedTasks.length }})
           </el-button> -->
           <div style="flex: 1;"></div>
+          <el-button type="primary" @click="handleProjectReport" v-perms="['task:add']">
+            <el-icon>
+              <Share />
+            </el-icon>
+            项目汇报
+          </el-button>
           <el-button type="primary" @click="handleCreate" v-perms="['task:add']">
             <el-icon>
               <Plus />
@@ -50,12 +56,12 @@
             </template>
           </el-table-column>
           <!-- <el-table-column prop="requirement_name" label="关联层级" width="140" /> -->
-          <el-table-column prop="当前处理人" label="当前部门/处理人">
+          <el-table-column prop="当前处理人" label="当前处理人">
             <template #default="{ row }">
               <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                <el-tag type="success" size="small">
+                <!-- <el-tag type="success" size="small">
                   <span class="assignee-text-dept" style="color: #67C23A;">{{ row.部门 || "-" }}</span>
-                </el-tag>
+                </el-tag> -->
                 <el-tag type="primary" size="small">
                   <span class="assignee-text">{{ row.当前处理人 || row.assignee || "-" }}</span>
                 </el-tag>
@@ -76,18 +82,18 @@
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="进度" label="进度">
+          <!-- <el-table-column prop="进度" label="进度">
             <template #default="{ row }">
               <el-progress :percentage="row.进度 || 0" :status="row.进度 === 100 ? 'success' : undefined" />
             </template>
-          </el-table-column>
+          </el-table-column> -->
           <el-table-column prop="task_deadline" label="任务完成期限" />
-          <el-table-column label="是否延期" width="90">
+          <!-- <el-table-column label="是否延期" width="90">
             <template #default="{ row }">
               <el-tag v-if="row.delay?.task_is_delay" type="danger" size="small">延期</el-tag>
               <el-tag v-else type="success" size="small">正常</el-tag>
             </template>
-          </el-table-column>
+          </el-table-column> -->
           <el-table-column label="操作" :width="operationColWidth(3)" fixed="right">
             <template #default="{ row }">
               <div class="table-action-btns">
@@ -147,23 +153,23 @@
                       <el-tag type="primary" size="small">{{ row.当前处理人 || row.assignee || "-" }}</el-tag>
                     </span>
                   </div>
-                  <div class="mobile-task-card__row">
+                  <!-- <div class="mobile-task-card__row">
                     <span class="mobile-task-card__label">进度</span>
                     <span class="mobile-task-card__value mobile-task-card__progress-wrap">
                       <el-progress :percentage="row.进度 || 0" :status="row.进度 === 100 ? 'success' : undefined"
                         :stroke-width="8" class="mobile-task-card__progress" />
                     </span>
-                  </div>
+                  </div> -->
                   <div class="mobile-task-card__row">
                     <span class="mobile-task-card__label">截止日期</span>
                     <span class="mobile-task-card__value">{{ row.task_deadline || "-" }}</span>
                   </div>
-                  <div class="mobile-task-card__row" v-if="row.delay?.task_is_delay">
+                  <!-- <div class="mobile-task-card__row" v-if="row.delay?.task_is_delay">
                     <span class="mobile-task-card__label">是否延期</span>
                     <span class="mobile-task-card__value">
                       <el-tag type="danger" size="small">延期</el-tag>
                     </span>
-                  </div>
+                  </div> -->
                   <div class="mobile-task-card__row">
                     <span class="mobile-task-card__label">创建时间</span>
                     <span class="mobile-task-card__value">{{ row.create_time || "-" }}</span>
@@ -298,13 +304,37 @@
         </span>
       </template>
     </el-dialog>
+
+    <!-- 项目汇报对话框 -->
+    <el-dialog v-model="projectReportDialogVisible" title="项目汇报" width="480px" append-to-body
+      :close-on-click-modal="false">
+      <el-form ref="projectReportFormRef" :model="projectReportForm" :rules="projectReportRules" label-width="90px">
+        <el-form-item label="项目名称">
+          <span>{{ projectReportForm.project_name || "-" }}</span>
+        </el-form-item>
+        <el-form-item label="接收人">
+          <span>{{ projectReportForm.recipient || "-" }}</span>
+        </el-form-item>
+        <el-form-item label="汇报内容" prop="message">
+          <el-input v-model="projectReportForm.message" type="textarea" :rows="4" placeholder="请输入汇报内容" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="projectReportDialogVisible = false">取消</el-button>
+          <el-button type="primary" :loading="projectReportSubmitting" @click="handleProjectReportSubmit">
+            提交
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, reactive, nextTick, toRaw } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import { ElMessage, ElMessageBox } from "element-plus";
+import { ElMessage, ElMessageBox, ElLoading } from "element-plus";
 import type { FormInstance, FormRules } from "element-plus";
 import { Plus, Search, Share } from "@element-plus/icons-vue";
 import { deviceDetection } from "@pureadmin/utils";
@@ -313,12 +343,14 @@ import {
   selectProjects,
   selectProjectTasks,
   selectAllRequirementsAndTasksTwo,
+  selectTaskInfo,
   reportTaskProgress,
   updateTaskState,
   bulkAssignment,
   updateCurrentAssignee,
   type ProjectListItem
 } from "@/api/project";
+import { createProjectReport } from "@/api/report";
 import { selectDepartmentUsers, getDepartmentNameList, selectAllUsers, selectNotificationPerson, sendNotification, type DepartmentUserItem, type DepartmentListItem, type DepartmentUserMap } from "@/api/system";
 import type { Project } from "@/types";
 import { TaskStatus } from "@/types";
@@ -347,6 +379,9 @@ const searchForm = ref({
 });
 
 const loading = ref(false);
+const projectReportDialogVisible = ref(false);
+const projectReportSubmitting = ref(false);
+const projectReportFormRef = ref<FormInstance>();
 
 // 保持嵌套结构：可能是2层或3层，动态检测
 const tasks = ref<Record<string, any>>({});
@@ -591,7 +626,9 @@ const getStatusType = (
     [TaskStatus.REVIEWING]: "warning", // 审阅中 - 黄色
     [TaskStatus.REVIEW_COMPLETED]: "success", // 审阅完毕 - 绿色
     [TaskStatus.CANCELLED]: "danger", // 已取消 - 红色
-    [TaskStatus.COMPLETED]: "success" // 已完成 - 绿色
+    [TaskStatus.COMPLETED]: "success", // 已完成 - 绿色
+    [TaskStatus.NOT_COMPLETED]: "warning", // 未完成 - 黄色
+    [TaskStatus.NOT_COMPLETED_K]: "info" // 未完成（带空格）- 黄色
   };
   return map[status] || "info";
 };
@@ -952,6 +989,78 @@ const handleCreate = () => {
 const isRowSelectable = (row: any) => {
   const creator = row.creator || row.创建人 || "";
   return userStore.username === creator;
+};
+
+// 处理项目汇报
+const projectReportForm = reactive({
+  recipient: "",
+  project_name: "",
+  project_id: "",
+  message: ""
+});
+
+const projectReportRules: FormRules = {
+  message: [{ required: true, message: "请输入汇报内容", trigger: "blur" }]
+};
+
+const getSelectedProject = () => {
+  return projects.value.find((project: Project) => project.id === searchForm.value.projectId);
+};
+
+const handleProjectReport = () => {
+  if (!searchForm.value.projectId) {
+    ElMessage.warning("请先选择项目");
+    return;
+  }
+  const project = getSelectedProject();
+  if (!project) {
+    ElMessage.warning("项目信息不完整");
+    return;
+  }
+  projectReportForm.recipient = project.creator || "";
+  projectReportForm.project_name = project.project_name || project.name || "";
+  projectReportForm.project_id = searchForm.value.projectId;
+  projectReportForm.message = "";
+  projectReportDialogVisible.value = true;
+  nextTick(() => {
+    projectReportFormRef.value?.clearValidate();
+  });
+};
+
+const handleProjectReportSubmit = () => {
+  projectReportFormRef.value?.validate(async valid => {
+    if (!valid) return;
+    if (!projectReportForm.project_id) {
+      ElMessage.error("项目信息缺失");
+      return;
+    }
+    if (!projectReportForm.recipient) {
+      ElMessage.error("接收人信息缺失");
+      return;
+    }
+    projectReportSubmitting.value = true;
+    try {
+      const response = await createProjectReport({
+        recipient: projectReportForm.recipient,
+        project_id: projectReportForm.project_id,
+        project_name: projectReportForm.project_name,
+        message: projectReportForm.message.trim()
+      });
+      if (response.code === 200) {
+        ElMessage.success(response.message || "项目汇报成功");
+        projectReportDialogVisible.value = false;
+      } else {
+        ElMessage.error(response.message || "项目汇报失败");
+      }
+    } catch (error: any) {
+      console.error("项目汇报失败:", error);
+      ElMessage.error(
+        error?.response?.data?.message || error?.message || "项目汇报失败"
+      );
+    } finally {
+      projectReportSubmitting.value = false;
+    }
+  });
 };
 
 // 处理表格选择变化
@@ -1360,34 +1469,80 @@ const handleView = (task: any) => {
   });
 };
 
-// 编辑任务
-const handleEdit = (task: any) => {
-  // 直接从列表数据构建任务对象，不调用接口
-  currentTask.value = {
-    _id: task._id || task.id,
-    task_name: task.任务名 || task.task_name || task.title || "",
-    describe: task.describe || [],
-    project_id: task.project_id || task.projectId || "",
-    requirement_id: task.requirement_id || task.requirementId || "",
-    requirement_name: task.requirement_name || "",
-    priority: task.优先级 || task.priority || "",
-    task_deadline: task.task_deadline || "",
-    default_person: task.default_person || task.默认部门负责人 || "",
-    attachment: task.attachment || [],
-    // 用于权限判断的当前处理人
-    current_handler: task.current_handler || task.当前处理人 || task.assignee || ""
-  };
+/** 将 info 接口任务数据映射为 TaskDrawer 所需结构 */
+const mapTaskInfoToDrawerTask = (raw: any) => ({
+  _id: raw._id || raw.id,
+  id: raw._id || raw.id,
+  task_name: raw.task_name || raw.title || raw.任务名 || "",
+  describe: raw.describe || [],
+  project_id: raw.project_id || raw.projectId || "",
+  requirement_id: raw.requirement_id || raw.requirementId || "",
+  requirement_name: raw.requirement_name || "",
+  priority: raw.priority || raw.优先级 || "",
+  task_deadline: raw.task_deadline || raw.task_dead_line || "",
+  default_person: raw.default_person || raw.默认部门负责人 || "",
+  attachment: raw.attachment || raw.files || [],
+  current_handler: raw.current_handler || raw.当前处理人 || raw.assignee || ""
+});
 
-  // 如果任务有项目ID，设置当前项目ID
-  if (currentTask.value.project_id) {
-    currentProjectId.value = currentTask.value.project_id;
-    // 如果项目ID不在搜索表单中，更新搜索表单的项目ID
-    if (currentTask.value.project_id !== searchForm.value.projectId) {
-      searchForm.value.projectId = currentTask.value.project_id;
-    }
+// 编辑任务：调用 info 接口获取完整数据后打开抽屉
+const handleEdit = async (task: any) => {
+  const taskId = task._id || task.id;
+  if (!taskId) {
+    ElMessage.error("任务ID不存在");
+    return;
   }
 
-  showTaskDrawer.value = true;
+  const loadingInstance = ElLoading.service({
+    lock: true,
+    text: "加载任务信息...",
+    background: "rgba(0, 0, 0, 0.45)"
+  });
+
+  try {
+    const response = await selectTaskInfo({ task_id: taskId });
+    if (response.code !== 200) {
+      ElMessage.error(response.message || "获取任务详情失败");
+      return;
+    }
+
+    const raw = response.result || response.data;
+    if (!raw) {
+      ElMessage.error("未找到任务详情");
+      return;
+    }
+
+    const taskData = { ...raw };
+    // 列表行可能带有项目/层级信息，接口未返回时兜底
+    if (!taskData.project_id) {
+      taskData.project_id =
+        task.project_id || task.projectId || searchForm.value.projectId || "";
+    }
+    if (!taskData.requirement_id) {
+      taskData.requirement_id = task.requirement_id || task.requirementId || "";
+    }
+    if (!taskData.requirement_name) {
+      taskData.requirement_name = task.requirement_name || "";
+    }
+
+    currentTask.value = mapTaskInfoToDrawerTask(taskData);
+
+    if (currentTask.value.project_id) {
+      currentProjectId.value = currentTask.value.project_id;
+      if (currentTask.value.project_id !== searchForm.value.projectId) {
+        searchForm.value.projectId = currentTask.value.project_id;
+      }
+    }
+
+    showTaskDrawer.value = true;
+  } catch (error: any) {
+    console.error("获取任务详情失败:", error);
+    ElMessage.error(
+      error?.response?.data?.message || error?.message || "获取任务详情失败"
+    );
+  } finally {
+    loadingInstance.close();
+  }
 };
 
 // 更改负责人

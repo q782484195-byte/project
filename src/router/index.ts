@@ -20,7 +20,8 @@ import {
   findRouteByPath,
   handleAliveRoute,
   formatTwoStageRoutes,
-  formatFlatteningRoutes
+  formatFlatteningRoutes,
+  pushDynamicRouteTag
 } from "./utils";
 import {
   type Router,
@@ -300,6 +301,8 @@ function setupRouterGuards(router: Router) {
   router.afterEach(to => {
     loadedPaths.add(to.path);
     NProgress.done();
+    // params/query 动态详情页（如任务详情）加入标签栏
+    void pushDynamicRouteTag(to as ToRouteType);
   });
 }
 

@@ -75,9 +75,16 @@ export const useMultiTagsStore = defineStore("pure-multiTags", {
             // 如果是外链无需添加信息到标签页
             if (isUrl(tagVal?.name)) return;
             // 如果title为空拒绝添加空信息到标签页
-            if (tagVal?.meta?.title.length === 0) return;
-            // showLink:false 不添加到标签页
-            if (isBoolean(tagVal?.meta?.showLink) && !tagVal?.meta?.showLink)
+            const tagTitle = tagVal?.meta?.title;
+            if (typeof tagTitle === "string" && tagTitle.length === 0) return;
+            // 动态路由可打开的最大数量
+            const dynamicLevel = tagVal?.meta?.dynamicLevel ?? -1;
+            // showLink:false 且未配置 dynamicLevel 时不添加到标签页
+            if (
+              isBoolean(tagVal?.meta?.showLink) &&
+              !tagVal?.meta?.showLink &&
+              dynamicLevel <= 0
+            )
               return;
             const tagPath = tagVal.path;
             const tagHasExits = this.multiTags.some(tag => {
@@ -89,9 +96,6 @@ export const useMultiTagsStore = defineStore("pure-multiTags", {
             });
 
             if (tagHasExits) return;
-
-            // 动态路由可打开的最大数量
-            const dynamicLevel = tagVal?.meta?.dynamicLevel ?? -1;
             if (dynamicLevel > 0) {
               if (
                 this.multiTags.filter(e => e?.path === tagPath).length >=

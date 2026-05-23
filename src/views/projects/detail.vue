@@ -41,7 +41,7 @@
                   查看项目信息
                 </el-button>
               </div>
-              <el-row :gutter="8" style="margin-top: 12px">
+              <!-- <el-row :gutter="8" style="margin-top: 12px">
                 <el-col :span="6">
                   <div class="stat-item stat-in-progress">
                     <div class="stat-label">进行中</div>
@@ -66,7 +66,7 @@
                     <div class="stat-value">{{ projectStatistics.已取消 }}</div>
                   </div>
                 </el-col>
-              </el-row>
+              </el-row> -->
 
               <!-- 需求任务管理模块 -->
               <div v-if="requirementsTasksData" class="requirements-tasks-manager" style="margin-top: 20px">
@@ -152,7 +152,7 @@
           <el-descriptions :column="1" border>
             <el-descriptions-item label="项目名称">{{
               project.name
-              }}</el-descriptions-item>
+            }}</el-descriptions-item>
             <el-descriptions-item label="状态">
               <el-select v-model="currentStatus" :loading="statusUpdating" :disabled="currentStatus === '已完成'"
                 size="small" style="width: 120px" @change="handleStatusChange">
@@ -173,13 +173,13 @@
             </el-descriptions-item>
             <el-descriptions-item label="计划开始时间">{{
               formatDate(project.startDate)
-              }}</el-descriptions-item>
+            }}</el-descriptions-item>
             <el-descriptions-item label="计划结束时间">{{
               formatDate(project.endDate)
-              }}</el-descriptions-item>
+            }}</el-descriptions-item>
             <el-descriptions-item v-if="project.createdAt" label="创建时间">{{
               formatDate(project.createdAt)
-              }}</el-descriptions-item>
+            }}</el-descriptions-item>
           </el-descriptions>
         </el-card>
 

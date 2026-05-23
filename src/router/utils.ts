@@ -521,6 +521,23 @@ function getTopMenu(tag = false): menuType | null {
   return null;
 }
 
+/** 将带 dynamicLevel 的动态路由（如任务详情）加入标签栏 */
+export async function pushDynamicRouteTag(to: ToRouteType) {
+  const dynamicLevel = to.meta?.dynamicLevel;
+  if (typeof dynamicLevel !== "number" || dynamicLevel <= 0) return;
+  if (!to.name || to.name === "Redirect") return;
+
+  const leaf = to.matched[to.matched.length - 1];
+  const { useMultiTagsStoreHook } = await import("@/store/modules/multiTags");
+  useMultiTagsStoreHook().handleTags("push", {
+    path: leaf?.path ?? to.path,
+    name: to.name as string,
+    meta: to.meta,
+    query: to.query,
+    params: to.params
+  });
+}
+
 export {
   hasAuth,
   getAuths,

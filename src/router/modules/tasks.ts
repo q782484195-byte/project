@@ -51,6 +51,10 @@ export default {
       meta: {
         title: "任务详情",
         showLink: false,
+        /** 侧边栏高亮任务列表 */
+        activePath: "/tasks/list",
+        /** 允许在标签栏同时打开多个任务详情（超出后关闭最早打开的） */
+        dynamicLevel: 15,
         roles: ["Admin", "ProjectManager", "Member", "DepartmentManager", 'ProjectDirector', 'BusinessDepartmentMembers']
       }
     }

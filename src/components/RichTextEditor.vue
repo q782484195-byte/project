@@ -8,7 +8,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch } from "vue";
+import { ref, nextTick, onBeforeUnmount, watch } from "vue";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
@@ -184,9 +184,19 @@ const contentToHtml = (content: DescribeContent[]): string => {
   return htmlParts.join("");
 };
 
+/** 判断编辑器 HTML 是否无实质内容（仅空段落、换行等） */
+const isBlankEditorHtml = (html: string): boolean => {
+  if (!html?.trim()) return true;
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, "text/html");
+  const text = (doc.body.textContent || "").replace(/\u00a0/g, " ").trim();
+  const hasImage = doc.body.querySelector("img[src]:not([src='#'])");
+  return !text && !hasImage;
+};
+
 // 将 HTML 转换为 DescribeContent[]
 const htmlToContent = (html: string): DescribeContent[] => {
-  if (!html || html === "<p></p>") return [];
+  if (isBlankEditorHtml(html)) return [];
 
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, "text/html");
@@ -286,6 +296,9 @@ const htmlToContent = (html: string): DescribeContent[] => {
 
 // 处理图片上传
 const handleImageUpload = async () => {
+  // 打开文件选择前先定位到文末，避免选图后插入位置错乱
+  placeCaretAtEnd();
+
   const input = document.createElement("input");
   input.setAttribute("type", "file");
   input.setAttribute("accept", "image/*");
@@ -316,18 +329,19 @@ const handleImageUpload = async () => {
               serverUrl: relativePath
             });
 
-            // 插入图片到编辑器
-            // src 使用完整 URL 用于显示
-            // data-file-path 保存相对路径用于提交
+            // 插入到文档末尾，并将焦点置于图片之后便于继续输入
             editor.value
               ?.chain()
-              .focus()
+              .focus("end")
               .setImage({
                 src: fullImageUrl,
                 alt: file.name,
                 "data-file-path": relativePath
               } as any)
               .run();
+
+            await nextTick();
+            placeCaretAtEnd();
 
             ElMessage.success("图片上传成功");
           } else {
@@ -401,8 +415,54 @@ const getImageUrls = (): string[] => {
   return urls;
 };
 
+/** 判断节点是否为仅含图片的块 */
+const isImageOnlyBlock = (node: { type: { name: string }; childCount: number; firstChild?: { type: { name: string } } | null } | null) => {
+  if (!node) return false;
+  if (node.type.name === "image") return true;
+  return (
+    node.type.name === "paragraph" &&
+    node.childCount === 1 &&
+    node.firstChild?.type.name === "image"
+  );
+};
+
+/** 将光标置于文档末尾；末尾为图片时在后方插入空行 */
+const placeCaretAtEnd = (): boolean => {
+  const ed = editor.value;
+  if (!ed) return false;
+
+  ed.commands.focus("end");
+
+  const { doc } = ed.state;
+  const last = doc.lastChild;
+  if (isImageOnlyBlock(last)) {
+    ed.chain()
+      .insertContentAt(doc.content.size, "<p></p>")
+      .focus("end")
+      .run();
+  } else {
+    ed.chain().focus("end").run();
+  }
+
+  return true;
+};
+
+/** 同步内容并将光标/焦点置于文档末尾（用于进入编辑态） */
+const focusEnd = (): boolean => {
+  const ed = editor.value;
+  if (!ed) return false;
+
+  const expectedHtml = contentToHtml(props.modelValue);
+  if (ed.getHTML() !== expectedHtml) {
+    ed.commands.setContent(expectedHtml, { emitUpdate: false });
+  }
+
+  return placeCaretAtEnd();
+};
+
 defineExpose({
-  getImageUrls
+  getImageUrls,
+  focusEnd
 });
 
 onBeforeUnmount(() => {

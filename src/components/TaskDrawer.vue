@@ -37,14 +37,11 @@
         <el-form-item label="优先级" prop="priority">
           <el-select v-model="taskForm.priority" placeholder="选择优先级" clearable style="width: 30%"
             :disabled="isEdit && !canEditAllFields">
-            <el-option label="低" value="低">
-              <el-tag type="info" size="small">低</el-tag>
+            <el-option label="正常" value="正常">
+              <el-tag type="warning" size="small">正常</el-tag>
             </el-option>
-            <el-option label="中" value="中">
-              <el-tag type="warning" size="small">中</el-tag>
-            </el-option>
-            <el-option label="高" value="高">
-              <el-tag type="danger" size="small">高</el-tag>
+            <el-option label="紧急" value="紧急">
+              <el-tag type="danger" size="small">紧急</el-tag>
             </el-option>
           </el-select>
         </el-form-item>
@@ -667,6 +664,10 @@ watch(
           requirement_name:
             props.task.requirement_name || props.requirementName || "",
           priority: props.task.priority || (props.task as any).优先级 || "",
+          task_deadline:
+            props.task.task_deadline ||
+            props.task.task_dead_line ||
+            "",
           estimated_time:
             props.task.estimated_time ||
             props.task.estimatedHours ||

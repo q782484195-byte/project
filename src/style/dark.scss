@@ -30,42 +30,65 @@ html.dark {
     background: #020409 !important;
   }
 
-  /* 标签页 */
+  /* 标签页 - 商务风暗色 */
   .tags-view {
+    --tagbar-bg: #141414;
+    --tag-inactive-bg: transparent;
+    --tag-active-bg: var(--el-bg-color);
 
-    .arrow-left,
-    .arrow-right {
-      border-right: 1px solid $border-style;
-      box-shadow: none;
-    }
-
-    .arrow-right {
-      border-left: 1px solid $border-style;
-    }
+    background: var(--tagbar-bg) !important;
+    border-bottom-color: var(--pure-border-color);
+    box-shadow: inset 0 -1px 0 rgb(255 255 255 / 6%);
 
     .scroll-item {
-      .el-icon-close {
-        &:hover {
-          color: rgb(255 255 255 / 85%) !important;
-          background-color: rgb(255 255 255 / 12%);
-        }
+      &::after {
+        background: var(--pure-border-color);
+      }
+
+      &:hover:not(.is-active) {
+        background: rgb(255 255 255 / 5%);
+      }
+
+      .el-icon-close:hover {
+        color: rgb(255 255 255 / 88%) !important;
+        background-color: rgb(255 255 255 / 10%);
+      }
+
+      &.is-active {
+        border-color: var(--pure-border-color);
+        box-shadow:
+          0 -2px 12px rgb(0 0 0 / 35%),
+          0 0 0 1px rgb(64 158 255 / 25%) inset;
       }
 
       .chrome-tab {
         .tag-title {
-          color: #666;
+          color: var(--el-text-color-secondary);
         }
 
         &:hover {
           .chrome-tab__bg {
-            color: #333;
+            color: rgb(255 255 255 / 8%);
           }
 
           .tag-title {
-            color: #adadad;
+            color: var(--el-text-color-primary);
           }
         }
       }
+    }
+
+    .arrow-left,
+    .arrow-right,
+    .arrow-down {
+      &:hover {
+        background: rgb(255 255 255 / 8%);
+      }
+    }
+
+    .contextmenu {
+      border-color: var(--pure-border-color);
+      box-shadow: 0 8px 28px rgb(0 0 0 / 45%);
     }
   }
 

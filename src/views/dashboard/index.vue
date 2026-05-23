@@ -5,8 +5,13 @@
       <el-col :span="12" :xs="24" class="dashboard-col-reports">
         <el-card class="report-card">
           <template #header>
-            <div class="card-header-title">
+            <div class="card-header-title card-header-title--reports">
               <span>汇报列表</span>
+              <el-select v-model="reportsProjectId" class="reports-project-select" placeholder="全部项目" clearable
+                filterable :loading="loadingProjects" @change="handleReportsProjectChange">
+                <el-option label="全部项目" value="" />
+                <el-option v-for="project in projects" :key="project.id" :label="project.name" :value="project.id" />
+              </el-select>
             </div>
           </template>
           <div v-loading="reportsLoading" class="report-container">
@@ -149,6 +154,18 @@ const reportsLoading = ref(false);
 const reportsPage = ref(1);
 const reportsPageSize = ref(10);
 const reportsTotal = ref(0);
+const reportsProjectId = ref("");
+
+const getReportsProjectFilter = () => {
+  if (!reportsProjectId.value) {
+    return { project_name: "" };
+  }
+  const project = projects.value.find(item => item.id === reportsProjectId.value);
+  return {
+    project_id: reportsProjectId.value,
+    project_name: project?.name || ""
+  };
+};
 
 const recentTasks = computed(() => {
   // 如果没有当前用户，显示所有任务
@@ -426,17 +443,48 @@ const initTaskStatusChart = () => {
 const updateTaskStatusChart = () => {
   if (!taskStatusChartInstance) return;
 
-  // 从接口数据中获取各状态的计数，如果接口没有返回某个状态，则默认为0
   const data = taskStatusData.value || {};
-  const statusCount = {
-    pendingAssign: (data["待分配"] || 0) + (data["待指派"] || 0),
-    notStarted: data["未开始"] || 0,
-    inProgress: data["进行中"] || 0,
-    testing: data["测试中"] || 0,
-    reviewing: data["审阅中"] || 0,
-    completed: data["已完成"] || 0,
-    cancelled: data["已取消"] || 0
+  const pieColorMap: Record<string, string> = {
+    已完成: "#67c23a",
+    未完成: "#409eff",
+    已取消: "#f56c6c",
+    待分配: "#e6a23c",
+    未开始: "#909399",
+    进行中: "#409eff",
+    测试相关: "#e6a23c",
+    验收相关: "#909399"
   };
+
+  let pieData: Array<{ value: number; name: string; itemStyle: { color: string } }>;
+
+  // 新接口：直接返回 已完成 / 未完成 / 已取消
+  if (data["未完成"] !== undefined && data["未完成"] !== null) {
+    pieData = [
+      { value: Number(data["已完成"]) || 0, name: "已完成", itemStyle: { color: pieColorMap["已完成"] } },
+      { value: Number(data["未完成"]) || 0, name: "未完成", itemStyle: { color: pieColorMap["未完成"] } },
+      { value: Number(data["已取消"]) || 0, name: "已取消", itemStyle: { color: pieColorMap["已取消"] } }
+    ];
+  } else {
+    const statusCount = {
+      pendingAssign: (Number(data["待分配"]) || 0) + (Number(data["待指派"]) || 0),
+      notStarted: Number(data["未开始"]) || 0,
+      inProgress: Number(data["进行中"]) || 0,
+      testing: Number(data["测试中"]) || 0,
+      reviewing: Number(data["审阅中"]) || 0,
+      completed: Number(data["已完成"]) || 0,
+      cancelled: Number(data["已取消"]) || 0
+    };
+
+    pieData = [
+      { value: statusCount.pendingAssign, name: "待分配", itemStyle: { color: pieColorMap["待分配"] } },
+      { value: statusCount.notStarted, name: "未开始", itemStyle: { color: pieColorMap["未开始"] } },
+      { value: statusCount.inProgress, name: "进行中", itemStyle: { color: pieColorMap["进行中"] } },
+      { value: statusCount.testing, name: "测试相关", itemStyle: { color: pieColorMap["测试相关"] } },
+      { value: statusCount.reviewing, name: "验收相关", itemStyle: { color: pieColorMap["验收相关"] } },
+      { value: statusCount.completed, name: "已完成", itemStyle: { color: pieColorMap["已完成"] } },
+      { value: statusCount.cancelled, name: "已取消", itemStyle: { color: pieColorMap["已取消"] } }
+    ];
+  }
 
   const option = {
     tooltip: {
@@ -452,43 +500,7 @@ const updateTaskStatusChart = () => {
         name: "任务状态",
         type: "pie",
         radius: "50%",
-        data: [
-          {
-            value: statusCount.pendingAssign,
-            name: "待分配",
-            itemStyle: { color: "#e6a23c" }
-          },
-          {
-            value: statusCount.notStarted,
-            name: "未开始",
-            itemStyle: { color: "#909399" }
-          },
-          {
-            value: statusCount.inProgress,
-            name: "进行中",
-            itemStyle: { color: "#409eff" }
-          },
-          {
-            value: statusCount.testing,
-            name: "测试相关",
-            itemStyle: { color: "#e6a23c" }
-          },
-          {
-            value: statusCount.reviewing,
-            name: "验收相关",
-            itemStyle: { color: "#909399" }
-          },
-          {
-            value: statusCount.completed,
-            name: "已完成",
-            itemStyle: { color: "#67c23a" }
-          },
-          {
-            value: statusCount.cancelled,
-            name: "已取消",
-            itemStyle: { color: "#f56c6c" }
-          }
-        ].filter(item => item.value > 0), // 只显示有数据的项
+        data: pieData.filter(item => item.value > 0),
         emphasis: {
           itemStyle: {
             shadowBlur: 10,
@@ -621,7 +633,11 @@ const handleResize = () => {
 const loadReports = async (page: number = reportsPage.value) => {
   reportsLoading.value = true;
   try {
+    const projectFilter = getReportsProjectFilter();
     const response = await selectReports({
+      username: userStore.username || "",
+      project_name: projectFilter.project_name,
+      project_id: '',
       page: page,
       page_size: reportsPageSize.value
     });
@@ -650,6 +666,10 @@ const loadReports = async (page: number = reportsPage.value) => {
 // 处理汇报分页改变
 const handleReportsPageChange = (page: number) => {
   loadReports(page);
+};
+
+const handleReportsProjectChange = () => {
+  loadReports(1);
 };
 
 // 处理汇报每页数量改变
@@ -1019,6 +1039,18 @@ onBeforeUnmount(() => {
   font-weight: 600;
   font-size: 15px;
   color: #303133;
+}
+
+.card-header-title--reports {
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.reports-project-select {
+  width: 220px;
+  max-width: 100%;
 }
 
 .member-workload {

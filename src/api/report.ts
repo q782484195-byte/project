@@ -12,6 +12,9 @@ export interface ApiResponse<T> {
 
 /** 查询报告列表参数 */
 export interface SelectReportsParams {
+  username: string;
+  project_name: string;
+  project_id?: string;
   page: number;
   page_size: number;
 }
@@ -57,8 +60,11 @@ export interface CreateProjectReportParams {
 
 /** 查询报告列表 */
 export const selectReports = (params: SelectReportsParams) => {
-  return http.request<ReportListResponse>("post", "/report/select", {
+  return http.request<ReportListResponse>("post", "/project_report/select", {
     data: {
+      username: params.username,
+      project_id: params.project_id || '',
+      project_name: params.project_name,
       page: params.page,
       page_size: params.page_size
     }

@@ -14,7 +14,10 @@ export enum TaskStatus {
   COMPLETED = "已完成",
   TEST_FAILED = "测试未通过",
   REVIEW_FAILED = "审阅未通过",
-  PENDING_ACCEPTANCE = "研发任务待指派"
+  PENDING_ACCEPTANCE = "研发任务待指派",
+  NOT_COMPLETED = "未完成",
+  NOT_COMPLETED_K = "未完成 ",
+
 }
 
 // 用户接口

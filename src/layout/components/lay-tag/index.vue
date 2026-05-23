@@ -23,6 +23,7 @@ import Fullscreen from "~icons/ri/fullscreen-fill";
 import ArrowDown from "~icons/ri/arrow-down-s-line";
 import ArrowRightSLine from "~icons/ri/arrow-right-s-line";
 import ArrowLeftSLine from "~icons/ri/arrow-left-s-line";
+import PushpinLine from "~icons/ri/pushpin-2-line";
 
 const {
   Close,
@@ -66,6 +67,26 @@ const fixedTags = computed(() => [
   ...getRouterArrays(),
   ...usePermissionStoreHook().flatteningRoutes.filter(v => v?.meta?.fixedTag)
 ]);
+
+/** 是否为首页/工作台类固定标签 */
+const isHomeLikeTag = (item: RouteConfigs) => {
+  const path = item?.path || "";
+  const name = String(item?.name || "");
+  return (
+    path === "/workspace" ||
+    path === "/dashboard/index" ||
+    name === "Workspace" ||
+    name === "Welcome"
+  );
+};
+
+/** 标签左侧图标（iconify 名称） */
+const getTagIcon = (item: RouteConfigs): string => {
+  const icon = item?.meta?.icon;
+  if (typeof icon === "string" && icon.length > 0) return icon;
+  if (isHomeLikeTag(item)) return "ep/home-filled";
+  return "ri/file-list-3-line";
+};
 
 const dynamicTagView = async () => {
   await nextTick();
@@ -581,27 +602,47 @@ onBeforeUnmount(() => {
         ]" @contextmenu.prevent="openMenu(item, $event)" @mouseenter.prevent="onMouseenter(index)"
           @mouseleave.prevent="onMouseleave(index)" @click="tagOnClick(item)">
           <template v-if="showModel !== 'chrome'">
-            <span class="tag-title dark:text-text_color_primary! dark:hover:text-primary!">
-              {{ item.meta.title }}
-            </span>
-            <span v-if="
-              isFixedTag(item)
-                ? false
-                : iconIsActive(item, index) ||
-                (index === activeIndex && index !== 0)
-            " class="el-icon-close" @click.stop="deleteMenu(item)">
-              <IconifyIconOffline :icon="Close" />
-            </span>
-            <span v-if="showModel !== 'card'" :ref="'schedule' + index" :class="[scheduleIsActive(item)]" />
+            <div class="tag-inner">
+              <span class="tag-icon" :class="{ 'tag-icon--active': linkIsActive(item) === 'is-active' }">
+                <IconifyIconOffline :icon="getTagIcon(item)" />
+              </span>
+              <span class="tag-title dark:text-text_color_primary! dark:hover:text-primary!">
+                {{ item.meta.title }}
+              </span>
+              <span v-if="isFixedTag(item) || isHomeLikeTag(item)" class="tag-pin" title="已固定">
+                <IconifyIconOffline :icon="PushpinLine" />
+              </span>
+              <span
+                v-else-if="
+                  iconIsActive(item, index) ||
+                  (index === activeIndex && index !== 0) ||
+                  linkIsActive(item) === 'is-active'
+                "
+                class="el-icon-close"
+                @click.stop="deleteMenu(item)"
+              >
+                <IconifyIconOffline :icon="Close" />
+              </span>
+            </div>
           </template>
           <div v-else class="chrome-tab">
             <div class="chrome-tab__bg">
               <TagChrome />
             </div>
+            <span class="tag-icon tag-icon--chrome">
+              <IconifyIconOffline :icon="getTagIcon(item)" />
+            </span>
             <span class="tag-title">
               {{ item.meta.title }}
             </span>
-            <span v-if="isFixedTag(item) ? false : index !== 0" class="chrome-close-btn" @click.stop="deleteMenu(item)">
+            <span v-if="isFixedTag(item) || isHomeLikeTag(item)" class="tag-pin" title="已固定">
+              <IconifyIconOffline :icon="PushpinLine" />
+            </span>
+            <span
+              v-else-if="!isFixedTag(item) && !isHomeLikeTag(item) && index !== 0"
+              class="chrome-close-btn"
+              @click.stop="deleteMenu(item)"
+            >
               <IconifyIconOffline :icon="Close" />
             </span>
             <span class="chrome-tab-divider" />

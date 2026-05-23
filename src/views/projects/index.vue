@@ -7,7 +7,7 @@
         <el-select v-model="statusFilter" placeholder="状态筛选" clearable style="width: 120px"
           v-perms="['project:update_state']">
           <el-option label="草稿" value="草稿" />
-          <el-option label="延期" value="延期" />
+          <!-- <el-option label="延期" value="延期" /> -->
           <el-option label="暂停" value="暂停" />
           <el-option label="进行中" value="进行中" />
           <el-option label="已完成" value="已完成" />
@@ -73,7 +73,7 @@
           <div class="project-info">
             <el-tag :type="getStatusTagType(project.status)">
               {{ getStatusText(project.status) }}{{ project.state_description ? '（' + project.state_description + '）' :
-              '' }}
+                '' }}
             </el-tag>
           </div>
           <div class="more-button-wrapper" v-if="hasPerms(['project:update']) || hasPerms(['project:delete_project'])">
@@ -198,7 +198,7 @@
             <el-tooltip :content="formatDateRange(project.startDate, project.endDate) || '-'" placement="top">
               <span class="field-value">{{
                 formatDateRange(project.startDate, project.endDate)
-              }}</span>
+                }}</span>
             </el-tooltip>
           </div>
         </div>

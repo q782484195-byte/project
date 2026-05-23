@@ -61,7 +61,7 @@
             <el-table-column prop="状态" label="状态" width="150" align="center">
               <template #default="{ row }">
                 <el-tag :type="getStatusType(row.状态 || row.status, row) || undefined" size="small" effect="light">
-                  {{ row.delay.task_is_delay ? "延期" : row.状态 || row.status || "-" }}
+                  {{ row.状态 || row.status || "-" }}
                 </el-tag>
               </template>
             </el-table-column>
@@ -72,12 +72,12 @@
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="进度" label="进度" min-width="140">
+            <!-- <el-table-column prop="进度" label="进度" min-width="140">
               <template #default="{ row }">
                 <el-progress :percentage="row.进度 || 0" :stroke-width="10"
                   :status="row.进度 === 100 ? 'success' : undefined" />
               </template>
-            </el-table-column>
+            </el-table-column> -->
             <el-table-column prop="task_deadline" label="任务完成期限" min-width="120" show-overflow-tooltip />
             <el-table-column prop="create_time" label="创建时间" min-width="160" show-overflow-tooltip />
           </el-table>
@@ -319,9 +319,6 @@ const getStatusType = (
     [TaskStatus.CANCELLED]: "danger",
     [TaskStatus.COMPLETED]: "success"
   };
-  if (row.delay.task_is_delay) {
-    return "danger";
-  }
   return map[status] || "info";
 };
 

@@ -76,12 +76,12 @@
                     </template>
                   </el-dialog>
                 </div>
-                <div class="project-info-row">
+                <!-- <div class="project-info-row">
                   <span class="info-label">进度</span>
                   <span class="info-value">
                     <el-progress :percentage="task.进度 || task.progress || 0" />
                   </span>
-                </div>
+                </div> -->
                 <div class="project-info-row">
                   <span class="info-label">优先级</span>
                   <span class="info-value">
@@ -116,7 +116,7 @@
                     <span v-else class="yellow-text">{{ task.task_deadline || task.task_dead_line || "-" }}</span>
                   </span>
                 </div>
-                <div class="project-info-row project-info-row--time project-info-row--plan-range">
+                <!-- <div class="project-info-row project-info-row--time project-info-row--plan-range">
                   <div class="plan-range-shell">
                     <div class="plan-range-grid">
                       <div class="plan-range-card plan-range-card--start">
@@ -161,8 +161,8 @@
                       </el-button>
                     </div>
                   </div>
-                </div>
-                <div class="project-info-row project-info-row--time">
+                </div> -->
+                <!-- <div class="project-info-row project-info-row--time">
                   <span class="info-label">研发状态</span>
                   <span class="info-value">
                     <span class="red-text">{{ task.delay?.development_is_delay ? '延期' : '正常' }}</span>
@@ -171,16 +171,16 @@
                       填写延期原因
                     </el-button>
                   </span>
-                </div>
-                <div class="project-info-row project-info-row--time" v-if="canShowDelayReasonButton">
+                </div> -->
+                <!-- <div class="project-info-row project-info-row--time" v-if="canShowDelayReasonButton">
                   <span class="info-label">延期原因</span>
                   <span class="info-value">
                     <span class="red-text delay-reason-message">{{
                       task.delay?.development_delay_message || ''
                       }}</span>
                   </span>
-                </div>
-                <div class="project-info-row project-info-row--time project-info-row--task-delay"
+                </div> -->
+                <!-- <div class="project-info-row project-info-row--time project-info-row--task-delay"
                   v-if="canEditTaskDelayMessage">
                   <span class="info-label">任务延期原因</span>
                   <span class="info-value info-value--editable task-delay-message-editor">
@@ -191,25 +191,26 @@
                       <el-input v-model="taskDelayMessageForm.message" type="textarea" :rows="3" :placeholder="taskDelayMessageExistingText
                         ? '请填写本次提交内容（保存时仅提交此处，不包含上方已记录文本）'
                         : '请输入任务延期原因（必填）'" />
+                        
                       <el-button type="primary" size="small" :loading="taskDelayMessageSaving"
                         @click="saveTaskDelayMessage">
                         保存
                       </el-button>
                     </div>
                   </span>
-                </div>
-                <div class="project-info-row project-info-row--time" v-else-if="showTaskDelayMessageReadOnly">
+                </div> -->
+                <!-- <div class="project-info-row project-info-row--time" v-else-if="showTaskDelayMessageReadOnly">
                   <span class="info-label">任务延期原因</span>
                   <span class="info-value">
                     <span class="red-text">{{ task.delay?.task_delay_message || '' }}</span>
                   </span>
-                </div>
-                <div class="project-info-row project-info-row--time">
+                </div> -->
+                <!-- <div class="project-info-row project-info-row--time">
                   <span class="info-label">驳回原因</span>
                   <span class="info-value">
                     <span class="red-text">{{ task.rejection_reason || '' }}</span>
                   </span>
-                </div>
+                </div> -->
 
               </div>
 
@@ -230,7 +231,8 @@
                   </template>
                 </div>
                 <div v-if="describeEditMode" class="task-description-edit">
-                  <RichTextEditor v-model="describeEditForm" :disable-image-upload="false" :readonly="false" />
+                  <RichTextEditor ref="describeEditorRef" v-model="describeEditForm" :disable-image-upload="false"
+                    :readonly="false" />
                 </div>
                 <div v-else-if="task?.describe && task.describe.length > 0" class="task-description">
                   <template v-for="(item, index) in task.describe" :key="index">
@@ -503,7 +505,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { ElMessage } from "element-plus";
+import { ElMessage, ElMessageBox } from "element-plus";
 import {
   ArrowLeft,
   Document as DocumentIcon,
@@ -512,7 +514,9 @@ import {
   Upload,
   Delete
 } from "@element-plus/icons-vue";
+import { isEqual } from "@pureadmin/utils";
 import { TaskStatus } from "@/types";
+import { useMultiTagsStoreHook } from "@/store/modules/multiTags";
 import TaskStatusFlowDialog from "@/components/TaskStatusFlowDialog.vue";
 import RichTextEditor from "@/components/RichTextEditor.vue";
 import type { DescribeContent } from "@/types";
@@ -911,6 +915,7 @@ const attachmentUploading = ref(false);
 const describeEditMode = ref(false);
 const describeEditForm = ref<DescribeContent[]>([]);
 const describeSaving = ref(false);
+const describeEditorRef = ref<InstanceType<typeof RichTextEditor>>();
 /** 将 task.describe 规范化为 DescribeContent[] */
 const normalizeDescribeToContent = (describe: any[]): DescribeContent[] => {
   if (!describe || !Array.isArray(describe)) return [];
@@ -930,13 +935,47 @@ const normalizeDescribeToContent = (describe: any[]): DescribeContent[] => {
     .filter((x): x is DescribeContent => x != null);
 };
 
-const startDescribeEdit = () => {
+const startDescribeEdit = async () => {
   describeEditForm.value = normalizeDescribeToContent(task.value?.describe || []);
   describeEditMode.value = true;
+  await nextTick();
+  if (!describeEditorRef.value?.focusEnd()) {
+    await nextTick();
+    describeEditorRef.value?.focusEnd();
+  }
 };
 
 const cancelDescribeEdit = () => {
   describeEditMode.value = false;
+};
+
+/** 整理描述内容用于提交；无有效文本或图片时返回 null */
+const buildDescribeForSubmit = (describe: DescribeContent[]): DescribeContent[] | null => {
+  const result: DescribeContent[] = [];
+  const seenUrls = new Set<string>();
+
+  for (const item of describe || []) {
+    if (item.type === "text") {
+      const text = String(item.content ?? "").trim();
+      if (text) {
+        result.push({ type: "text", content: text });
+      }
+    } else if (item.type === "url" || item.type === "file") {
+      const path = String(item.content ?? "").trim();
+      if (
+        path &&
+        !path.startsWith("data:") &&
+        !path.startsWith("blob:")
+      ) {
+        if (!seenUrls.has(path)) {
+          seenUrls.add(path);
+          result.push({ type: item.type, content: path });
+        }
+      }
+    }
+  }
+
+  return result.length > 0 ? result : null;
 };
 
 const saveDescribe = async () => {
@@ -947,12 +986,19 @@ const saveDescribe = async () => {
     ElMessage.error("任务ID不存在");
     return;
   }
+
+  const describeContents = buildDescribeForSubmit(describeEditForm.value);
+  if (!describeContents) {
+    ElMessage.warning("请输入任务描述");
+    return;
+  }
+
   describeSaving.value = true;
   try {
     const res = await updateTask({
       task_id: taskIdVal,
       task_name: t.任务名 || t.task_name || t.title || "",
-      describe: describeEditForm.value,
+      describe: describeContents,
       priority: t.优先级 || t.priority || "",
       default_person: t.default_person,
       attachment: t.attachment || []
@@ -1078,7 +1124,24 @@ const handleDeleteAttachment = async (index: number) => {
   }
   const currentAttachments: string[] = Array.isArray(t.attachment) ? [...t.attachment] : [];
   if (index < 0 || index >= currentAttachments.length) return;
-  currentAttachments.splice(index, 1);
+
+  const fileName = getFileNameFromPath(currentAttachments[index]);
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除附件「${fileName}」吗？删除后无法恢复。`,
+      "删除附件",
+      {
+        confirmButtonText: "确定",
+        cancelButtonText: "取消",
+        type: "warning"
+      }
+    );
+  } catch {
+    return;
+  }
+
+  const nextAttachments = [...currentAttachments];
+  nextAttachments.splice(index, 1);
   attachmentUploading.value = true;
   try {
     const res = await updateTask({
@@ -1087,7 +1150,7 @@ const handleDeleteAttachment = async (index: number) => {
       describe: t.describe || [],
       priority: t.优先级 || t.priority || "",
       default_person: t.default_person,
-      attachment: currentAttachments
+      attachment: nextAttachments
     });
     if (res.code === 200) {
       ElMessage.success("附件已删除");
@@ -1298,6 +1361,23 @@ const saveDevelopmentTime = async () => {
   }
 };
 
+/** 将标签栏中当前任务详情标题更新为任务名 */
+const updateTaskDetailTagTitle = () => {
+  const taskName =
+    task.value?.任务名 || task.value?.task_name || task.value?.title || "";
+  if (!taskName || !taskId.value) return;
+
+  const multiTagsStore = useMultiTagsStoreHook();
+  const currentParams = { id: String(taskId.value) };
+  const tag = multiTagsStore.multiTags.find(
+    item => item.name === "TaskDetail" && isEqual(item.params, currentParams)
+  );
+  if (tag?.meta) {
+    tag.meta.title = taskName;
+    multiTagsStore.tagsCache(multiTagsStore.multiTags);
+  }
+};
+
 // 加载任务详情（调用 API）
 const loadTask = async () => {
   if (!taskId.value) {
@@ -1357,6 +1437,7 @@ const loadTask = async () => {
       };
       // 任务延期原因：历史内容仅只读展示，输入框始终为空，保存时只提交输入框内容
       taskDelayMessageForm.value = { message: "" };
+      updateTaskDetailTagTitle();
     } else {
       ElMessage.error(response.message || "获取任务详情失败");
       router.push({ name: "TasksList" });
@@ -1726,18 +1807,18 @@ onUnmounted(() => {
         }
 
         .task-info-card {
-          background: linear-gradient(135deg, rgba(64, 158, 255, 0.07) 0%, rgba(64, 158, 255, 0.03) 100%);
-          border: 1px solid rgba(64, 158, 255, 0.28);
+          background: linear-gradient(135deg, rgba(64, 158, 255, 0.035) 0%, rgba(64, 158, 255, 0.012) 100%);
+          border: 1px solid rgba(64, 158, 255, 0.16);
           border-left: 4px solid var(--el-color-primary);
 
           :deep(.el-card__header) {
-            background: rgba(64, 158, 255, 0.08);
-            border-bottom-color: rgba(64, 158, 255, 0.22);
+            background: rgba(64, 158, 255, 0.04);
+            border-bottom-color: rgba(64, 158, 255, 0.12);
           }
 
           .project-info-row {
-            background: rgba(255, 255, 255, 0.88);
-            border: 1px solid rgba(64, 158, 255, 0.1);
+            background: rgba(255, 255, 255, 0.96);
+            border: 1px solid rgba(64, 158, 255, 0.06);
           }
         }
 
@@ -1835,14 +1916,14 @@ onUnmounted(() => {
           .plan-range-card--start {
             border-left: 3px solid var(--el-color-primary);
             background: linear-gradient(135deg,
-                rgba(64, 158, 255, 0.06) 0%,
+                rgba(64, 158, 255, 0.03) 0%,
                 var(--el-bg-color) 48%);
           }
 
           .plan-range-card--end {
             border-left: 3px solid var(--el-color-success);
             background: linear-gradient(135deg,
-                rgba(103, 194, 58, 0.07) 0%,
+                rgba(103, 194, 58, 0.035) 0%,
                 var(--el-bg-color) 48%);
           }
 
@@ -1985,18 +2066,18 @@ onUnmounted(() => {
 
         .project-info-card {
           margin-top: 16px;
-          background: linear-gradient(135deg, rgba(103, 194, 58, 0.07) 0%, rgba(103, 194, 58, 0.03) 100%);
-          border: 1px solid rgba(103, 194, 58, 0.28);
+          background: linear-gradient(135deg, rgba(103, 194, 58, 0.035) 0%, rgba(103, 194, 58, 0.012) 100%);
+          border: 1px solid rgba(103, 194, 58, 0.16);
           border-left: 4px solid var(--el-color-success);
 
           :deep(.el-card__header) {
-            background: rgba(103, 194, 58, 0.08);
-            border-bottom-color: rgba(103, 194, 58, 0.22);
+            background: rgba(103, 194, 58, 0.04);
+            border-bottom-color: rgba(103, 194, 58, 0.12);
           }
 
           .project-info-row {
-            background: rgba(255, 255, 255, 0.88);
-            border: 1px solid rgba(103, 194, 58, 0.1);
+            background: rgba(255, 255, 255, 0.96);
+            border: 1px solid rgba(103, 194, 58, 0.06);
           }
 
           .project-desc-section {
