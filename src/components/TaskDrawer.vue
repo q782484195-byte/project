@@ -96,6 +96,7 @@ import type {
 import {
   createTask,
   updateTask,
+  updateTaskDeadline,
   uploadFile,
   selectProjects,
   selectRequirements,
@@ -226,6 +227,30 @@ const getFileNameFromPath = (path: string): string => {
   return parts[parts.length - 1] || path;
 };
 
+/** 将日期统一为 YYYY-MM-DD，便于与列表字段比较 */
+const normalizeDeadline = (value: string | undefined | null): string => {
+  if (value === undefined || value === null) return "";
+  const str = String(value).trim();
+  if (!str) return "";
+  if (str.includes("T")) return str.split("T")[0];
+  if (str.includes(" ")) return str.split(" ")[0];
+  return str.length >= 10 ? str.slice(0, 10) : str;
+};
+
+/** 从任务对象读取任务完成期限（与列表列 task_deadline 一致） */
+const getTaskDeadlineFromTask = (task: any): string => {
+  if (!task) return "";
+  return normalizeDeadline(
+    task.task_deadline ||
+    task.task_dead_line ||
+    task.任务完成期限 ||
+    ""
+  );
+};
+
+/** 编辑打开时的完成期限，用于判断是否调用 update_task_deadline */
+const originalTaskDeadline = ref("");
+
 const taskForm = reactive<{
   task_name: string;
   describe: DescribeContent[];
@@ -243,7 +268,7 @@ const taskForm = reactive<{
   project_id: "",
   requirement_id: "",
   requirement_name: "",
-  priority: "低",
+  priority: "正常",
   task_deadline: "",
   default_person: ""
 });
@@ -497,10 +522,12 @@ const resetForm = () => {
     project_id: props.projectId || "",
     requirement_id: props.requirementId || "",
     requirement_name: props.requirementName || "",
-    priority: "低",
+    priority: "正常",
+    task_deadline: "",
     estimated_time: 1,
     default_person: ""
   });
+  originalTaskDeadline.value = "";
   formRef.value?.clearValidate();
   fileList.value = [];
 };
@@ -648,6 +675,9 @@ watch(
           }
         }
 
+        const deadlineFromList = getTaskDeadlineFromTask(props.task);
+        originalTaskDeadline.value = deadlineFromList;
+
         Object.assign(taskForm, {
           task_name: props.task.task_name || props.task.title || (props.task as any).任务名 || "",
           describe: describeContent,
@@ -663,11 +693,8 @@ watch(
             "",
           requirement_name:
             props.task.requirement_name || props.requirementName || "",
-          priority: props.task.priority || (props.task as any).优先级 || "",
-          task_deadline:
-            props.task.task_deadline ||
-            props.task.task_dead_line ||
-            "",
+          priority: props.task.priority || (props.task as any).优先级 || "正常",
+          task_deadline: deadlineFromList,
           estimated_time:
             props.task.estimated_time ||
             props.task.estimatedHours ||
@@ -936,15 +963,29 @@ const handleSubmit = async () => {
             return;
           }
 
+          const currentDeadline = normalizeDeadline(taskForm.task_deadline);
+          const deadlineChanged = currentDeadline !== originalTaskDeadline.value;
+
           response = await updateTask({
             task_id: taskId,
             task_name: taskForm.task_name,
             describe: describeContents,
             priority: taskForm.priority,
-            task_deadline: taskForm.task_deadline,
             default_person: taskForm.default_person,
             attachment: allFiles.length > 0 ? allFiles : undefined
           });
+
+          if (response.code === 200 && deadlineChanged) {
+            const deadlineRes = await updateTaskDeadline({
+              task_id: taskId,
+              task_deadline: currentDeadline
+            });
+            if (deadlineRes.code !== 200) {
+              ElMessage.error(deadlineRes.message || "任务完成期限更新失败");
+              submitting.value = false;
+              return;
+            }
+          }
         } else {
           // 新建模式：调用创建接口
           // 如果有父路径，自动拼接路径到任务名

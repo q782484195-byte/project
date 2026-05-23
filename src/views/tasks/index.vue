@@ -306,7 +306,7 @@
     </el-dialog>
 
     <!-- 项目汇报对话框 -->
-    <el-dialog v-model="projectReportDialogVisible" title="项目汇报" width="480px" append-to-body
+    <el-dialog v-model="projectReportDialogVisible" title="项目汇报" width="960px" append-to-body
       :close-on-click-modal="false">
       <el-form ref="projectReportFormRef" :model="projectReportForm" :rules="projectReportRules" label-width="90px">
         <el-form-item label="项目名称">
@@ -316,7 +316,7 @@
           <span>{{ projectReportForm.recipient || "-" }}</span>
         </el-form-item>
         <el-form-item label="汇报内容" prop="message">
-          <el-input v-model="projectReportForm.message" type="textarea" :rows="4" placeholder="请输入汇报内容" />
+          <el-input v-model="projectReportForm.message" type="textarea" :rows="12" placeholder="请输入汇报内容" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -1523,6 +1523,12 @@ const handleEdit = async (task: any) => {
     }
     if (!taskData.requirement_name) {
       taskData.requirement_name = task.requirement_name || "";
+    }
+    // 完成期限优先使用列表中的「任务完成期限」
+    const listDeadline =
+      task.task_deadline || task.task_dead_line || task.任务完成期限 || "";
+    if (listDeadline) {
+      taskData.task_deadline = listDeadline;
     }
 
     currentTask.value = mapTaskInfoToDrawerTask(taskData);

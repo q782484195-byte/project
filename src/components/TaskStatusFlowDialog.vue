@@ -483,6 +483,30 @@ const disabledPastDate = (time: Date): boolean => {
   return time.getTime() < today.getTime();
 };
 
+/** 将日期统一为 YYYY-MM-DD，便于与列表字段比较 */
+const normalizeDeadline = (value: string | undefined | null): string => {
+  if (value === undefined || value === null) return "";
+  const str = String(value).trim();
+  if (!str) return "";
+  if (str.includes("T")) return str.split("T")[0];
+  if (str.includes(" ")) return str.split(" ")[0];
+  return str.length >= 10 ? str.slice(0, 10) : str;
+};
+
+/** 从任务对象读取任务完成期限（与列表列 task_deadline 一致） */
+const getTaskDeadlineFromTask = (task: any): string => {
+  if (!task) return "";
+  return normalizeDeadline(
+    task.task_deadline ||
+    task.task_dead_line ||
+    task.任务完成期限 ||
+    ""
+  );
+};
+
+/** 打开弹窗时的完成期限，未改动则不调用 update_task_deadline */
+const originalTaskDeadline = ref("");
+
 const resetForm = () => {
   form.department = "";
   form.personName = "";
@@ -497,6 +521,7 @@ const resetForm = () => {
   form.task_assign_limit = "";
   form.notification_recipients = [];
   selectedNextState.value = "";
+  originalTaskDeadline.value = "";
 };
 
 const initForm = async () => {
@@ -510,7 +535,11 @@ const initForm = async () => {
   form.development_end_time = "";
   // 当前状态为「待分配给部门负责人」时，与批量分配取值一致：时限默认 1 时
   form.time_limit = isPendingAssignToDeptLeader.value ? 1 : 0;
-  form.task_assign_limit = "";
+  const deadlineFromList = isPendingAssignToDeptLeader.value
+    ? getTaskDeadlineFromTask(props.task)
+    : "";
+  form.task_assign_limit = deadlineFromList;
+  originalTaskDeadline.value = deadlineFromList;
   form.notification_recipients = [];
   if (nextOptions.value.length === 1) {
     selectedNextState.value = nextOptions.value[0];
@@ -1153,23 +1182,25 @@ const handleConfirm = () => {
           // 不 return，继续后续流程
         }
 
-        // 2. 再调用分配接口
+        // 2. 完成期限有改动时才调用单独接口
         const taskIdStr = String(taskId);
-        if (taskIdStr && taskIdStr !== "0" && form.task_assign_limit) {
+        const currentDeadline = normalizeDeadline(form.task_assign_limit);
+        const deadlineChanged = currentDeadline !== originalTaskDeadline.value;
+        if (taskIdStr && taskIdStr !== "0" && deadlineChanged && currentDeadline) {
           try {
             const res = await updateTaskDeadline({
               task_id: taskId,
-              task_deadline: form.task_assign_limit
+              task_deadline: currentDeadline
             });
             if (res.code !== 200) {
-              ElMessage.error(res.message || "设置任务时限与截止期限失败");
+              ElMessage.error(res.message || "设置任务完成期限失败");
               confirmLoading.value = false;
               return;
             }
           } catch (error: any) {
-            console.error("设置任务时限与截止期限失败:", error);
+            console.error("设置任务完成期限失败:", error);
             ElMessage.error(
-              error?.response?.data?.message || error?.message || "设置任务时限与截止期限失败"
+              error?.response?.data?.message || error?.message || "设置任务完成期限失败"
             );
             confirmLoading.value = false;
             return;
