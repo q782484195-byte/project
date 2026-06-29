@@ -356,8 +356,6 @@ onUnmounted(() => {
 
 <style lang="scss" scoped>
 .department-management {
-  padding: 20px;
-
   .card-header {
     display: flex;
     justify-content: space-between;
@@ -398,9 +396,7 @@ onUnmounted(() => {
 
 // 移动端适配 (640px)
 @media (max-width: 640px) {
-  .department-management-page {
-    padding: 12px;
-
+  .department-management {
     .page-header {
       flex-direction: column;
       align-items: flex-start;

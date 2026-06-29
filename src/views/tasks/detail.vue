@@ -2368,10 +2368,6 @@ onUnmounted(() => {
 
 // 移动端适配 (640px)
 @media (max-width: 640px) {
-  .task-detail-page {
-    padding: 12px;
-  }
-
   .page-header {
     flex-direction: column;
     align-items: flex-start;

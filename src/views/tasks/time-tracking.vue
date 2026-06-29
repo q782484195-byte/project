@@ -342,7 +342,6 @@ onBeforeUnmount(() => {
 
 <style scoped lang="scss">
 .time-tracking-page {
-  padding: 20px;
   background: #f5f7fa;
   height: calc(100vh - 160px);
   display: flex;
@@ -522,7 +521,6 @@ onBeforeUnmount(() => {
 // 移动端适配 (640px)
 @media (max-width: 640px) {
   .time-tracking-page {
-    padding: 12px;
     height: auto;
     min-height: calc(100vh - 160px);
 

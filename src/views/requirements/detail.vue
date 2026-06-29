@@ -665,8 +665,6 @@ onMounted(() => {
 
 <style scoped lang="scss">
 .requirement-detail-page {
-  padding: 20px;
-
   .page-header {
     display: flex;
     align-items: center;
@@ -915,8 +913,6 @@ onMounted(() => {
 // 移动端适配 (640px)
 @media (max-width: 640px) {
   .requirement-detail-page {
-    padding: 12px;
-
     .page-header {
       flex-direction: column;
       align-items: flex-start;

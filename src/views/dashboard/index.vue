@@ -732,7 +732,6 @@ onBeforeUnmount(() => {
 
 <style scoped lang="scss">
 .dashboard {
-  padding: 24px;
   background: linear-gradient(135deg, #f5f7fa 0%, #fafbfc 100%);
   min-height: calc(100vh - 60px);
 }
@@ -1151,10 +1150,6 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 768px) {
-  .dashboard {
-    padding: 16px;
-  }
-
   /* 窄屏下两列纵向堆叠时，汇报列表与右侧图表区块之间的间距 */
   .dashboard-col-reports {
     margin-bottom: 20px;
@@ -1185,10 +1180,6 @@ onBeforeUnmount(() => {
 
 // 移动端适配 (640px)
 @media (max-width: 640px) {
-  .dashboard {
-    padding: 12px;
-  }
-
   .dashboard-col-reports {
     margin-bottom: 12px;
   }

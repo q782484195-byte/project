@@ -1083,10 +1083,6 @@ onMounted(() => {
 }
 
 @media (max-width: 768px) {
-  .projects-page {
-    padding: 12px;
-  }
-
   .page-header {
     flex-direction: column;
     gap: 16px;
@@ -1107,7 +1103,6 @@ onMounted(() => {
 // 移动端适配 (640px)
 @media (max-width: 640px) {
   .projects-page {
-    padding: 12px;
     width: 100%;
     box-sizing: border-box;
     overflow-x: hidden; // 防止横向滚动

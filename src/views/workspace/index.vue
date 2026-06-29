@@ -3,92 +3,18 @@
     <!-- Tab 切换：工作台-任务-需求-项目 -->
     <el-tabs v-model="activeTab" @tab-change="handleTabChange" class="workspace-tabs">
       <!-- 工作台 Tab -->
-      <el-tab-pane label="工作台" name="workspace">
+      <el-tab-pane label="待办任务" name="workspace">
         <el-row :gutter="20" class="workspace-dashboard-row">
           <!-- 左侧：占2/3 -->
-          <el-col :span="16" :xs="24" class="workspace-dashboard-left-col">
-            <!-- 用户信息和统计 -->
-            <el-card class="user-info-card mb-20">
-              <div class="user-info">
-                <!-- 顶部：欢迎语和用户名 -->
-                <div class="user-header">
-                  <div class="welcome-section">
-                    <el-avatar :size="56" :src="userStore.avatar" class="user-avatar">
-                      {{ (userStore.username || userStore.nickname || "用户").charAt(0) }}
-                    </el-avatar>
-                    <div class="user-info-text">
-                      <div class="welcome-text">欢迎回来，</div>
-                      <div class="user-name">
-                        <span>{{ userStore.username || userStore.nickname || "用户" }}</span>
-                      </div>
-                      <div class="user-meta"
-                        v-if="currentUserDepartment || (userStore.roles && userStore.roles.length)">
-                        <span v-if="currentUserDepartment" class="meta-item">
-                          <el-icon>
-                            <OfficeBuilding />
-                          </el-icon>
-                          {{ currentUserDepartment }}
-                        </span>
-                        <span v-if="userStore.roles && userStore.roles.length" class="meta-item">
-                          <el-icon>
-                            <User />
-                          </el-icon>
-                          {{ displayRoleNames }}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="current-time">
-                    <el-icon>
-                      <Clock />
-                    </el-icon>
-                    <span>{{ currentTime }}</span>
-                  </div>
-                </div>
-                <!-- 统计卡片 -->
-                <!-- <div class="stats-container">
-                  <div class="stat-item">
-                    <div class="stat-icon" style="background: linear-gradient(135deg, #67c23a 0%, #85ce61 100%);">
-                      <el-icon>
-                        <Document />
-                      </el-icon>
-                    </div>
-                    <div class="stat-content">
-                      <div class="stat-number" style="color: #67c23a">{{ stats.已完成任务 }}</div>
-                      <div class="stat-label">已完成任务</div>
-                    </div>
-                  </div>
-                  <div class="stat-item">
-                    <div class="stat-icon" style="background: linear-gradient(135deg, #e6a23c 0%, #ebb563 100%);">
-                      <el-icon>
-                        <Document />
-                      </el-icon>
-                    </div>
-                    <div class="stat-content">
-                      <div class="stat-number" style="color: #e6a23c">{{ stats.未完成任务 }}</div>
-                      <div class="stat-label">未完成任务</div>
-                    </div>
-                  </div>
-                  <div class="stat-item">
-                    <div class="stat-icon">
-                      <el-icon>
-                        <Document />
-                      </el-icon>
-                    </div>
-                    <div class="stat-content">
-                      <div class="stat-number" style="color: #909399">{{ stats.取消的任务 }}</div>
-                      <div class="stat-label">取消的任务</div>
-                    </div>
-                  </div>
-                </div> -->
-              </div>
-            </el-card>
-
+          <el-col :span="24" :xs="24" class="workspace-dashboard-left-col">
             <!-- 待办事项 -->
             <el-card ref="todoTasksCardRef">
               <template #header>
                 <div class="card-header">
                   <span>待办事项</span>
+                  <el-button type="primary" plain size="small" @click="activityDialogVisible = true">
+                    查看任务动态
+                  </el-button>
                 </div>
               </template>
               <template v-if="!isMobile">
@@ -102,7 +28,7 @@
                       </el-tooltip>
                     </template>
                   </el-table-column>
-                  <el-table-column prop="任务名" label="任务名称" width="80">
+                  <el-table-column prop="任务名" label="任务名称">
                     <template #default="{ row }">
                       <el-tooltip :content="row.任务名 || row.task_name || row.title || '-'" placement="top"
                         :disabled="!row.任务名 && !row.task_name && !row.title">
@@ -110,7 +36,6 @@
                       </el-tooltip>
                     </template>
                   </el-table-column>
-                  <el-table-column prop="requirement_name" label="关联层级" show-overflow-tooltip width="150" />
                   <el-table-column prop="指派人" label="负责人">
                     <template #default="{ row }">
                       <el-tooltip :content="row.指派人 || row.assignee || '-'" placement="top"
@@ -119,7 +44,7 @@
                       </el-tooltip>
                     </template>
                   </el-table-column>
-                  <el-table-column prop="状态" label="状态" width="150">
+                  <el-table-column prop="状态" label="状态">
                     <template #default="{ row }">
                       <el-tooltip :content="row.状态 || row.status || '-'" placement="top"
                         :disabled="!row.状态 && !row.status">
@@ -140,10 +65,9 @@
                       <!-- <el-progress :percentage="row.进度 || 0" :status="row.进度 === 100 ? 'success' : undefined" /> -->
                     </template>
                   </el-table-column>
-                  <el-table-column prop="development_start_time" label="研发开始时间" show-overflow-tooltip width="110" />
-                  <el-table-column prop="development_end_time" label="研发结束时间" show-overflow-tooltip width="110" />
-                  <el-table-column prop="assignment_time" label="任务分配时间" show-overflow-tooltip width="180" />
-                  <el-table-column label="操作" :min-width="operationColWidth(4)" fixed="right">
+                  <el-table-column prop="task_deadline" label="计划完成时间" show-overflow-tooltip />
+                  <el-table-column prop="assignment_time" label="任务分配时间" show-overflow-tooltip />
+                  <el-table-column label="操作" :min-width="operationColWidth(4)" fixed="right" width="200">
                     <template #default="{ row }">
                       <div class="table-action-btns">
                         <el-button type="primary" link size="small"
@@ -222,158 +146,11 @@
 
             </el-card>
           </el-col>
-          <!-- 右侧：占1/3 -->
-          <el-col :span="8" :xs="24" class="workspace-dashboard-right-col">
-            <!-- 流程示意图 -->
-            <!-- <el-card class="mb-20">
-              <template #header>
-                <div class="card-header">
-                  <span>工作流程</span>
-                </div>
-              </template>
-              <div class="workflow-diagram">
-                <div class="workflow-role">
-                  <div class="role-box role-admin">
-                    <div class="role-title">管理员</div>
-                  </div>
-                  <div class="role-tasks">
-                    <div class="task-item">维护部门</div>
-                    <div class="task-arrow">→</div>
-                    <div class="task-item">添加用户</div>
-                    <div class="task-arrow">→</div>
-                    <div class="task-item">维护权限</div>
-                  </div>
-                </div>
-
-                <div class="workflow-role">
-                  <div class="role-box role-manager">
-                    <div class="role-title">项目经理</div>
-                  </div>
-                  <div class="role-tasks">
-                    <div class="task-item">创建项目</div>
-                    <div class="task-arrow">→</div>
-                    <div class="task-item">创建层级</div>
-                    <div class="task-arrow">→</div>
-                    <div class="task-item">分解任务</div>
-                    <div class="task-arrow">→</div>
-                    <div class="task-item">跟踪进度</div>
-                  </div>
-                </div>
-
-                <div class="workflow-role">
-                  <div class="role-box role-product">
-                    <div class="role-title">部门主管</div>
-                  </div>
-                  <div class="role-tasks">
-                    <div class="task-item">分配任务</div>
-                    <div class="task-arrow">→</div>
-                    <div class="task-item">执行任务</div>
-                    <div class="task-arrow">→</div>
-                    <div class="task-item">跟踪进度</div>
-                  </div>
-                </div>
-
-                <div class="workflow-role">
-                  <div class="role-box role-developer">
-                    <div class="role-title">研发人员</div>
-                  </div>
-                  <div class="role-tasks">
-                    <div class="task-item">接受任务</div>
-                    <div class="task-arrow">→</div>
-                    <div class="task-item">执行</div>
-                    <div class="task-arrow">→</div>
-                    <div class="task-item">汇报进度</div>
-                    <div class="task-arrow">→</div>
-                    <div class="task-item">提交测试与验收</div>
-                    <div class="task-arrow">→</div>
-                    <div class="task-item">完成</div>
-                  </div>
-                </div>
-              </div>
-            </el-card> -->
-
-            <el-card class="workspace-activity-card">
-              <template #header>
-                <div class="card-header">
-                  <span>动态</span>
-                </div>
-              </template>
-              <el-tabs v-model="activityTab" @tab-change="handleActivityTabChange" class="activity-tabs">
-                <el-tab-pane label="任务动态" name="activities">
-                  <div class="activity-list">
-                    <div v-for="(activity, index) in activities" :key="index" class="activity-item">
-                      <div class="activity-time">{{ activity.time }}</div>
-                      <div class="activity-content">
-                        <el-icon class="activity-icon">
-                          <Document />
-                        </el-icon>
-                        <span>{{ activity.content }}</span>
-                      </div>
-                    </div>
-                    <el-empty v-if="activities.length === 0" description="暂无动态" />
-                  </div>
-                </el-tab-pane>
-                <el-tab-pane label="我汇报的" name="myReports">
-                  <div class="activity-list">
-                    <div v-for="(report, index) in myReports" :key="index" class="activity-item">
-                      <div class="activity-time">{{ report.time }}</div>
-                      <div class="activity-content">
-                        <el-icon class="activity-icon">
-                          <Document />
-                        </el-icon>
-                        <div class="activity-text">
-                          <div class="activity-main-content">{{ report.content }}</div>
-                          <div v-if="report.creator || report.state" class="activity-details" style="margin-top: 8px;">
-                            <span v-if="report.creator" class="report-creator">创建人: {{ report.creator }}</span>
-                            <el-tag v-if="report.state" :type="getStatusType(report.state)" size="small">状态: {{
-                              report.state
-                            }}</el-tag>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <el-empty v-if="myReports.length === 0" description="暂无汇报记录" />
-                  </div>
-                </el-tab-pane>
-                <el-tab-pane v-if="canViewReceivedReports" label="收到的汇报" name="receivedReports">
-                  <div class="received-reports-toolbar">
-                    <el-select v-model="receivedReportsProjectId" class="received-reports-project-select"
-                      placeholder="全部项目" clearable filterable :loading="projectsLoading"
-                      @change="handleReceivedReportsProjectChange">
-                      <el-option label="全部项目" value="" />
-                      <el-option v-for="project in projects" :key="project._id" :label="project.project_name"
-                        :value="project._id" />
-                    </el-select>
-                  </div>
-                  <div v-loading="receivedReportsLoading" class="activity-list">
-                    <div v-for="(report, index) in receivedReports" :key="index" class="activity-item">
-                      <div class="activity-time">{{ report.time }}</div>
-                      <div class="activity-content">
-                        <el-icon class="activity-icon">
-                          <Document />
-                        </el-icon>
-                        <div class="activity-text">
-                          <div class="activity-main-content">{{ report.content }}</div>
-                          <div v-if="report.creator || report.taskName || report.progress !== undefined || report.state"
-                            class="activity-details" style="margin-top: 8px;">
-                            <span v-if="report.creator" class="report-creator">创建人: {{ report.creator }}</span>
-                            <el-tag v-if="report.state" :type="getStatusType(report.state)" size="small"
-                              style="margin-right: 8px;">状态: {{ report.state }}</el-tag>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <el-empty v-if="receivedReports.length === 0" description="暂无收到的汇报" />
-                  </div>
-                </el-tab-pane>
-              </el-tabs>
-            </el-card>
-          </el-col>
         </el-row>
       </el-tab-pane>
 
       <!-- 任务 Tab -->
-      <el-tab-pane label="任务" name="tasks">
+      <el-tab-pane label="全部任务" name="tasks">
         <!-- 搜索表单 -->
         <!-- <el-card class="mb-20">
           <template #header>
@@ -416,7 +193,9 @@
           <template v-if="!isMobile">
             <el-table :data="filteredAllTasks" v-loading="allTasksLoading" :style="{ width: '100%' }"
               :height="allTasksTableHeight">
-              <el-table-column prop="任务名" label="任务名称" min-width="200" />
+              <el-table-column prop="project_name" label="项目名称" />
+              <el-table-column prop="任务名" label="任务名称" />
+              <el-table-column prop="指派人" label="负责人" />
               <el-table-column prop="状态" label="状态" width="140">
                 <template #default="{ row }">
                   <el-tag :type="getStatusType(row.状态)" size="small">
@@ -424,8 +203,7 @@
                   </el-tag>
                 </template>
               </el-table-column>
-              <el-table-column prop="当前处理人" label="当前处理人" min-width="200" />
-              <el-table-column prop="优先级" label="优先级" width="100">
+              <el-table-column prop="优先级" label="优先级">
                 <template #default="{ row }">
                   <el-tag v-if="row.优先级" :type="getPriorityType(row.优先级)" size="small">
                     {{ row.优先级 }}
@@ -433,18 +211,22 @@
                   <span v-else>-</span>
                 </template>
               </el-table-column>
-              <el-table-column prop="requirement_name" label="所属层级" min-width="150" />
-              <el-table-column prop="development_start_time" label="研发开始时间" width="150">
+              <el-table-column prop="progress" label="进度">
                 <template #default="{ row }">
-                  {{ row.development_start_time || "-" }}
+                  {{ (row.进度 || 0) + "%" }}
                 </template>
               </el-table-column>
-              <el-table-column prop="development_start_time" label="研发结束时间" width="150">
+              <el-table-column prop="task_deadline" label="计划完成时间">
                 <template #default="{ row }">
-                  {{ row.development_end_time || "-" }}
+                  {{ row.task_deadline || "-" }}
                 </template>
               </el-table-column>
-              <el-table-column label="操作" :min-width="operationColWidth(4)" fixed="right">
+              <el-table-column prop="assignment_time" label="任务分配时间">
+                <template #default="{ row }">
+                  {{ row.create_time || "-" }}
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" :min-width="operationColWidth(4)" fixed="right" width="200">
                 <template #default="{ row }">
                   <div class="table-action-btns">
                     <el-button type="primary" link size="small"
@@ -612,6 +394,31 @@
         </el-card> 
       </el-tab-pane> -->
     </el-tabs>
+
+    <!-- 任务动态对话框 -->
+    <el-dialog v-model="activityDialogVisible" title="任务动态" width="680px" append-to-body class="activity-dialog"
+      destroy-on-close>
+      <div class="activity-dialog-body">
+        <div v-if="activities.length" class="activity-dialog-summary">
+          共 <span class="activity-dialog-count">{{ activities.length }}</span> 条动态
+        </div>
+        <div class="activity-list activity-dialog-list">
+          <div v-for="(activity, index) in activities" :key="index" class="activity-item">
+            <div class="activity-item__timeline">
+              <span class="activity-item__dot" />
+              <span v-if="index !== activities.length - 1" class="activity-item__line" />
+            </div>
+            <div class="activity-item__card">
+              <div v-if="activity.time" class="activity-time">{{ activity.time }}</div>
+              <div class="activity-content">
+                <span class="activity-text">{{ activity.content }}</span>
+              </div>
+            </div>
+          </div>
+          <el-empty v-if="activities.length === 0" description="暂无动态" class="activity-dialog-empty" />
+        </div>
+      </div>
+    </el-dialog>
 
     <!-- 任务状态分配对话框 -->
     <TaskStatusFlowDialog v-model:visible="statusFlowDialogVisible" :task="statusFlowTask"
@@ -844,6 +651,7 @@ const projectsLoading = ref(false);
 
 // 最新动态
 const activities = ref<Array<{ time: string; content: string; icon: string }>>([]); // 工作台动态
+const activityDialogVisible = ref(false);
 const taskActivities = ref<Array<{ time: string; content: string; icon: string }>>([]); // 任务动态
 const requirementActivities = ref<Array<{ time: string; content: string; icon: string }>>([]);
 const projectActivities = ref<Array<{ time: string; content: string; icon: string }>>([]);
@@ -2626,8 +2434,6 @@ onBeforeUnmount(() => {
 // 移动端适配 (768px / 640px)
 @media (max-width: 768px) {
   .workspace-page {
-    padding: 12px 10px;
-
     .workspace-mobile-cards .el-empty {
       padding: 32px 0;
     }
@@ -2635,10 +2441,6 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 640px) {
-  .main-content {
-    margin: 0 !important;
-  }
-
   .workspace-page {
     :deep(.el-card__body) {
       padding: 10px !important;
@@ -2830,6 +2632,163 @@ onBeforeUnmount(() => {
           font-size: 12px;
         }
       }
+    }
+  }
+}
+</style>
+
+<!-- append-to-body 弹框挂载在 body 下，使用独立非 scoped 样式 -->
+<style lang="scss">
+.activity-dialog {
+  border-radius: 12px;
+  overflow: hidden;
+
+  .el-dialog__header {
+    margin-right: 0;
+    padding: 18px 20px 14px;
+    border-bottom: 1px solid #ebeef5;
+  }
+
+  .el-dialog__title {
+    font-size: 17px;
+    font-weight: 600;
+    color: #303133;
+  }
+
+  .el-dialog__body {
+    padding: 16px 20px 20px;
+    background: linear-gradient(180deg, #fafbfc 0%, #fff 48px);
+  }
+
+  .activity-dialog-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .activity-dialog-summary {
+    display: flex;
+    align-items: center;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: #606266;
+    background: #f0f7ff;
+    border: 1px solid #d9ecff;
+    border-radius: 8px;
+
+    .activity-dialog-count {
+      margin: 0 4px;
+      font-size: 16px;
+      font-weight: 600;
+      color: #409eff;
+    }
+  }
+
+  .activity-list.activity-dialog-list {
+    min-height: 50vh;
+    max-height: 65vh;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 4px 4px 8px;
+    margin: 0 -4px;
+
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: #dcdfe6;
+      border-radius: 3px;
+    }
+
+    &::-webkit-scrollbar-thumb:hover {
+      background: #c0c4cc;
+    }
+
+    .activity-item {
+      display: flex;
+      gap: 14px;
+      padding: 0 0 16px;
+      border-bottom: none;
+
+      &:last-child {
+        padding-bottom: 0;
+      }
+    }
+
+    .activity-item__timeline {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex-shrink: 0;
+      width: 12px;
+      padding-top: 18px;
+    }
+
+    .activity-item__dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #409eff 0%, #66b1ff 100%);
+      box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.15);
+      flex-shrink: 0;
+    }
+
+    .activity-item__line {
+      flex: 1;
+      width: 2px;
+      min-height: 24px;
+      margin-top: 6px;
+      background: linear-gradient(180deg, #d9ecff 0%, #ebeef5 100%);
+      border-radius: 1px;
+    }
+
+    .activity-item__card {
+      flex: 1;
+      min-width: 0;
+      padding: 14px 16px;
+      background: #f8fafc;
+      border: 1px solid #ebeef5;
+      border-radius: 10px;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+      &:hover {
+        border-color: #c6e2ff;
+        box-shadow: 0 4px 12px rgba(64, 158, 255, 0.08);
+      }
+    }
+
+    .activity-time {
+      display: inline-flex;
+      align-items: center;
+      margin-bottom: 10px;
+      padding: 2px 10px;
+      font-size: 12px;
+      color: #409eff;
+      background: #ecf5ff;
+      border-radius: 999px;
+    }
+
+    .activity-content {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .activity-text {
+      flex: 1;
+      min-width: 0;
+      font-size: 14px;
+      line-height: 1.6;
+      color: #303133;
+      word-break: break-word;
+    }
+
+    .activity-dialog-empty {
+      min-height: calc(50vh - 48px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
   }
 }

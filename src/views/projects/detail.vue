@@ -1446,7 +1446,6 @@ const getPriorityText = (priority: "low" | "medium" | "high"): string => {
 
 <style scoped lang="scss">
 .project-detail-page {
-  padding: 1.5rem;
   background: linear-gradient(135deg, #f5f7fa 0%, #fafbfc 100%);
 }
 
@@ -2452,10 +2451,6 @@ const getPriorityText = (priority: "low" | "medium" | "high"): string => {
 
 // 移动端适配 (640px)
 @media (max-width: 640px) {
-
-  .project-detail-page {
-    padding: 1rem;
-  }
 
   .page-header {
     flex-direction: column;

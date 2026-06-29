@@ -20,7 +20,8 @@ const {
   username,
   userAvatar,
   avatarsStyle,
-  toggleSideBar
+  toggleSideBar,
+  roleNames
 } = useNav();
 
 // 跳转到个人资料页面
@@ -43,11 +44,16 @@ const goToProfile = () => {
       <LaySearch id="header-search" />
       <!-- 全屏 -->
       <LaySidebarFullScreen id="full-screen" />
+
       <!-- 退出登录 -->
+
       <el-dropdown trigger="click">
         <span class="el-dropdown-link navbar-bg-hover select-none">
           <img :src="userAvatar" :style="avatarsStyle" />
           <p v-if="username" class="dark:text-white">{{ username }}</p>
+          <span v-if="roleNames.length" class="text-sm text-gray-500 ml-2">
+            {{ roleNames.join("、") }}
+          </span>
         </span>
         <template #dropdown>
           <el-dropdown-menu class="logout">

@@ -18,6 +18,15 @@ import Fullscreen from "~icons/ri/fullscreen-fill";
 const errorInfo =
   "The current routing configuration is incorrect, please check the configuration";
 
+const roleNameMap: Record<string, string> = {
+  Admin: "管理员",
+  ProjectManager: "项目经理",
+  DepartmentManager: "部门主管",
+  Member: "普通成员",
+  ProjectDirector: "项目总监",
+  BusinessDepartmentMembers: "业务部门成员"
+};
+
 export function useNav() {
   const route = useRoute();
   const pureApp = useAppStoreHook();
@@ -53,6 +62,12 @@ export function useNav() {
 
   const avatarsStyle = computed(() => {
     return username.value ? { marginRight: "10px" } : "";
+  });
+
+  /** 当前用户角色（中文显示名） */
+  const roleNames = computed(() => {
+    const roles = useUserStoreHook()?.roles ?? [];
+    return roles.map(role => roleNameMap[role] || role);
   });
 
   const isCollapse = computed(() => {
@@ -157,6 +172,7 @@ export function useNav() {
     username,
     userAvatar,
     avatarsStyle,
+    roleNames,
     tooltipEffect
   };
 }

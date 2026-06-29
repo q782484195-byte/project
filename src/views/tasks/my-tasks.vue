@@ -313,8 +313,6 @@ onUnmounted(() => {
 // 移动端适配 (640px)
 @media (max-width: 640px) {
   .my-tasks-page {
-    padding: 12px;
-
     .search-card {
       margin-bottom: 12px;
 
@@ -362,7 +360,6 @@ onUnmounted(() => {
 
 <style scoped lang="scss">
 .my-tasks-page {
-  padding: 20px;
   background: #f5f7fa;
   min-height: calc(100vh - 200px);
 }

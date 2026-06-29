@@ -520,7 +520,6 @@ onUnmounted(() => {
 
 <style lang="scss" scoped>
 .user-management {
-  padding: 20px;
   height: 100%;
 
   .card-header {
@@ -552,9 +551,7 @@ onUnmounted(() => {
 
 // 移动端适配 (640px)
 @media (max-width: 640px) {
-  .user-management-page {
-    padding: 12px;
-
+  .user-management {
     .page-header {
       flex-direction: column;
       align-items: flex-start;

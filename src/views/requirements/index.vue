@@ -910,8 +910,6 @@ onUnmounted(() => {
 // 移动端适配：768px 与 640px
 @media (max-width: 768px) {
   .requirements-page {
-    padding: 12px 10px;
-
     .page-header {
       margin-bottom: 16px;
 
@@ -954,8 +952,6 @@ onUnmounted(() => {
 
 @media (max-width: 640px) {
   .requirements-page {
-    padding: 12px;
-
     .requirements-table-card {
       :deep(.el-card__body) {
         padding: 12px;

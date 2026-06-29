@@ -8,7 +8,7 @@ export default {
   redirect: "/workspace",
   meta: {
     icon: "ep/home-filled",
-    title: "工作台",
+    title: "待办任务",
     rank: 0
   },
   children: [
@@ -17,7 +17,7 @@ export default {
       name: "Workspace",
       component: () => import("@/views/workspace/index.vue"),
       meta: {
-        title: "工作台",
+        title: "待办任务",
         showLink: VITE_HIDE_HOME === "true" ? false : true,
         roles: ["Admin", "DepartmentManager", "Member"]
       }

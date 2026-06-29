@@ -56,12 +56,9 @@
             </template>
           </el-table-column>
           <!-- <el-table-column prop="requirement_name" label="关联层级" width="140" /> -->
-          <el-table-column prop="当前处理人" label="当前处理人">
+          <el-table-column prop="当前处理人" label="责任人">
             <template #default="{ row }">
               <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                <!-- <el-tag type="success" size="small">
-                  <span class="assignee-text-dept" style="color: #67C23A;">{{ row.部门 || "-" }}</span>
-                </el-tag> -->
                 <el-tag type="primary" size="small">
                   <span class="assignee-text">{{ row.当前处理人 || row.assignee || "-" }}</span>
                 </el-tag>
@@ -82,18 +79,9 @@
               </el-tag>
             </template>
           </el-table-column>
-          <!-- <el-table-column prop="进度" label="进度">
-            <template #default="{ row }">
-              <el-progress :percentage="row.进度 || 0" :status="row.进度 === 100 ? 'success' : undefined" />
-            </template>
-          </el-table-column> -->
+          <el-table-column prop="create_time" label="任务分配时间" />
           <el-table-column prop="task_deadline" label="任务完成期限" />
-          <!-- <el-table-column label="是否延期" width="90">
-            <template #default="{ row }">
-              <el-tag v-if="row.delay?.task_is_delay" type="danger" size="small">延期</el-tag>
-              <el-tag v-else type="success" size="small">正常</el-tag>
-            </template>
-          </el-table-column> -->
+
           <el-table-column label="操作" :width="operationColWidth(3)" fixed="right">
             <template #default="{ row }">
               <div class="table-action-btns">
@@ -2338,8 +2326,6 @@ onUnmounted(() => {
 // 移动端适配：768px 与 640px 断点
 @media (max-width: 768px) {
   .tasks-page {
-    padding: 12px 10px;
-
     .tasks-card :deep(.el-card__body) {
       padding: 12px 10px;
     }
@@ -2438,8 +2424,6 @@ onUnmounted(() => {
 
 @media (max-width: 640px) {
   .tasks-page {
-    padding: 10px 8px;
-
     .page-header {
       flex-direction: column;
       align-items: flex-start;

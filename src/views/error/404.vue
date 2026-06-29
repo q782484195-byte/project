@@ -28,6 +28,7 @@ const router = useRouter();
 
 <style scoped>
 .main-content {
+  padding: 0 !important;
   margin: 0 !important;
 }
 </style>
