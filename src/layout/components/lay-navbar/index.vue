@@ -21,7 +21,7 @@ const {
   userAvatar,
   avatarsStyle,
   toggleSideBar,
-  roleNames
+  userDeptRoleText
 } = useNav();
 
 // 跳转到个人资料页面
@@ -51,8 +51,8 @@ const goToProfile = () => {
         <span class="el-dropdown-link navbar-bg-hover select-none">
           <img :src="userAvatar" :style="avatarsStyle" />
           <p v-if="username" class="dark:text-white">{{ username }}</p>
-          <span v-if="roleNames.length" class="text-sm text-gray-500 ml-2">
-            {{ roleNames.join("、") }}
+          <span v-if="userDeptRoleText" class="text-sm text-gray-500 ml-2">
+            {{ userDeptRoleText }}
           </span>
         </span>
         <template #dropdown>

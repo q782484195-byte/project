@@ -68,6 +68,18 @@
               <span v-else-if="header === '延期时间' && row.overview[index]">
                 <el-tag type="danger" size="small">{{ row.overview[index] }} 天</el-tag>
               </span>
+              <span v-else-if="header === '项目名' && row.projectId">
+                <el-link type="primary" :underline="false" class="cell-link"
+                  @click.stop="goToTaskList(row.projectId)">
+                  {{
+                    row.overview[index] !== undefined &&
+                      row.overview[index] !== null &&
+                      row.overview[index] !== ''
+                      ? row.overview[index]
+                      : '-'
+                  }}
+                </el-link>
+              </span>
               <span v-else>{{
                 row.overview[index] !== undefined &&
                   row.overview[index] !== null &&
@@ -87,7 +99,11 @@
                 @click="toggleMobileExpand(row.projectId)">
                 <div class="mobile-card__main">
                   <div class="mobile-card__title">
-                    {{ row.overview[0] !== undefined && row.overview[0] !== null ? row.overview[0] : '未命名项目' }}
+                    <el-link v-if="row.projectId" type="primary" :underline="false" class="cell-link"
+                      @click.stop="goToTaskList(row.projectId)">
+                      {{ getProjectName(row) }}
+                    </el-link>
+                    <span v-else>{{ getProjectName(row) }}</span>
                   </div>
                   <div class="mobile-card__meta">
                     <el-tag v-if="overviewHeaders.includes('项目状态')"
@@ -118,6 +134,13 @@
                       <template v-else-if="header === '延期时间' && row.overview[index]">
                         <el-tag type="danger" size="small">{{ row.overview[index] }} 天</el-tag>
                       </template>
+                      <template v-else-if="header === '项目名' && row.projectId">
+                        <el-link type="primary" :underline="false" class="cell-link"
+                          @click.stop="goToTaskList(row.projectId)">
+                          {{ row.overview[index] !== undefined && row.overview[index] !== null && row.overview[index]
+                            !== '' ? row.overview[index] : '-' }}
+                        </el-link>
+                      </template>
                       <template v-else>
                         {{ row.overview[index] !== undefined && row.overview[index] !== null && row.overview[index] !==
                           '' ? row.overview[index] : '-' }}
@@ -146,10 +169,13 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { Refresh, ArrowDown } from '@element-plus/icons-vue';
 import { deviceDetection } from '@pureadmin/utils';
 import { selectProjectOverview, selectProjectRecord } from '@/api/project';
+
+const router = useRouter();
 
 const MOBILE_BREAKPOINT = 768;
 const isNarrowScreen = ref(window.innerWidth <= MOBILE_BREAKPOINT);
@@ -165,6 +191,22 @@ const expandedRowId = ref<string | null>(null);
 function toggleMobileExpand(projectId: string) {
   expandedRowId.value = expandedRowId.value === projectId ? null : projectId;
 }
+
+const getProjectName = (row: { overview: (string | number)[] }) => {
+  const idx = overviewHeaders.value.indexOf('项目名');
+  if (idx >= 0 && row.overview[idx] !== undefined && row.overview[idx] !== null && row.overview[idx] !== '') {
+    return String(row.overview[idx]);
+  }
+  return '未命名项目';
+};
+
+const goToTaskList = (projectId: string) => {
+  if (!projectId) return;
+  router.push({
+    path: '/tasks/list',
+    query: { project_id: projectId }
+  });
+};
 
 interface OverviewData {
   head: {
@@ -577,6 +619,20 @@ onBeforeUnmount(() => {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+
+    .cell-link {
+      font-weight: inherit;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      display: inline-block;
+      vertical-align: bottom;
+    }
+  }
+
+  .cell-link {
+    font-weight: inherit;
   }
 
   .mobile-card__meta {

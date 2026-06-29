@@ -7,9 +7,10 @@ import { useFullscreen } from "@vueuse/core";
 import type { routeMetaType } from "../types";
 import { useRouter, useRoute } from "vue-router";
 import { router, remainingPaths } from "@/router";
-import { computed, type CSSProperties } from "vue";
+import { computed, onMounted, ref, type CSSProperties } from "vue";
 import { useAppStoreHook } from "@/store/modules/app";
 import { useUserStoreHook } from "@/store/modules/user";
+import { selectDepartmentUsers } from "@/api/system";
 import { useGlobal, isAllEmpty } from "@pureadmin/utils";
 import { usePermissionStoreHook } from "@/store/modules/permission";
 import ExitFullscreen from "~icons/ri/fullscreen-exit-fill";
@@ -68,6 +69,36 @@ export function useNav() {
   const roleNames = computed(() => {
     const roles = useUserStoreHook()?.roles ?? [];
     return roles.map(role => roleNameMap[role] || role);
+  });
+
+  /** 当前用户部门（从部门用户接口获取） */
+  const departmentName = ref("");
+
+  async function loadCurrentUserDepartment() {
+    try {
+      const response = await selectDepartmentUsers();
+      if (response.code === 200 && Array.isArray(response.result)) {
+        const currentUsername = (useUserStoreHook()?.username ?? "").trim();
+        const me = response.result.find(
+          u => (u.username || "").trim() === currentUsername
+        );
+        departmentName.value = me?.department || "";
+      }
+    } catch {
+      departmentName.value = "";
+    }
+  }
+
+  onMounted(() => {
+    loadCurrentUserDepartment();
+  });
+
+  /** 部门 + 角色展示文案 */
+  const userDeptRoleText = computed(() => {
+    const parts: string[] = [];
+    if (departmentName.value) parts.push(departmentName.value);
+    if (roleNames.value.length) parts.push(roleNames.value.join("、"));
+    return parts.join(" · ");
   });
 
   const isCollapse = computed(() => {
@@ -173,6 +204,8 @@ export function useNav() {
     userAvatar,
     avatarsStyle,
     roleNames,
+    departmentName,
+    userDeptRoleText,
     tooltipEffect
   };
 }

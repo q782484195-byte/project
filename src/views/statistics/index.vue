@@ -48,7 +48,6 @@
                 <span v-else>{{ row.任务名 || row.task_name || row.title || "-" }}</span>
               </template>
             </el-table-column>
-            <el-table-column prop="requirement_name" label="关联层级" min-width="120" show-overflow-tooltip />
             <el-table-column prop="当前处理人" label="责任人" min-width="120">
               <template #default="{ row }">
                 <div class="assignee-chips">
@@ -79,7 +78,7 @@
               </template>
             </el-table-column> -->
             <el-table-column prop="task_deadline" label="任务完成期限" min-width="120" show-overflow-tooltip />
-            <el-table-column prop="create_time" label="创建时间" min-width="160" show-overflow-tooltip />
+            <el-table-column prop="create_time" label="任务分配时间" min-width="160" show-overflow-tooltip />
           </el-table>
           <div v-else-if="isMobile && showTaskPanel" class="mobile-task-list">
             <template v-if="currentTableTasks.length > 0">
@@ -95,11 +94,14 @@
                   </span>
                 </div>
                 <div class="mobile-task-card__title">
-                  <el-link v-if="getTaskId(row)" type="primary" :underline="false"
-                    class="cell-link mobile-task-card__title-link" @click.stop="goTaskDetail(row)">
-                    {{ row.任务名 || row.task_name || row.title || "-" }}
-                  </el-link>
-                  <span v-else>{{ row.任务名 || row.task_name || row.title || "-" }}</span>
+                  <span class="mobile-task-card__label">任务名称</span>
+                  <span class="mobile-task-card__value" style="margin-left: 20px;">
+                    <el-link v-if="getTaskId(row)" type="primary" :underline="false" class="cell-link"
+                      @click.stop="goTaskDetail(row)">
+                      {{ row.任务名 || row.task_name || row.title || "-" }}
+                    </el-link>
+                    <span v-else>{{ row.任务名 || row.task_name || row.title || "-" }}</span>
+                  </span>
                 </div>
                 <div class="mobile-task-card__meta">
                   <el-tag :type="getStatusType(row.状态 || row.status, row) || undefined" size="small" effect="light">
@@ -108,10 +110,6 @@
                   <el-tag :type="getPriorityType(row.优先级 || row.priority) || undefined" size="small">
                     {{ row.优先级 || row.priority || "-" }}
                   </el-tag>
-                </div>
-                <div class="mobile-task-card__row">
-                  <span class="mobile-task-card__label">关联层级</span>
-                  <span class="mobile-task-card__value">{{ row.requirement_name || "-" }}</span>
                 </div>
                 <div class="mobile-task-card__row">
                   <span class="mobile-task-card__label">责任人</span>
