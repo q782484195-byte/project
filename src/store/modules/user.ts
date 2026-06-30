@@ -7,7 +7,13 @@ import {
 import { router, resetRouter } from "@/router";
 import { getRouterArrays } from "@/layout/types";
 import { type UserResult, getLogin } from "@/api/user";
+import {
+  selectDepartmentUsers,
+  type DepartmentUserItem
+} from "@/api/system";
 import { useMultiTagsStoreHook } from "./multiTags";
+
+let departmentUsersFetchPromise: Promise<DepartmentUserItem[]> | null = null;
 import {
   type DataInfo,
   setToken,
@@ -29,6 +35,9 @@ export const useUserStore = defineStore("pure-user", {
     // 按钮级别权限
     permissions:
       storageLocal().getItem<DataInfo<number>>(userKey)?.permissions ?? [],
+    department: "",
+    departmentUsers: [],
+    departmentUsersLoaded: false,
     // 是否勾选了登录页的免登录
     isRemembered: false,
     // 登录页的免登录存储几天，默认7天
@@ -62,6 +71,49 @@ export const useUserStore = defineStore("pure-user", {
     /** 设置登录页的免登录存储几天 */
     SET_LOGINDAY(value: number) {
       this.loginDay = Number(value);
+    },
+    /** 存储部门 */
+    SET_DEPARTMENT(department: string) {
+      this.department = department;
+    },
+    /** 加载部门用户列表（全局只请求一次，并发调用会复用同一 Promise） */
+    async fetchDepartmentUsers(
+      force = false
+    ): Promise<DepartmentUserItem[]> {
+      if (!force && this.departmentUsersLoaded) {
+        return this.departmentUsers;
+      }
+      if (!force && departmentUsersFetchPromise) {
+        return departmentUsersFetchPromise;
+      }
+
+      departmentUsersFetchPromise = selectDepartmentUsers()
+        .then(response => {
+          if (response.code === 200 && Array.isArray(response.result)) {
+            this.departmentUsers = response.result;
+            const currentUsername = (this.username ?? "").trim();
+            const me = response.result.find(
+              u => (u.username || "").trim() === currentUsername
+            );
+            this.department = me?.department || "";
+          } else {
+            this.departmentUsers = [];
+            this.department = "";
+          }
+          this.departmentUsersLoaded = true;
+          return this.departmentUsers;
+        })
+        .catch(() => {
+          this.departmentUsers = [];
+          this.department = "";
+          this.departmentUsersLoaded = true;
+          return [];
+        })
+        .finally(() => {
+          departmentUsersFetchPromise = null;
+        });
+
+      return departmentUsersFetchPromise;
     },
     /** 登入 */
     async loginByUsername(data) {
@@ -137,6 +189,10 @@ export const useUserStore = defineStore("pure-user", {
       this.username = "";
       this.roles = [];
       this.permissions = [];
+      this.department = "";
+      this.departmentUsers = [];
+      this.departmentUsersLoaded = false;
+      departmentUsersFetchPromise = null;
       removeToken();
       useMultiTagsStoreHook().handleTags("equal", [...getRouterArrays()]);
       resetRouter();

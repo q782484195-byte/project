@@ -523,7 +523,7 @@ import { useUserStoreHook } from "@/store/modules/user";
 import { hasPerms } from "@/utils/auth";
 import { selectMyTasks, selectRequirements, selectProjects, getTaskStatistics, selectPendingTasks, selectUserRequirements, flattenRequirementData, reportTaskProgress, updateDevelopmentTime } from "@/api/project";
 import { createBug } from "@/api/bug";
-import { selectDepartmentUsers, type DepartmentUserItem } from "@/api/system";
+import { type DepartmentUserItem } from "@/api/system";
 import { selectSelfReports, selectReports, type ReportRecord } from "@/api/report";
 import { ElMessage } from "element-plus";
 import { User, Clock, Document, DataLine, OfficeBuilding } from "@element-plus/icons-vue";
@@ -540,9 +540,6 @@ const router = useRouter();
 const route = useRoute();
 const userStore = useUserStoreHook();
 
-// 当前用户部门（从部门用户接口获取）
-const currentUserDepartment = ref("");
-
 // 角色代码 -> 显示名称
 const roleNameMap: Record<string, string> = {
   Admin: "管理员",
@@ -557,21 +554,6 @@ const displayRoleNames = computed(() => {
   const roles = userStore.roles || [];
   return roles.length ? roles.map(getRoleName).join("、") : "";
 });
-
-// 加载当前用户部门
-const loadCurrentUserDepartment = async () => {
-  try {
-    const response = await selectDepartmentUsers();
-    if (response.code === 200 && Array.isArray(response.result)) {
-      const me = response.result.find(
-        u => (u.username || "").trim() === (userStore.username || "").trim()
-      );
-      currentUserDepartment.value = me?.department || "";
-    }
-  } catch {
-    currentUserDepartment.value = "";
-  }
-};
 
 // 当前时间
 const currentTime = ref("");
@@ -1547,16 +1529,14 @@ const submitBug = async () => {
 const loadDepartmentUsers = async () => {
   departmentUsersLoading.value = true;
   try {
-    const response = await selectDepartmentUsers();
-    if (response.code === 200 && Array.isArray(response.result)) {
-      departmentUsers.value =
-        response.result?.filter(user =>
-          Array.isArray(user.role)
-            ? user.role.includes("DepartmentManager")
-            : false
-        ) || [];
-    } else {
-      departmentUsers.value = [];
+    const list = await userStore.fetchDepartmentUsers();
+    departmentUsers.value =
+      list.filter(user =>
+        Array.isArray(user.role)
+          ? user.role.includes("DepartmentManager")
+          : false
+      ) || [];
+    if (!list.length) {
       ElMessage.error("加载接收人列表失败");
     }
   } catch (error: any) {
@@ -1769,7 +1749,6 @@ const handleResize = () => {
 onMounted(() => {
   updateTime();
   timeInterval = window.setInterval(updateTime, 1000);
-  loadCurrentUserDepartment();
 
   // 检查query参数，如果有tab参数就激活对应的TAB
   const tab = route.query.tab as string;

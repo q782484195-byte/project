@@ -42,6 +42,16 @@ export type userType = {
   nickname?: string;
   roles?: Array<string>;
   permissions?: Array<string>;
+  /** 当前用户所属部门 */
+  department?: string;
+  /** 部门用户列表缓存（来自 department/select_users） */
+  departmentUsers?: Array<{
+    username?: string;
+    nickname?: string;
+    department?: string;
+    role?: string[];
+  }>;
+  departmentUsersLoaded?: boolean;
   isRemembered?: boolean;
   loginDay?: number;
 };

@@ -21,7 +21,7 @@ export default {
         title: "日常任务",
         showLink: true,
         showParent: false,
-        roles: ["Admin"]
+        roles: ["Admin", "ProjectManager", 'ProjectDirector']
       }
     },
     // {

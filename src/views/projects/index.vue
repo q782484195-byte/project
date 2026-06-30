@@ -198,7 +198,7 @@
             <el-tooltip :content="formatDateRange(project.startDate, project.endDate) || '-'" placement="top">
               <span class="field-value">{{
                 formatDateRange(project.startDate, project.endDate)
-                }}</span>
+              }}</span>
             </el-tooltip>
           </div>
         </div>
@@ -513,7 +513,7 @@ const getProjectNode = (project: Project & Record<string, unknown>) => {
 const openProjectDetail = (project: Project) => {
   router.push({
     name: "ProjectDetail",
-    params: { id: project.id }
+    params: { id: project.id, state: project.status }
   });
 };
 

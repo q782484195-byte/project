@@ -339,7 +339,7 @@ import {
   type ProjectListItem
 } from "@/api/project";
 import { createProjectReport } from "@/api/report";
-import { selectDepartmentUsers, getDepartmentNameList, selectAllUsers, selectNotificationPerson, sendNotification, type DepartmentUserItem, type DepartmentListItem, type DepartmentUserMap } from "@/api/system";
+import { getDepartmentNameList, selectAllUsers, selectNotificationPerson, sendNotification, type DepartmentUserItem, type DepartmentListItem, type DepartmentUserMap } from "@/api/system";
 import type { Project } from "@/types";
 import { TaskStatus } from "@/types";
 import TaskStatusFlowDialog from "@/components/TaskStatusFlowDialog.vue";
@@ -1772,16 +1772,14 @@ const handleStatusFlowEnd = () => {
 const loadDepartmentUsers = async () => {
   departmentUsersLoading.value = true;
   try {
-    const response = await selectDepartmentUsers();
-    if (response.code === 200 && Array.isArray(response.result)) {
-      departmentUsers.value =
-        response.result?.filter(user =>
-          Array.isArray(user.role)
-            ? user.role.includes("DepartmentManager")
-            : false
-        ) || [];
-    } else {
-      departmentUsers.value = [];
+    const list = await userStore.fetchDepartmentUsers();
+    departmentUsers.value =
+      list.filter(user =>
+        Array.isArray(user.role)
+          ? user.role.includes("DepartmentManager")
+          : false
+      ) || [];
+    if (!list.length) {
       ElMessage.error("加载接收人列表失败");
     }
   } catch (error: any) {

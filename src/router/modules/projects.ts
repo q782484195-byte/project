@@ -23,7 +23,7 @@ export default {
       }
     },
     {
-      path: "/projects/detail/:id",
+      path: "/projects/detail/:id/:state",
       name: "ProjectDetail",
       component: () => import("@/views/projects/detail.vue"),
       meta: {
