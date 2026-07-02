@@ -477,7 +477,6 @@ onUnmounted(() => {
   max-width: 100%;
   min-width: 0;
   margin: 0;
-  padding: 0 0 20px;
 }
 
 .main-card {

@@ -57,16 +57,8 @@
       </el-col>
     </el-row>
 
-    <!-- 视图切换 -->
-    <!-- <div class="view-controls">
-      <el-radio-group v-model="viewMode" size="small">
-        <el-radio-button label="card">卡片视图</el-radio-button>
-        <el-radio-button label="table">表格视图</el-radio-button>
-      </el-radio-group>
-    </div> -->
-
-    <!-- 卡片视图 -->
-    <div v-if="viewMode === 'card'" v-loading="loading" class="projects-grid">
+    <!-- 移动端：卡片视图 -->
+    <div v-if="isMobile" v-loading="loading" class="projects-grid">
       <div v-for="project in filteredProjects" :key="project.id" class="project-card"
         @click="goToTaskList(project, $event)">
         <div class="card-header">
@@ -212,7 +204,76 @@
       </div>
     </div>
 
-
+    <!-- PC 端：表格视图 -->
+    <el-card v-else v-loading="loading" class="projects-table">
+      <el-table :data="filteredProjects" style="width: 100%" row-key="id" @row-click="handleTableRowClick">
+        <el-table-column prop="name" label="项目名称" min-width="160" fixed="left" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span class="table-project-name">{{ row.name || "-" }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="status" label="状态" width="130">
+          <template #default="{ row }">
+            <el-tag :type="getStatusTagType(row.status)" size="small">
+              {{ getStatusText(row.status) }}{{ row.state_description ? '（' + row.state_description + '）' : '' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="customer_name" label="客户名称" min-width="120" show-overflow-tooltip />
+        <el-table-column prop="product_type" label="产品类型" min-width="100" show-overflow-tooltip />
+        <el-table-column prop="platform_name" label="平台名称" min-width="100" show-overflow-tooltip />
+        <el-table-column prop="motherboard_name" label="主板名称" min-width="100" show-overflow-tooltip />
+        <el-table-column prop="resolution" label="分辨率" width="100" show-overflow-tooltip />
+        <el-table-column prop="business_owner" label="业务负责人" width="110" show-overflow-tooltip />
+        <el-table-column prop="project_initiation_date" label="立项时间" width="110" show-overflow-tooltip />
+        <el-table-column label="进度" width="140">
+          <template #default="{ row }">
+            <div class="table-progress-cell">
+              <el-progress :percentage="getProjectProgress(row)" :stroke-width="6" :show-text="false" />
+              <span class="progress-text">{{ getProjectProgress(row) }}%</span>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column label="节点" min-width="120" show-overflow-tooltip>
+          <template #default="{ row }">
+            {{ getProjectNode(row) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="creator" label="项目负责人" width="110" show-overflow-tooltip />
+        <el-table-column label="计划时间" width="130" show-overflow-tooltip>
+          <template #default="{ row }">
+            {{ formatDateRange(row.startDate, row.endDate) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" :width="operationColWidth" fixed="right">
+          <template #default="{ row }">
+            <div class="table-action-btns" @click.stop>
+              <el-button type="primary" link size="small" @click="openProjectDetail(row)">
+                查看详情
+              </el-button>
+              <el-dropdown v-if="hasPerms(['project:update']) || hasPerms(['project:delete_project'])"
+                :key="`table-dropdown-${row.id}-${dropdownTrigger}`" :trigger="dropdownTrigger" placement="bottom-end"
+                @command="handleCommand($event, row)">
+                <el-button type="primary" link size="small">
+                  更多
+                  <el-icon>
+                    <ArrowDown />
+                  </el-icon>
+                </el-button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item v-if="hasPerms(['project:update'])" command="edit">编辑项目</el-dropdown-item>
+                    <el-dropdown-item v-if="hasPerms(['project:delete_project'])" command="delete" divided>
+                      删除项目
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+            </div>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
 
     <!-- 新建/编辑项目对话框 -->
     <ProjectFormDialog v-model:visible="showProjectDialog" :project="editingProject" @created="handleProjectCreated"
@@ -231,7 +292,8 @@ import { ElMessage, ElMessageBox } from "element-plus";
 import {
   Plus,
   MoreFilled,
-  Calendar
+  Calendar,
+  ArrowDown
 } from "@element-plus/icons-vue";
 import { hasPerms } from "@/utils/auth";
 import { useProjectStoreHook } from "@/store/modules/project";
@@ -253,7 +315,6 @@ const appStore = useAppStoreHook();
 
 const searchKeyword = ref("");
 const statusFilter = ref<string>("");
-const viewMode = ref<"card" | "table">("card");
 const currentPage = ref(1);
 const pageSize = ref(20);
 const loading = ref(false);
@@ -274,11 +335,20 @@ onBeforeUnmount(() => {
   window.removeEventListener("resize", handleResize);
 });
 
+const MOBILE_BREAKPOINT = 640;
+
+const isMobile = computed(() => windowWidth.value <= MOBILE_BREAKPOINT);
+
+const operationColWidth = computed(() => {
+  const hasEdit = hasPerms(["project:update"]);
+  const hasDelete = hasPerms(["project:delete_project"]);
+  if (hasEdit || hasDelete) return 160;
+  return 100;
+});
+
 // 根据设备类型决定下拉菜单的触发方式
 const dropdownTrigger = computed(() => {
-  // 使用响应式窗口宽度判断
-  const isMobile = windowWidth.value <= 640;
-  return isMobile ? "click" : "hover";
+  return isMobile.value ? "click" : "hover";
 });
 
 const selectedProject = ref<Project | null>(null);
@@ -515,6 +585,10 @@ const openProjectDetail = (project: Project) => {
     name: "ProjectDetail",
     params: { id: project.id, state: project.status }
   });
+};
+
+const handleTableRowClick = (row: Project) => {
+  goToTaskList(row);
 };
 
 // 点击卡片主体：前往任务列表并带上当前项目；忽略「更多」区域点击
@@ -988,12 +1062,18 @@ onMounted(() => {
 }
 
 .projects-table {
+  border-radius: 12px;
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.04),
+    0 1px 3px rgba(0, 0, 0, 0.08);
+
   :deep(.el-card__body) {
     padding: 0;
   }
 
   :deep(.el-table) {
     .el-table__row {
+      cursor: pointer;
       transition: background-color 0.2s;
 
       &:hover {
@@ -1002,65 +1082,38 @@ onMounted(() => {
     }
 
     .el-table__cell {
-      padding: 16px 12px;
+      padding: 14px 12px;
     }
   }
 
-  .project-name {
-    cursor: pointer;
-    transition: color 0.2s;
-
-    h4 {
-      margin: 0 0 6px 0;
-      color: #303133;
-      font-size: 15px;
-      font-weight: 600;
-      letter-spacing: -0.2px;
-      transition: color 0.2s;
-
-      &:hover {
-        color: #409eff;
-      }
-    }
-
-    p {
-      margin: 0;
-      color: #909399;
-      font-size: 13px;
-      display: -webkit-box;
-      -webkit-line-clamp: 1;
-      line-clamp: 1;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    }
+  .table-project-name {
+    color: #303133;
+    font-weight: 600;
   }
 
-  .manager-info {
+  .table-progress-cell {
     display: flex;
     align-items: center;
     gap: 8px;
+    min-width: 0;
 
-    span {
-      font-size: 12px;
-      color: #606266;
+    :deep(.el-progress) {
+      flex: 1;
+      min-width: 0;
     }
   }
 
   .progress-text {
+    flex-shrink: 0;
     font-size: 12px;
     color: #606266;
-    margin-left: 8px;
   }
 
-  .member-count {
-    font-size: 12px;
-    color: #909399;
-    margin-left: 8px;
-  }
-
-  .table-avatar-group {
+  .table-action-btns {
     display: flex;
     align-items: center;
+    gap: 4px;
+    flex-wrap: nowrap;
   }
 }
 
