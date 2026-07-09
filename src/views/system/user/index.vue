@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted, nextTick, h, resolveComponent } from "vue";
+import { ref, reactive, onMounted, onUnmounted, nextTick, h, resolveComponent, watch } from "vue";
 import { message } from "@/utils/message";
 import { ElMessageBox } from "element-plus";
 import type { FormInstance, FormRules } from "element-plus";
@@ -10,8 +10,10 @@ import {
   deleteUser,
   getDepartmentNameList,
   loadUserFromExcel,
+  getDepartmentNames,
+  getDepartmentGroupOptions,
+  DEFAULT_DEPARTMENT_GROUP,
   type User,
-  type DepartmentListItem,
   type UserListResponse,
   type AddUserParams
 } from "@/api/system";
@@ -47,6 +49,7 @@ const formData = reactive<{
   password: string;
   department: string;
   role: string; // 表单中使用字符串类型（单选）
+  group: string;
   workchat_username: string;
 }>({
   id: undefined,
@@ -54,6 +57,7 @@ const formData = reactive<{
   password: "",
   department: "",
   role: "", // 初始值为空字符串
+  group: "",
   workchat_username: ""
 });
 
@@ -109,6 +113,10 @@ interface TableUser extends Omit<User, 'role'> {
 
 const tableData = ref<TableUser[]>([]);
 const departmentList = ref<string[]>([]);
+const departmentGroupList = ref<Array<{ value: string; label: string }>>([]);
+const departmentSelectRaw = ref<unknown>(null);
+const departmentDataReady = ref(false);
+const isFormInitializing = ref(false);
 
 const columns = [
   {
@@ -129,6 +137,11 @@ const columns = [
   {
     label: "部门",
     prop: "department",
+    minWidth: 120
+  },
+  {
+    label: "部门分组",
+    prop: "group",
     minWidth: 120
   },
   {
@@ -168,16 +181,73 @@ const columns = [
 ];
 
 // 加载部门列表
+const updateDepartmentGroupOptions = (department?: string) => {
+  departmentGroupList.value = getDepartmentGroupOptions(
+    departmentSelectRaw.value,
+    department
+  );
+};
+
 const loadDepartmentList = async () => {
   try {
     const response = await getDepartmentNameList();
     if (response.code === 200) {
-      // 从返回的 result 数组中提取部门名称
-      departmentList.value = response.result?.map(item => item["部门名"]) || [];
+      departmentSelectRaw.value = response.result;
+      departmentList.value = getDepartmentNames(response.result);
+      updateDepartmentGroupOptions(formData.department);
+      departmentDataReady.value = true;
     }
   } catch (error) {
     console.error("加载部门列表失败:", error);
   }
+};
+
+watch(
+  () => formData.department,
+  department => {
+    updateDepartmentGroupOptions(department);
+  }
+);
+
+const handleDepartmentChange = () => {
+  if (isFormInitializing.value) return;
+  formData.group = "";
+};
+
+const queryDepartmentGroup = (
+  queryString: string,
+  cb: (results: Array<{ value: string }>) => void
+) => {
+  const keyword = queryString.trim().toLowerCase();
+  const results = departmentGroupList.value
+    .filter(item => item.value !== DEFAULT_DEPARTMENT_GROUP)
+    .filter(item => {
+      if (!keyword) return true;
+      return (
+        item.label.toLowerCase().includes(keyword) ||
+        item.value.toLowerCase().includes(keyword)
+      );
+    })
+    .map(item => ({ value: item.label }));
+  cb(results);
+};
+
+const handleDepartmentGroupSelect = (item: { value: string }) => {
+  const matched = departmentGroupList.value.find(
+    groupItem => groupItem.label === item.value
+  );
+  if (matched?.value === DEFAULT_DEPARTMENT_GROUP) {
+    formData.group = "";
+    return;
+  }
+  formData.group = matched?.value ?? item.value;
+};
+
+const normalizeUserGroupValue = (group?: string) => {
+  if (!group || group === DEFAULT_DEPARTMENT_GROUP) {
+    return "";
+  }
+  return group;
 };
 
 // 加载数据
@@ -208,6 +278,7 @@ const loadData = async () => {
         password: user.password,
         // email: user.email || "",
         department: user.department || "",
+        group: user.group || "",
         role: Array.isArray(user.role) ? user.role : user.role ? [user.role] : [],
         workchat_username: user.workchat_username || ""
       }));
@@ -226,7 +297,11 @@ const handleAdd = () => {
   dialogTitle.value = "新增用户";
   isEdit.value = false;
   resetForm();
+  isFormInitializing.value = true;
   dialogVisible.value = true;
+  nextTick(() => {
+    isFormInitializing.value = false;
+  });
 };
 
 // 批量导入
@@ -260,9 +335,13 @@ const handleFileChange = async (event: Event) => {
 };
 
 // 打开编辑对话框
-const handleEdit = (row: TableUser) => {
+const handleEdit = async (row: TableUser) => {
+  if (!departmentDataReady.value) {
+    await loadDepartmentList();
+  }
   dialogTitle.value = "编辑用户";
   isEdit.value = true;
+  const groupValue = normalizeUserGroupValue(row.group);
   // 处理编辑时的数据格式：role 数组转换为字符串（单选），department 需要转换为字符串
   const editData = {
     ...row,
@@ -278,10 +357,17 @@ const handleEdit = (row: TableUser) => {
       : row.role
         ? (typeof row.role === "string" ? row.role : String(row.role))
         : "",
+    group: groupValue,
     workchat_username: row.workchat_username || ""
   };
+  isFormInitializing.value = true;
   Object.assign(formData, editData);
+  updateDepartmentGroupOptions(editData.department);
   dialogVisible.value = true;
+  nextTick(() => {
+    formData.group = groupValue;
+    isFormInitializing.value = false;
+  });
 };
 
 // 删除
@@ -328,6 +414,10 @@ const handleSave = async () => {
             username: formData.username,
             role: formData.role ? [formData.role] : [],
             department: formData.department || "",
+            group:
+              formData.group && formData.group !== DEFAULT_DEPARTMENT_GROUP
+                ? formData.group
+                : "",
             workchat_username: formData.workchat_username || ""
           };
           // 如果密码不为空，则包含密码
@@ -343,6 +433,10 @@ const handleSave = async () => {
             password: formData.password,
             role: formData.role ? [formData.role] : [],
             department: formData.department || "",
+            group:
+              formData.group && formData.group !== DEFAULT_DEPARTMENT_GROUP
+                ? formData.group
+                : "",
             workchat_username: formData.workchat_username || ""
           };
           response = await addUser(submitData);
@@ -368,6 +462,7 @@ const resetForm = () => {
   formData.password = "";
   formData.department = "";
   formData.role = ""; // 重置为空字符串
+  formData.group = "";
   formData.workchat_username = "";
   formRef.value?.resetFields();
 };
@@ -495,9 +590,15 @@ onUnmounted(() => {
             show-password />
         </el-form-item>
         <el-form-item label="部门" prop="department">
-          <el-select v-model="formData.department" placeholder="请选择部门" clearable style="width: 100%">
+          <el-select v-model="formData.department" placeholder="请选择部门" clearable style="width: 100%"
+            @change="handleDepartmentChange">
             <el-option v-for="dept in departmentList" :key="dept" :label="dept" :value="dept" />
           </el-select>
+        </el-form-item>
+        <el-form-item label="部门分组" prop="group">
+          <el-autocomplete v-model="formData.group" :fetch-suggestions="queryDepartmentGroup"
+            placeholder="请输入部门分组（选填）" clearable style="width: 100%" :disabled="!formData.department"
+            :trigger-on-focus="true" @select="handleDepartmentGroupSelect" />
         </el-form-item>
         <el-form-item label="角色" prop="role">
           <el-select v-model="formData.role" placeholder="请选择角色" clearable style="width: 100%">

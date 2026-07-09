@@ -339,7 +339,7 @@ import {
   type ProjectListItem
 } from "@/api/project";
 import { createProjectReport } from "@/api/report";
-import { getDepartmentNameList, selectAllUsers, selectNotificationPerson, sendNotification, type DepartmentUserItem, type DepartmentListItem, type DepartmentUserMap } from "@/api/system";
+import { getDepartmentNameList, selectAllUsers, selectNotificationPerson, sendNotification, flattenDepartmentList, type DepartmentUserItem, type DepartmentListItem, type DepartmentUserMap } from "@/api/system";
 import type { Project } from "@/types";
 import { TaskStatus } from "@/types";
 import TaskStatusFlowDialog from "@/components/TaskStatusFlowDialog.vue";
@@ -1101,23 +1101,22 @@ const loadBatchAssignDepartmentLeaders = async () => {
   try {
     // 先获取部门列表
     const departmentResponse = await getDepartmentNameList();
-    if (departmentResponse.code !== 200 || !Array.isArray(departmentResponse.result)) {
+    if (departmentResponse.code !== 200 || departmentResponse.result == null) {
       ElMessage.error("加载部门列表失败");
       batchAssignDepartmentLeadersTree.value = [];
       return;
     }
 
-    // 获取所有用户
+    const departmentList = flattenDepartmentList(departmentResponse.result);
     const usersResponse = await selectAllUsers();
     if (usersResponse.code === 200 && Array.isArray(usersResponse.result)) {
       batchAssignDepartmentLeadersTree.value = buildBatchAssignDepartmentLeadersTree(
-        departmentResponse.result,
+        departmentList,
         usersResponse.result
       );
     } else {
-      // 如果获取用户失败，只使用部门列表和负责人
       batchAssignDepartmentLeadersTree.value = buildBatchAssignDepartmentLeadersTree(
-        departmentResponse.result,
+        departmentList,
         []
       );
     }
@@ -1569,9 +1568,10 @@ const loadChangeAssigneeUsers = async () => {
   changeAssigneeUsersLoading.value = true;
   try {
     const response = await getDepartmentNameList();
-    if (response.code === 200 && Array.isArray(response.result)) {
-      changeAssigneeUsersRawData.value = response.result;
-      changeAssigneeUsersTree.value = buildChangeAssigneeUsersTree(response.result);
+    if (response.code === 200 && response.result != null) {
+      const departmentList = flattenDepartmentList(response.result);
+      changeAssigneeUsersRawData.value = departmentList;
+      changeAssigneeUsersTree.value = buildChangeAssigneeUsersTree(departmentList);
     } else {
       changeAssigneeUsersRawData.value = [];
       changeAssigneeUsersTree.value = [];

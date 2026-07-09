@@ -494,6 +494,8 @@ export interface TaskListItem {
   startDate?: string;
   endDate?: string;
   create_time?: string;
+  /** 行背景色标识，如 red、green */
+  show_color?: string;
   [key: string]: any;
 }
 

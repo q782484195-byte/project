@@ -1,0 +1,43 @@
+@import "./tokens.scss";
+@import "./mixins.scss";
+
+page {
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue",
+    "Microsoft YaHei", sans-serif;
+  font-size: $pm-font-body;
+  color: $pm-text-primary;
+  background: $pm-bg-page;
+  line-height: 1.5;
+}
+
+.pm-page {
+  @include pm-page;
+  padding: $pm-space-lg;
+  padding-bottom: calc(#{$pm-space-lg} + #{$pm-tabbar-height});
+}
+
+.pm-page--no-tab {
+  padding-bottom: $pm-space-lg;
+}
+
+.pm-page--with-action {
+  padding-bottom: calc(#{$pm-space-lg} + #{$pm-action-bar-height});
+}
+
+.pm-section-title {
+  font-size: $pm-font-caption;
+  font-weight: $pm-weight-semibold;
+  color: $pm-text-secondary;
+  margin-bottom: $pm-space-sm;
+}
+
+.pm-divider {
+  height: 1rpx;
+  background: $pm-border;
+  margin: $pm-space-md 0;
+}
+
+.pm-link {
+  color: $pm-primary;
+  font-size: $pm-font-caption;
+}

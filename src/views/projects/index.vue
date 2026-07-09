@@ -4,8 +4,7 @@
       <h2>项目管理</h2>
       <div class="header-actions">
         <el-input v-model="searchKeyword" placeholder="搜索项目..." prefix-icon="Search" clearable style="width: 200px" />
-        <el-select v-model="statusFilter" placeholder="状态筛选" clearable style="width: 120px"
-          v-perms="['project:update_state']">
+        <el-select v-model="statusFilter" placeholder="状态筛选" clearable style="width: 120px">
           <el-option label="草稿" value="草稿" />
           <!-- <el-option label="延期" value="延期" /> -->
           <el-option label="暂停" value="暂停" />
@@ -190,7 +189,7 @@
             <el-tooltip :content="formatDateRange(project.startDate, project.endDate) || '-'" placement="top">
               <span class="field-value">{{
                 formatDateRange(project.startDate, project.endDate)
-              }}</span>
+                }}</span>
             </el-tooltip>
           </div>
         </div>

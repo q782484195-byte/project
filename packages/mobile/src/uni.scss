@@ -1,0 +1,8 @@
+@import "@/styles/tokens.scss";
+
+/* uni-app 全局 SCSS 变量，供 uview-plus 等组件库覆盖 */
+$uni-color-primary: $pm-primary;
+$uni-text-color: $pm-text-primary;
+$uni-text-color-grey: $pm-text-secondary;
+$uni-bg-color: $pm-bg-page;
+$uni-border-color: $pm-border;

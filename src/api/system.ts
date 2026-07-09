@@ -15,6 +15,7 @@ export interface User {
   phone?: string;
   departmentId?: number;
   department?: string;
+  group?: string;
   role?: string;
   workchat_username?: string;
   status?: number;
@@ -50,11 +51,229 @@ export interface DepartmentListItem {
   负责人: string[];
 }
 
+/** 部门 select 接口中的用户项 */
+export interface DepartmentSelectUser {
+  _id?: string;
+  username: string;
+  password?: string;
+  role?: string[];
+  department?: string;
+  group?: string;
+  workchat_username?: string;
+  button_permissions?: string[];
+  email_address?: string;
+}
+
+/** 默认部门分组标识 */
+export const DEFAULT_DEPARTMENT_GROUP = "#ungroup";
+
+/** 部门 select 接口 result 类型（兼容旧扁平数组与新嵌套结构） */
+export type DepartmentSelectResult =
+  | DepartmentListItem[]
+  | Record<string, Record<string, DepartmentSelectUser[]>>;
+
+const isLegacyDepartmentListItem = (
+  item: unknown
+): item is DepartmentListItem => {
+  return Boolean(
+    item &&
+      typeof item === "object" &&
+      "部门名" in item &&
+      typeof (item as DepartmentListItem).部门名 === "string" &&
+      !("username" in item)
+  );
+};
+
+const isLegacyDepartmentSelectResult = (
+  result: unknown
+): result is DepartmentListItem[] => {
+  return (
+    Array.isArray(result) &&
+    (result.length === 0 || isLegacyDepartmentListItem(result[0]))
+  );
+};
+
+const isNewDepartmentSelectResult = (
+  result: unknown
+): result is Record<string, Record<string, DepartmentSelectUser[]>> => {
+  if (!result || typeof result !== "object" || Array.isArray(result)) {
+    return false;
+  }
+  const entries = Object.entries(result);
+  if (entries.length === 0) return true;
+  const [, groupMap] = entries[0];
+  return Boolean(groupMap && typeof groupMap === "object" && !Array.isArray(groupMap));
+};
+
+/** 部门分组展示名称，#ungroup 显示为默认分组 */
+export const formatDepartmentGroupLabel = (group: string): string => {
+  if (!group || group === DEFAULT_DEPARTMENT_GROUP) {
+    return "默认分组";
+  }
+  return group;
+};
+
+const isDepartmentUserArray = (
+  value: unknown
+): value is DepartmentSelectUser[] => {
+  return (
+    Array.isArray(value) &&
+    (value.length === 0 ||
+      Boolean(
+        value[0] &&
+          typeof value[0] === "object" &&
+          "username" in (value[0] as DepartmentSelectUser)
+      ))
+  );
+};
+
+const isFlatDepartmentUsersMap = (
+  result: unknown
+): result is Record<string, DepartmentSelectUser[]> => {
+  if (!result || typeof result !== "object" || Array.isArray(result)) {
+    return false;
+  }
+  const entries = Object.entries(result);
+  if (entries.length === 0) return true;
+  return isDepartmentUserArray(entries[0][1]);
+};
+
+/** 合并 select_all_users 返回的 [{ 部门: 成员[] }, ...] 数组 */
+const mergeDepartmentUserMapArray = (
+  result: unknown[]
+): Record<string, DepartmentSelectUser[]> => {
+  const merged: Record<string, DepartmentSelectUser[]> = {};
+  result.forEach(entry => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return;
+    Object.entries(entry as Record<string, DepartmentSelectUser[]>).forEach(
+      ([department, users]) => {
+        if (isDepartmentUserArray(users)) {
+          merged[department] = users;
+        }
+      }
+    );
+  });
+  return merged;
+};
+
+/** 解析部门 select 接口 result 为 部门 -> 分组 -> 用户 结构 */
+export const parseDepartmentSelectMap = (
+  result: unknown
+): Record<string, Record<string, DepartmentSelectUser[]>> => {
+  if (!result) return {};
+
+  if (isLegacyDepartmentSelectResult(result)) {
+    const map: Record<string, Record<string, DepartmentSelectUser[]>> = {};
+    result.forEach(item => {
+      const department = item["部门名"];
+      map[department] = {
+        [DEFAULT_DEPARTMENT_GROUP]: (item["负责人"] || []).map(username => ({
+          username,
+          department,
+          role: ["DepartmentManager"]
+        }))
+      };
+    });
+    return map;
+  }
+
+  let normalized: unknown = result;
+  if (Array.isArray(result) && result.length > 0) {
+    normalized = mergeDepartmentUserMapArray(result);
+  }
+
+  if (isFlatDepartmentUsersMap(normalized)) {
+    const map: Record<string, Record<string, DepartmentSelectUser[]>> = {};
+    Object.entries(normalized).forEach(([department, users]) => {
+      map[department] = { [DEFAULT_DEPARTMENT_GROUP]: users };
+    });
+    return map;
+  }
+
+  if (isNewDepartmentSelectResult(normalized)) {
+    return normalized;
+  }
+
+  return {};
+};
+
+/** 从部门 select result 提取部门名称列表 */
+export const getDepartmentNames = (result: unknown): string[] => {
+  return Object.keys(parseDepartmentSelectMap(result));
+};
+
+/** 提取部门负责人（DepartmentManager） */
+const extractDepartmentManagers = (
+  users: DepartmentSelectUser[]
+): string[] => {
+  return users
+    .filter(user => {
+      const roles = Array.isArray(user.role)
+        ? user.role
+        : user.role
+          ? [user.role]
+          : [];
+      return roles.includes("DepartmentManager");
+    })
+    .map(user => user.username);
+};
+
+/** 扁平化部门列表（兼容旧格式，供树形选择等使用） */
+export const flattenDepartmentList = (result: unknown): DepartmentListItem[] => {
+  const deptMap = parseDepartmentSelectMap(result);
+  return Object.entries(deptMap).map(([部门名, groups]) => {
+    const allUsers = Object.values(groups).flat();
+    return {
+      部门名,
+      负责人: extractDepartmentManagers(allUsers)
+    };
+  });
+};
+
+/** 扁平化所有部门用户（兼容 select_all_users 新格式） */
+export const flattenDepartmentSelectUsers = (
+  result: unknown
+): DepartmentSelectUser[] => {
+  const deptMap = parseDepartmentSelectMap(result);
+  const users: DepartmentSelectUser[] = [];
+  Object.entries(deptMap).forEach(([department, groups]) => {
+    Object.entries(groups).forEach(([groupKey, groupUsers]) => {
+      groupUsers.forEach(user => {
+        users.push({
+          ...user,
+          department: user.department || department,
+          group:
+            user.group ||
+            (groupKey === DEFAULT_DEPARTMENT_GROUP ? undefined : groupKey)
+        });
+      });
+    });
+  });
+  return users;
+};
+
+/** 获取指定部门下的分组下拉选项 */
+export const getDepartmentGroupOptions = (
+  result: unknown,
+  department?: string
+): Array<{ value: string; label: string }> => {
+  if (!department) return [];
+  const groups = parseDepartmentSelectMap(result)[department];
+  if (!groups) return [];
+  return Object.keys(groups).map(value => ({
+    value,
+    label: formatDepartmentGroupLabel(value)
+  }));
+};
+
+/** @deprecated 请使用 parseDepartmentSelectMap */
+export const parseDepartmentGroupMap = parseDepartmentSelectMap;
+
 /** 获取部门列表（用于下拉选择） */
 export const getDepartmentNameList = () => {
   return http.request<{
     code: number;
-    result: DepartmentListItem[];
+    result: DepartmentSelectResult;
   }>("get", "/department/select");
 };
 
@@ -146,6 +365,7 @@ export interface UserListResponse {
     password: string;
     role: string[];
     department: string;
+    group?: string;
     button_permissions: string[];
     workchat_username?: string;
   }>;
@@ -164,6 +384,7 @@ export interface AddUserParams {
   password: string;
   role: string[];
   department: string;
+  group?: string;
   workchat_username?: string;
 }
 

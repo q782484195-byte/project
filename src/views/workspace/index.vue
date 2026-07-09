@@ -19,7 +19,7 @@
               </template>
               <template v-if="!isMobile">
                 <el-table :data="todoTasks" v-loading="tasksLoading" :style="{ width: '100%' }"
-                  :height="todoTasksTableHeight">
+                  :height="todoTasksTableHeight" :cell-style="getTaskCellStyle">
                   <el-table-column prop="项目名称" label="项目名称">
                     <template #default="{ row }">
                       <el-tooltip :content="row.项目名称 || row.project_name || '-'" placement="top"
@@ -92,16 +92,23 @@
                     </template>
                   </el-table-column>
                 </el-table>
+                <div class="table-pagination-wrapper">
+                  <el-pagination v-model:current-page="todoTasksPage" v-model:page-size="todoTasksPageSize"
+                    :total="todoTasksTotal" :page-sizes="[10, 20, 50, 100]"
+                    layout="total, sizes, prev, pager, next, jumper" @size-change="handleTodoTasksSizeChange"
+                    @current-change="handleTodoTasksPageChange" />
+                </div>
               </template>
               <!-- 移动端：待办事项卡片列表 -->
               <template v-else>
                 <div v-loading="tasksLoading" class="workspace-mobile-cards">
                   <template v-if="todoTasks.length">
-                    <div v-for="(row, idx) in todoTasks" :key="row._id || row.id || idx" class="workspace-mobile-card">
+                    <div v-for="(row, idx) in todoTasks" :key="row._id || row.id || idx" class="workspace-mobile-card"
+                      :style="getTaskCardStyle(row)">
                       <div class="workspace-mobile-card__title">{{ row.任务名 || row.task_name || row.title || "-" }}</div>
                       <div class="workspace-mobile-card__meta">
                         <el-tag v-if="row.状态 || row.status" size="small" effect="light">{{ row.状态 || row.status
-                        }}</el-tag>
+                          }}</el-tag>
                         <el-tag v-if="row.优先级 || row.priority" :type="getPriorityType(row.优先级 || row.priority)"
                           size="small">{{ row.优先级 || row.priority }}</el-tag>
                       </div>
@@ -135,11 +142,10 @@
                   </template>
                   <el-empty v-else-if="!tasksLoading" description="暂无待办" :image-size="80" />
                 </div>
-                <div class="todo-pagination-wrapper">
+                <div class="table-pagination-wrapper">
                   <el-pagination v-model:current-page="todoTasksPage" v-model:page-size="todoTasksPageSize"
                     :total="todoTasksTotal" :page-sizes="[10, 20, 50, 100]"
-                    :layout="isMobile ? 'total, prev, pager, next' : 'total, sizes, prev, pager, next, jumper'"
-                    :small="isMobile" @size-change="handleTodoTasksSizeChange"
+                    layout="total, prev, pager, next" :small="true" @size-change="handleTodoTasksSizeChange"
                     @current-change="handleTodoTasksPageChange" />
                 </div>
               </template>
@@ -191,8 +197,8 @@
             </div>
           </template>
           <template v-if="!isMobile">
-            <el-table :data="filteredAllTasks" v-loading="allTasksLoading" :style="{ width: '100%' }"
-              :height="allTasksTableHeight">
+            <el-table :data="allTasks" v-loading="allTasksLoading" :style="{ width: '100%' }"
+              :height="allTasksTableHeight" :cell-style="getTaskCellStyle">
               <el-table-column prop="project_name" label="项目名称" />
               <el-table-column prop="任务名" label="任务名称" />
               <el-table-column prop="指派人" label="负责人" />
@@ -249,13 +255,19 @@
                 </template>
               </el-table-column>
             </el-table>
+            <div class="table-pagination-wrapper">
+              <el-pagination v-model:current-page="allTasksPage" v-model:page-size="allTasksPageSize"
+                :total="allTasksTotal" :page-sizes="[10, 20, 50, 100]"
+                layout="total, sizes, prev, pager, next, jumper" @size-change="handleAllTasksSizeChange"
+                @current-change="handleAllTasksPageChange" />
+            </div>
           </template>
           <!-- 移动端：任务列表卡片 -->
           <template v-else>
             <div v-loading="allTasksLoading" class="workspace-mobile-cards">
-              <template v-if="filteredAllTasks.length">
-                <div v-for="(row, idx) in filteredAllTasks" :key="row._id || row.id || idx"
-                  class="workspace-mobile-card">
+              <template v-if="allTasks.length">
+                <div v-for="(row, idx) in allTasks" :key="row._id || row.id || idx"
+                  class="workspace-mobile-card" :style="getTaskCardStyle(row)">
                   <div class="workspace-mobile-card__title">{{ row.任务名 || row.task_name || row.title || "-" }}</div>
                   <div class="workspace-mobile-card__meta">
                     <el-tag v-if="row.状态" :type="getStatusType(row.状态)" size="small">{{ row.状态 }}</el-tag>
@@ -284,6 +296,12 @@
                 </div>
               </template>
               <el-empty v-else-if="!allTasksLoading" description="暂无任务" :image-size="80" />
+            </div>
+            <div class="table-pagination-wrapper">
+              <el-pagination v-model:current-page="allTasksPage" v-model:page-size="allTasksPageSize"
+                :total="allTasksTotal" :page-sizes="[10, 20, 50, 100]"
+                layout="total, prev, pager, next" :small="true" @size-change="handleAllTasksSizeChange"
+                @current-change="handleAllTasksPageChange" />
             </div>
           </template>
         </el-card>
@@ -609,18 +627,13 @@ const todoTasksTotal = ref(0);
 // 所有任务（任务tab显示）
 const allTasks = ref<TaskListItem[]>([]);
 const allTasksLoading = ref(false);
+const allTasksPage = ref(1);
+const allTasksPageSize = ref(20);
+const allTasksTotal = ref(0);
 
 // 任务搜索表单
 const taskSearchForm = ref({
   state: ""
-});
-
-// 过滤后的任务列表（根据状态筛选）
-const filteredAllTasks = computed(() => {
-  if (!taskSearchForm.value.state) {
-    return allTasks.value;
-  }
-  return allTasks.value.filter(task => task.状态 === taskSearchForm.value.state);
 });
 
 // 层级列表
@@ -743,6 +756,35 @@ const getPriorityType = (priority: string) => {
     high: "danger"
   };
   return priorityMap[priority] || undefined;
+};
+
+/** 接口 show_color 对应浅色行背景 */
+const TASK_SHOW_COLOR_MAP: Record<string, string> = {
+  red: "#fef0f0",
+  green: "#f0f9eb",
+  blue: "#ecf5ff",
+  yellow: "#fdfce6",
+  orange: "#fdf6ec",
+  purple: "#f5f0ff",
+  gray: "#f4f4f5",
+  grey: "#f4f4f5",
+  pink: "#fef0f5",
+  cyan: "#e8f8f8"
+};
+
+const getTaskShowColorBackground = (showColor?: string) => {
+  if (!showColor) return undefined;
+  return TASK_SHOW_COLOR_MAP[showColor.trim().toLowerCase()];
+};
+
+const getTaskCellStyle = ({ row }: { row: TaskListItem }) => {
+  const bg = getTaskShowColorBackground(row.show_color);
+  return bg ? { backgroundColor: bg } : {};
+};
+
+const getTaskCardStyle = (row: TaskListItem) => {
+  const bg = getTaskShowColorBackground(row.show_color);
+  return bg ? { backgroundColor: bg } : {};
 };
 
 // 加载待办任务
@@ -1427,7 +1469,7 @@ const handleDevelopmentTimeSubmit = () => {
         // 刷新工作台的待办事项列表
         loadTodoTasks(todoTasksPage.value);
         // 刷新任务tab的列表
-        loadAllTasks();
+        loadAllTasks(allTasksPage.value);
       } else {
         ElMessage.error(response.message || "预计工时填写失败");
       }
@@ -1595,7 +1637,7 @@ const handleReportSubmit = () => {
         // 刷新工作台的待办事项列表
         loadTodoTasks(todoTasksPage.value);
         // 刷新任务tab的列表
-        loadAllTasks();
+        loadAllTasks(allTasksPage.value);
       } else {
         ElMessage.error(response.message || "汇报失败");
       }
@@ -1621,7 +1663,7 @@ const handleStatusFlowSuccess = (nextState: string, personName: string) => {
   // 刷新工作台的待办任务列表
   loadTodoTasks(todoTasksPage.value);
   // 刷新任务tab的列表
-  loadAllTasks();
+  loadAllTasks(allTasksPage.value);
 };
 
 // 状态分配开始
@@ -1635,17 +1677,19 @@ const handleStatusFlowEnd = () => {
 };
 
 // 加载所有任务（任务tab）
-const loadAllTasks = async () => {
+const loadAllTasks = async (page: number = allTasksPage.value) => {
   try {
     allTasksLoading.value = true;
     const response = await selectMyTasks({
-      state: "",
-      page: 1,
-      page_size: 100
+      state: taskSearchForm.value.state || "",
+      page: page,
+      page_size: allTasksPageSize.value
     });
 
     if (response.code === 200 && response.result) {
       allTasks.value = response.result;
+      allTasksTotal.value = response.total_count || 0;
+      allTasksPage.value = page;
 
       // 统计所有任务数据
       allTaskStats.value.total = response.total_count || 0;
@@ -1668,19 +1712,30 @@ const loadAllTasks = async () => {
   }
 };
 
+// 处理全部任务分页改变
+const handleAllTasksPageChange = (page: number) => {
+  loadAllTasks(page);
+};
+
+// 处理全部任务每页数量改变
+const handleAllTasksSizeChange = () => {
+  loadAllTasks(1);
+};
+
 // 处理任务状态变化
 const handleTaskStateChange = () => {
-  // 状态变化时自动应用筛选（计算属性会自动更新）
+  loadAllTasks(1);
 };
 
 // 处理任务搜索
 const handleTaskSearch = () => {
-  // 搜索逻辑由计算属性filteredAllTasks自动处理
+  loadAllTasks(1);
 };
 
 // 重置任务搜索
 const handleTaskSearchReset = () => {
   taskSearchForm.value.state = "";
+  loadAllTasks(1);
 };
 
 // 获取组件的 DOM 元素
@@ -1707,7 +1762,7 @@ const calculateTableHeights = () => {
       const cardTopToViewportBottom = viewportHeight - cardRect.top;
       const cardHeaderHeight = 50; // card header高度
       const cardPadding = 40; // card内部padding
-      const paginationHeight = 30; // 分页高度
+      const paginationHeight = 56; // 分页高度
       const bottomPadding = 20;
       todoTasksTableHeight.value = Math.max(300, cardTopToViewportBottom - cardHeaderHeight - cardPadding - paginationHeight - bottomPadding);
     }
@@ -1719,8 +1774,9 @@ const calculateTableHeights = () => {
       const cardTopToViewportBottom = viewportHeight - cardRect.top;
       const cardHeaderHeight = 50;
       const cardPadding = 40;
+      const paginationHeight = 56;
       const bottomPadding = 20;
-      allTasksTableHeight.value = Math.max(400, cardTopToViewportBottom - cardHeaderHeight - cardPadding - bottomPadding);
+      allTasksTableHeight.value = Math.max(400, cardTopToViewportBottom - cardHeaderHeight - cardPadding - paginationHeight - bottomPadding);
     }
 
     // 计算项目表格高度
@@ -2269,7 +2325,7 @@ onBeforeUnmount(() => {
     color: #409eff;
   }
 
-  .todo-pagination-wrapper {
+  .table-pagination-wrapper {
     margin-top: 16px;
     display: flex;
     justify-content: flex-end;
@@ -2580,8 +2636,8 @@ onBeforeUnmount(() => {
       }
     }
 
-    /* 待办事项分页移动端适配 */
-    .todo-pagination-wrapper {
+    /* 表格分页移动端适配 */
+    .table-pagination-wrapper {
       justify-content: center;
       margin-top: 12px;
       padding: 0 4px;

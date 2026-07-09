@@ -19,7 +19,7 @@ export default {
         title: "项目概览表",
         showLink: true,
         showParent: true,
-        roles: ["Admin", "ProjectDirector", "ProjectManager"]
+        roles: ["Admin", "ProjectDirector", "ProjectManager", "BusinessDepartmentMembers"]
       },
     },
     {

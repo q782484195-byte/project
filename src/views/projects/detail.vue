@@ -160,7 +160,7 @@
                   :value="option.value" />
               </el-select>
               <el-button type="primary" size="small" style="margin-left: 16px;" @click="handleUpdateStatus"
-                v-if="userStore.username === project.creator">
+                v-if="canPauseProject">
                 暂停
               </el-button>
             </el-descriptions-item>
@@ -426,6 +426,10 @@ const showTasksDrawer = ref(false);
 const showInfoDrawer = ref(false);
 const projectStore = useProjectStoreHook();
 const userStore = useUserStoreHook();
+const canPauseProject = computed(() => {
+  const roles = userStore.roles || [];
+  return roles.includes("Admin") || roles.includes("ProjectDirector");
+});
 const activeTab = ref<string>("statistics");
 const structureTreeData = ref<StructureTreeNode | Record<string, any> | null>(null);
 

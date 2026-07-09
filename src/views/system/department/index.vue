@@ -6,15 +6,43 @@ import type { FormInstance, FormRules } from "element-plus";
 import {
   addDepartment,
   selectAllUsers,
-  getDepartmentNameList,
+  parseDepartmentSelectMap,
+  formatDepartmentGroupLabel,
+  DEFAULT_DEPARTMENT_GROUP,
   type DepartmentListItem,
-  type DepartmentUserMap
+  type DepartmentSelectUser
 } from "@/api/system";
 import { Plus as Add, Refresh, Search } from "@element-plus/icons-vue";
 
 defineOptions({
   name: "SystemDepartment"
 });
+
+const roleMap: Record<string, string> = {
+  ProjectManager: "项目经理",
+  DepartmentManager: "部门主管",
+  Member: "普通成员",
+  ProjectDirector: "项目总监",
+  BusinessDepartmentMembers: "业务部门成员"
+};
+
+const renderRoleTags = (roles: string[]) => {
+  if (!roles.length) {
+    return h("span", { style: { color: "#999" } }, "暂无角色");
+  }
+  const ElTag = resolveComponent("el-tag");
+  return h(
+    "div",
+    { class: "member-role-list" },
+    roles.map(role =>
+      h(
+        ElTag,
+        { key: role, size: "small", effect: "plain" },
+        { default: () => roleMap[role] || role }
+      )
+    )
+  );
+};
 
 const tableRef = ref();
 const tableCardRef = ref<InstanceType<typeof import("element-plus").ElCard>>();
@@ -53,7 +81,15 @@ const queryForm = reactive({
   status: undefined as number | undefined
 });
 
-const tableData = ref<DepartmentListItem[]>([]);
+const tableData = ref<(DepartmentListItem & {
+  id?: string;
+  isGroup?: boolean;
+  isChild?: boolean;
+  username?: string;
+  role?: string[];
+  部门人员?: string[];
+  children?: any[];
+})[]>([]);
 const pagination = reactive({
   page: 1,
   pageSize: 10,
@@ -66,9 +102,21 @@ const columns = [
     prop: "部门名",
     minWidth: 150,
     cellRenderer: ({ row }) => {
-      // 如果是子行（部门人员），不显示部门名
+      if (row.isGroup) {
+        return h(
+          "span",
+          { style: { fontWeight: 600, color: "var(--el-color-primary)" } },
+          row["部门名"] || ""
+        );
+      }
+      // 人员行：在名称列展示
       if (row.isChild) {
-        return h("span", "");
+        const name = row.username || "";
+        const initial = name.slice(0, 1);
+        return h("div", { class: "member-name" }, [
+          h("span", { class: "member-name__avatar" }, initial),
+          h("span", { class: "member-name__text" }, name)
+        ]);
       }
       return h("span", row["部门名"] || "");
     }
@@ -78,7 +126,9 @@ const columns = [
     prop: "负责人",
     minWidth: 200,
     cellRenderer: ({ row }) => {
-      // 如果是子行（部门人员），不显示负责人
+      if (row.isGroup) {
+        return h("span", "");
+      }
       if (row.isChild) {
         return h("span", "");
       }
@@ -101,21 +151,37 @@ const columns = [
     prop: "部门人员",
     minWidth: 150,
     cellRenderer: ({ row }) => {
-      // 如果是子行（部门人员），用tag包裹显示用户名
-      if (row.isChild) {
-        const ElTag = resolveComponent("el-tag");
-        return h(ElTag, {}, { default: () => row.username || "" });
+      if (row.isGroup) {
+        return h("span", "");
       }
-      // 如果是父行（部门），显示人数
-      const managers = row["部门人员"] || [];
-      if (managers.length === 0) {
+      if (row.isChild) {
+        return h("span", "");
+      }
+      const members = row["部门人员"] || [];
+      if (members.length === 0) {
         return h("span", { style: { color: "#999" } }, "暂无部门人员");
       }
       return h(
         "span",
-        { style: { color: "#409eff" } },
-        `${managers.length} 人`
+        { class: "member-count" },
+        `${members.length} 人`
       );
+    }
+  },
+  {
+    label: "角色",
+    prop: "role",
+    minWidth: 160,
+    cellRenderer: ({ row }) => {
+      if (row.isGroup || !row.isChild) {
+        return h("span", "");
+      }
+      const roles = Array.isArray(row.role)
+        ? row.role
+        : row.role
+          ? [row.role]
+          : [];
+      return renderRoleTags(roles);
     }
   }
   // {
@@ -130,54 +196,82 @@ const columns = [
 const loadData = async () => {
   loading.value = true;
   try {
-    const response = await getDepartmentNameList();
+    const response = await selectAllUsers();
     if (response.code === 200) {
-      let list = response.result || [];
-      // 如果有查询条件，进行过滤
-      if (queryForm.name) {
-        list = list.filter(item => item["部门名"].includes(queryForm.name));
-      }
-      const usersResponse = await selectAllUsers();
-      if (usersResponse.code === 200) {
-        const departmentUserMaps = usersResponse.result || [];
-        // 将数组转换为对象，方便查找
-        const departmentUsersMap: Record<string, string[]> = {};
-        departmentUserMaps.forEach(map => {
-          Object.keys(map).forEach(department => {
-            departmentUsersMap[department] = map[department].map(
-              user => user.username
-            );
-          });
-        });
+      const rawResult = response.result ?? response.data;
+      const deptMap = parseDepartmentSelectMap(rawResult);
+      const list: typeof tableData.value = [];
 
-        list = list.map(item => {
-          const department = item["部门名"];
-          const users = departmentUsersMap[department] || [];
+      Object.entries(deptMap).forEach(([departmentName, groups]) => {
+        if (queryForm.name && !departmentName.includes(queryForm.name)) {
+          return;
+        }
 
-          // 构建树形结构：每个部门作为父节点，部门人员作为子节点
-          const children = users.map((username, index) => ({
-            id: `${department}-${index}`,
-            username: username,
+        const groupKeys = Object.keys(groups);
+        const hasMultipleGroups =
+          groupKeys.length > 1 ||
+          (groupKeys.length === 1 && groupKeys[0] !== DEFAULT_DEPARTMENT_GROUP);
+
+        const allUsers = groupKeys.flatMap(key => groups[key] || []);
+        const managers = allUsers
+          .filter(user => {
+            const roles = Array.isArray(user.role) ? user.role : [];
+            return roles.includes("DepartmentManager");
+          })
+          .map(user => user.username);
+
+        const buildUserChildren = (
+          users: DepartmentSelectUser[],
+          parentId: string
+        ) =>
+          users.map((user, index) => ({
+            id: `${parentId}-user-${index}`,
+            username: user.username,
+            role: Array.isArray(user.role) ? user.role : user.role ? [user.role] : [],
             部门名: "",
             负责人: [],
-            部门人员: [],
-            isChild: true // 标记为子行
+            isChild: true
           }));
 
+        if (!hasMultipleGroups) {
+          const users =
+            groups[DEFAULT_DEPARTMENT_GROUP] || groups[groupKeys[0]] || [];
+          const children = buildUserChildren(users, departmentName);
+          list.push({
+            部门名: departmentName,
+            负责人: managers,
+            id: departmentName,
+            部门人员: users.map(user => user.username),
+            children: children.length > 0 ? children : undefined
+          });
+          return;
+        }
+
+        const groupChildren = groupKeys.map(groupKey => {
+          const users = groups[groupKey] || [];
+          const userChildren = buildUserChildren(
+            users,
+            `${departmentName}-${groupKey}`
+          );
           return {
-            ...item,
-            id: department, // 使用部门名作为唯一标识
-            部门人员: users,
-            children: children.length > 0 ? children : undefined // 只有有人员时才添加children
+            部门名: formatDepartmentGroupLabel(groupKey),
+            负责人: [],
+            id: `${departmentName}-group-${groupKey}`,
+            isGroup: true,
+            部门人员: users.map(user => user.username),
+            children: userChildren.length > 0 ? userChildren : undefined
           };
         });
 
-        // 调试：打印数据
-        console.log("部门列表数据:", list);
-        list.forEach(item => {
-          console.log(`部门: ${item["部门名"]}, 人员:`, item["部门人员"]);
+        list.push({
+          部门名: departmentName,
+          负责人: managers,
+          id: departmentName,
+          部门人员: allUsers.map(user => user.username),
+          children: groupChildren
         });
-      }
+      });
+
       tableData.value = list;
       pagination.total = list.length;
     } else {
@@ -380,6 +474,44 @@ onUnmounted(() => {
     &:last-child {
       margin-bottom: 0;
     }
+  }
+
+  :deep(.member-name) {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 2px 0;
+  }
+
+  :deep(.member-name__avatar) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--el-color-primary-light-8);
+    color: var(--el-color-primary);
+    font-size: 12px;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  :deep(.member-name__text) {
+    color: var(--el-text-color-regular);
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  :deep(.member-count) {
+    color: var(--el-color-primary);
+    font-weight: 500;
+  }
+
+  :deep(.member-role-list) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
   }
 }
 

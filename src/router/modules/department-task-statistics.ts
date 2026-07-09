@@ -19,7 +19,7 @@ export default {
         title: "任务统计",
         showLink: true,
         showParent: false,
-        roles: ["Admin", "ProjectManager", "ProjectDirector", "DepartmentManager"]
+        roles: ["Admin", "ProjectManager", "ProjectDirector", "DepartmentManager", "BusinessDepartmentMembers"]
       }
     }
   ]

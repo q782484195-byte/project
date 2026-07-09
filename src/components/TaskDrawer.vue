@@ -105,7 +105,7 @@ import {
   type UpdateTaskParams,
   type RequirementListItem
 } from "@/api/project";
-import { getDepartmentNameList, type DepartmentListItem } from "@/api/system";
+import { getDepartmentNameList, flattenDepartmentList, type DepartmentListItem } from "@/api/system";
 import RichTextEditor from "@/components/RichTextEditor.vue";
 import type { DescribeContent } from "@/types";
 import { useUserStoreHook } from "@/store/modules/user";
@@ -471,8 +471,10 @@ const loadDepartmentLeaders = async () => {
   departmentLeadersLoading.value = true;
   try {
     const response = await getDepartmentNameList();
-    if (response.code === 200 && Array.isArray(response.result)) {
-      departmentLeadersTree.value = buildDepartmentLeadersTree(response.result);
+    if (response.code === 200 && response.result != null) {
+      departmentLeadersTree.value = buildDepartmentLeadersTree(
+        flattenDepartmentList(response.result)
+      );
     } else {
       ElMessage.error("加载部门负责人列表失败");
       departmentLeadersTree.value = [];

@@ -176,7 +176,7 @@ const transitionMain = defineComponent({
 }
 
 .main-content {
-  padding: 16px;
+  padding: 16px 16px 0 16px;
   margin: 0;
   box-sizing: border-box;
 }

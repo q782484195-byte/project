@@ -1,0 +1,14 @@
+{
+  "light": {
+    "navBgColor": "#FFFFFF",
+    "navTxtStyle": "black",
+    "bgColor": "#F5F7FA",
+    "bgTxtStyle": "light",
+    "bgColorTop": "#F5F7FA",
+    "bgColorBottom": "#F5F7FA",
+    "tabFontColor": "#909399",
+    "tabSelectedColor": "#409EFF",
+    "tabBgColor": "#FFFFFF",
+    "tabBorderStyle": "black"
+  }
+}

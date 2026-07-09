@@ -263,7 +263,7 @@ import { useProjectTemplateStoreHook } from "@/store/modules/projectTemplate";
 import { getAllProjectTemplates } from "@/mock/projectTemplates";
 import { createProject, updateProject, uploadFile } from "@/api/project";
 import type { UpdateProjectParams } from "@/api/project";
-import { selectAllUsers } from "@/api/system";
+import { selectAllUsers, flattenDepartmentSelectUsers } from "@/api/system";
 import RichTextEditor from "./RichTextEditor.vue";
 
 interface Props {
@@ -430,26 +430,27 @@ const loadProjectManagers = async () => {
   projectManagersLoading.value = true;
   try {
     const response = await selectAllUsers();
-    if (response.code === 200 && Array.isArray(response.result)) {
-      // 提取所有项目负责人（角色为ProjectManager的用户）
+    const rawResult = response.result ?? response.data;
+    if (response.code === 200 && rawResult != null) {
       const managers: Array<{ label: string; value: string }> = [];
 
-      response.result.forEach((deptData: any) => {
-        const members = Object.values(deptData)[0] || [];
-        if (Array.isArray(members)) {
-          members.forEach((user: any) => {
-            const userRoles = Array.isArray(user.role) ? user.role : user.role ? [user.role] : [];
-            // 检查是否是项目负责人
-            if (userRoles.includes("ProjectManager") || userRoles.includes("ProjectDirector")) {
-              const username = user.username || user.nickname || "";
-              if (username && !managers.find(m => m.value === username)) {
-                managers.push({
-                  label: username,
-                  value: username
-                });
-              }
-            }
-          });
+      flattenDepartmentSelectUsers(rawResult).forEach(user => {
+        const userRoles = Array.isArray(user.role)
+          ? user.role
+          : user.role
+            ? [user.role]
+            : [];
+        if (
+          userRoles.includes("ProjectManager") ||
+          userRoles.includes("ProjectDirector")
+        ) {
+          const username = user.username || "";
+          if (username && !managers.find(item => item.value === username)) {
+            managers.push({
+              label: username,
+              value: username
+            });
+          }
         }
       });
 

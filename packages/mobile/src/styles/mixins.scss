@@ -1,0 +1,43 @@
+@import "./tokens.scss";
+
+@mixin pm-card {
+  background: $pm-bg-card;
+  border-radius: $pm-radius-lg;
+  border: 1rpx solid $pm-border;
+}
+
+@mixin pm-card-active {
+  &:active {
+    background: $pm-bg-hover;
+  }
+}
+
+@mixin pm-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@mixin pm-ellipsis-multi($lines: 2) {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: $lines;
+  overflow: hidden;
+}
+
+@mixin pm-flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+@mixin pm-safe-bottom {
+  padding-bottom: constant(safe-area-inset-bottom);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+@mixin pm-page {
+  min-height: 100vh;
+  background: $pm-bg-page;
+  box-sizing: border-box;
+}

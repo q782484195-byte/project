@@ -60,7 +60,7 @@
             <el-table-column prop="状态" label="状态" width="150" align="center">
               <template #default="{ row }">
                 <el-tag :type="getStatusType(row.状态 || row.status, row) || undefined" size="small" effect="light">
-                  {{ row.状态 || row.status || "-" }}
+                  {{ getDisplayStatus(row) }}
                 </el-tag>
               </template>
             </el-table-column>
@@ -105,7 +105,7 @@
                 </div>
                 <div class="mobile-task-card__meta">
                   <el-tag :type="getStatusType(row.状态 || row.status, row) || undefined" size="small" effect="light">
-                    {{ row.状态 || row.status || "-" }}
+                    {{ getDisplayStatus(row) }}
                   </el-tag>
                   <el-tag :type="getPriorityType(row.优先级 || row.priority) || undefined" size="small">
                     {{ row.优先级 || row.priority || "-" }}
@@ -158,7 +158,7 @@ import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
 import { deviceDetection } from "@pureadmin/utils";
 import { selectTaskStatistics } from "@/api/project";
-import { selectAllUsers } from "@/api/system";
+import { selectAllUsers, flattenDepartmentSelectUsers } from "@/api/system";
 import { TaskStatus } from "@/types";
 
 const router = useRouter();
@@ -298,10 +298,18 @@ const handleDepartmentChange = () => {
   selectedUser.value = USER_ALL;
 };
 
+const isTaskDelayed = (row: any): boolean => row?.delay?.task_is_delay === true;
+
+const getDisplayStatus = (row: any): string => {
+  if (isTaskDelayed(row)) return "延期";
+  return row.状态 || row.status || "-";
+};
+
 const getStatusType = (
   status: string,
   row: any
 ): "success" | "info" | "warning" | "danger" | "" => {
+  if (isTaskDelayed(row)) return "danger";
   if (!status) return "";
   const map: Record<string, "success" | "info" | "warning" | "danger" | ""> = {
     [TaskStatus.PENDING_ASSIGN_TO_DEPT_LEADER]: "warning",
@@ -353,33 +361,25 @@ const handleResize = () => {
   calculateTableHeight();
 };
 
-/** 解析 select_all_users：result 为 [{ 部门名: 成员[] }, ...] 或单层对象 */
-const parseDeptMembersFromSelectAllUsers = (raw: unknown): Record<string, DeptMember[]> => {
+/** 将 select_all_users 解析为 部门 -> 成员列表（兼容分组结构） */
+const buildDeptMembersMap = (raw: unknown): Record<string, DeptMember[]> => {
   const out: Record<string, DeptMember[]> = {};
-  if (raw == null) return out;
-
-  const ingest = (chunk: Record<string, unknown>) => {
-    for (const dept of Object.keys(chunk)) {
-      const arr = chunk[dept];
-      if (!Array.isArray(arr)) continue;
-      if (!out[dept]) out[dept] = [];
-      out[dept].push(...(arr as DeptMember[]));
-    }
-  };
-
-  if (Array.isArray(raw)) {
-    raw.forEach((item) => {
-      if (item && typeof item === "object" && !Array.isArray(item)) {
-        ingest(item as Record<string, unknown>);
-      }
+  flattenDepartmentSelectUsers(raw).forEach(user => {
+    const dept = user.department;
+    if (!dept) return;
+    if (!out[dept]) out[dept] = [];
+    if (out[dept].some(member => member.username === user.username)) return;
+    out[dept].push({
+      username: user.username,
+      role: Array.isArray(user.role)
+        ? user.role
+        : user.role
+          ? [user.role]
+          : [],
+      department: dept,
+      _id: user._id
     });
-    return out;
-  }
-
-  if (typeof raw === "object" && !Array.isArray(raw)) {
-    ingest(raw as Record<string, unknown>);
-  }
-
+  });
   return out;
 };
 
@@ -403,7 +403,7 @@ const loadDepartmentMembers = async () => {
     const res = await selectAllUsers();
     const raw = (res.result ?? res.data) as unknown;
     if (res.code === 200 && raw != null) {
-      deptMembersMap.value = parseDeptMembersFromSelectAllUsers(raw);
+      deptMembersMap.value = buildDeptMembersMap(raw);
       selectedDepartment.value = "";
       selectedUser.value = "";
       calculateTableHeight();

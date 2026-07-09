@@ -125,6 +125,7 @@ import {
   addNotification,
   selectAllUsers,
   getDepartmentNameList,
+  flattenDepartmentList,
   type DepartmentListItem,
   type DepartmentUserMap
 } from "@/api/system";
@@ -760,21 +761,22 @@ const loadNotificationRecipientsTree = async () => {
   notificationRecipientsLoading.value = true;
   try {
     const departmentResponse = await getDepartmentNameList();
-    if (departmentResponse.code !== 200 || !Array.isArray(departmentResponse.result)) {
+    if (departmentResponse.code !== 200 || departmentResponse.result == null) {
       ElMessage.error("加载部门列表失败");
       notificationRecipientsTree.value = [];
       return;
     }
 
+    const departmentList = flattenDepartmentList(departmentResponse.result);
     const usersResponse = await selectAllUsers();
     if (usersResponse.code === 200 && Array.isArray(usersResponse.result)) {
       notificationRecipientsTree.value = buildNotificationRecipientsTree(
-        departmentResponse.result,
+        departmentList,
         usersResponse.result
       );
     } else {
       notificationRecipientsTree.value = buildNotificationRecipientsTree(
-        departmentResponse.result,
+        departmentList,
         []
       );
     }
