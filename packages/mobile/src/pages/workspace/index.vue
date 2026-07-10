@@ -1,55 +1,40 @@
 <template>
   <pm-page-layout :tabbar="true">
-    <view class="workspace-hero">
-      <view class="workspace-hero__top">
-        <view class="workspace-hero__brand">
-          <image
-            class="workspace-hero__logo"
-            src="/static/icons/logo.png"
-            mode="aspectFit"
-          />
-          <text class="workspace-hero__title">工作台</text>
+    <pm-tab-header title="工作台">
+      <template #extra>
+        <view class="tab-hero__action-btn" @click="goTasks">
+          <pm-icon name="search" :size="36" />
         </view>
-        <view class="workspace-hero__actions">
-          <view class="workspace-hero__search" @click="goTasks">
-            <pm-icon name="search" :size="36" />
-          </view>
-          <view class="workspace-bell" @click="goMessage">
-            <pm-icon name="bell" :size="36" />
-            <view v-if="unreadCount" class="workspace-bell__dot" />
-          </view>
+        <view class="tab-hero__action-btn tab-hero__action-btn--badge" @click="goMessage">
+          <pm-icon name="bell" :size="36" />
+          <view v-if="unreadCount" class="tab-hero__action-dot" />
         </view>
-      </view>
-
-      <view class="workspace-hero__card">
-        <view class="workspace-hero__decor workspace-hero__decor--1" />
-        <view class="workspace-hero__decor workspace-hero__decor--2" />
-        <view class="workspace-hero__card-body">
-          <view class="workspace-hero__card-head">
-            <text class="workspace-hero__date">{{ dateLine }}</text>
-            <view class="workspace-hero__user" @click="goProfile">
-              <view class="workspace-hero__avatar">
-                <text>{{ avatarText }}</text>
-              </view>
-              <text class="workspace-hero__user-name">{{ userStore.displayName }}</text>
+      </template>
+      <template #bottom>
+        <view class="tab-hero__meta">
+          <text class="tab-hero__date">{{ dateLine }}</text>
+          <view class="tab-hero__user" @click="goProfile">
+            <view class="tab-hero__avatar">
+              <text>{{ avatarText }}</text>
             </view>
-          </view>
-          <text class="workspace-hero__slogan">{{ heroSlogan }}</text>
-          <view class="workspace-hero__chips">
-            <view
-              v-for="chip in heroChips"
-              :key="chip.key"
-              class="workspace-hero__chip"
-              :class="{ 'workspace-hero__chip--warn': chip.warn }"
-              @click="onStatClick(chip.key)"
-            >
-              <text class="workspace-hero__chip-value">{{ chip.value }}</text>
-              <text class="workspace-hero__chip-label">{{ chip.label }}</text>
-            </view>
+            <text class="tab-hero__user-name">{{ userStore.displayName }}</text>
           </view>
         </view>
-      </view>
-    </view>
+        <text class="tab-hero__slogan">{{ heroSlogan }}</text>
+        <view class="tab-stat-row tab-stat-row--4">
+          <view
+            v-for="chip in heroChips"
+            :key="chip.key"
+            class="tab-stat-card tab-stat-card--hero"
+            :class="{ 'tab-stat-card--warn': chip.warn }"
+            @click="onStatClick(chip.key)"
+          >
+            <text class="tab-stat-card__value">{{ chip.value }}</text>
+            <text class="tab-stat-card__label">{{ chip.label }}</text>
+          </view>
+        </view>
+      </template>
+    </pm-tab-header>
 
     <view v-if="overdueCount" class="workspace-alert" @click="filterOverdue">
       <text class="workspace-alert__text">有 {{ overdueCount }} 个任务已逾期，请尽快处理</text>
@@ -159,12 +144,15 @@
 import { computed, ref } from "vue";
 import { onPullDownRefresh, onShow } from "@dcloudio/uni-app";
 import PmPageLayout from "@/components/pm-page-layout/pm-page-layout.vue";
+import PmTabHeader from "@/components/pm-tab-header/pm-tab-header.vue";
 import PmTaskRow from "@/components/pm-task-row/pm-task-row.vue";
 import PmIcon from "@/components/pm-icon/pm-icon.vue";
 import { selectProjects } from "@/api/project";
-import { getTaskStatistics, selectMyTasks, selectPendingTasks } from "@/api/task";
+import { selectPendingTasks } from "@/api/task";
 import { unwrapList } from "@/utils/api";
 import { mapTaskToMobile, type MobileTask } from "@/utils/task-mapper";
+import { loadMyTasksForStats } from "@/utils/task-loader";
+import { summarizeTaskSegments } from "@/utils/task-segments";
 import { useTaskNavStore } from "@/stores/task-nav";
 import { useUserStore } from "@/stores/user";
 
@@ -296,41 +284,24 @@ function mapDynamicFeeds(
 
 async function loadWorkspace() {
   try {
-    // 各接口独立容错，避免一个失败导致整页空白
-    const [statisticsRes, tasksRes, pendingRes, projectsRes] = await Promise.all([
-      getTaskStatistics().catch(() => null),
-      selectMyTasks({ page: 1, page_size: 20 }),
+    const [taskList, pendingRes, projectsRes] = await Promise.all([
+      loadMyTasksForStats().catch(() => [] as MobileTask[]),
       selectPendingTasks({ page: 1, page_size: 10 }).catch(() => null),
       selectProjects({ page: 1, page_size: 6 }).catch(() => null)
     ]);
 
-    const taskList = unwrapList(tasksRes).map(mapTaskToMobile);
     todayTasks.value = taskList.slice(0, 3);
-    overdueCount.value = taskList.filter((item) => item.overdue).length;
+    const summary = summarizeTaskSegments(taskList);
+    overdueCount.value = summary.overdue;
 
     const pendingList = pendingRes ? unwrapList(pendingRes) : [];
     unreadCount.value = pendingList.length;
 
-    const doingCount = taskList.filter((item) =>
-      ["任务进行中", "进行中", "待测试", "测试中"].includes(item.status)
-    ).length;
-    const todoCount =
-      statisticsRes?.未完成任务 ??
-      taskList.filter((item) =>
-        ["待办", "任务未开始", "逾期"].includes(item.status)
-      ).length;
-
     stats.value = [
-      { key: "overdue", label: "逾期", value: overdueCount.value, warn: true },
-      { key: "todo", label: "待办", value: todoCount },
-      { key: "doing", label: "进行中", value: doingCount },
-      {
-        key: "done",
-        label: "已完成",
-        value:
-          statisticsRes?.已完成任务 ??
-          taskList.filter((item) => item.status === "已完成").length
-      }
+      { key: "overdue", label: "逾期", value: summary.overdue, warn: summary.overdue > 0 },
+      { key: "todo", label: "待办", value: summary.todo },
+      { key: "doing", label: "进行中", value: summary.doing },
+      { key: "done", label: "已完成", value: summary.done }
     ];
 
     projects.value = projectsRes
@@ -402,191 +373,6 @@ function filterOverdue() {
 @import "@/styles/tokens.scss";
 @import "@/styles/mixins.scss";
 @import "@/styles/tab-page.scss";
-
-.workspace-hero {
-  padding: calc(var(--status-bar-height, 44px) + 32rpx) $pm-space-lg $pm-space-md;
-  background: linear-gradient(180deg, #dbeafe 0%, #eff6ff 48%, $pm-bg-page 100%);
-}
-
-.workspace-hero__top {
-  @include pm-flex-between;
-  align-items: center;
-  margin-bottom: 28rpx;
-}
-
-.workspace-hero__brand {
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-}
-
-.workspace-hero__logo {
-  width: 48rpx;
-  height: 48rpx;
-  border-radius: 12rpx;
-}
-
-.workspace-hero__title {
-  font-size: $pm-font-title;
-  font-weight: $pm-weight-semibold;
-  color: $pm-text-primary;
-  letter-spacing: 1rpx;
-}
-
-.workspace-hero__actions {
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-}
-
-.workspace-hero__search,
-.workspace-bell {
-  position: relative;
-  width: 68rpx;
-  height: 68rpx;
-  border-radius: 20rpx;
-  background: rgba(255, 255, 255, 0.85);
-  border: 1rpx solid rgba(37, 99, 235, 0.08);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  color: $pm-text-secondary;
-}
-
-.workspace-bell__dot {
-  position: absolute;
-  top: 12rpx;
-  right: 12rpx;
-  width: 12rpx;
-  height: 12rpx;
-  border-radius: 50%;
-  background: $pm-danger;
-  border: 2rpx solid #fff;
-}
-
-.workspace-hero__card {
-  position: relative;
-  overflow: hidden;
-  border-radius: 28rpx;
-  background: linear-gradient(135deg, $pm-primary 0%, $pm-primary-dark 100%);
-  box-shadow: 0 16rpx 40rpx rgba(37, 99, 235, 0.22);
-}
-
-.workspace-hero__decor {
-  position: absolute;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.08);
-  pointer-events: none;
-}
-
-.workspace-hero__decor--1 {
-  width: 200rpx;
-  height: 200rpx;
-  top: -60rpx;
-  right: -40rpx;
-}
-
-.workspace-hero__decor--2 {
-  width: 120rpx;
-  height: 120rpx;
-  bottom: -30rpx;
-  left: 40rpx;
-}
-
-.workspace-hero__card-body {
-  position: relative;
-  z-index: 1;
-  padding: 28rpx 28rpx 24rpx;
-}
-
-.workspace-hero__card-head {
-  @include pm-flex-between;
-  align-items: center;
-  gap: $pm-space-md;
-  margin-bottom: 20rpx;
-}
-
-.workspace-hero__date {
-  font-size: $pm-font-mini;
-  color: rgba(255, 255, 255, 0.82);
-  letter-spacing: 0.5rpx;
-}
-
-.workspace-hero__user {
-  display: flex;
-  align-items: center;
-  gap: 10rpx;
-  max-width: 45%;
-  padding: 6rpx 14rpx 6rpx 6rpx;
-  border-radius: $pm-radius-full;
-  background: rgba(255, 255, 255, 0.14);
-}
-
-.workspace-hero__avatar {
-  width: 44rpx;
-  height: 44rpx;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.92);
-  color: $pm-primary;
-  font-size: 22rpx;
-  font-weight: $pm-weight-semibold;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.workspace-hero__user-name {
-  font-size: 22rpx;
-  color: rgba(255, 255, 255, 0.95);
-  @include pm-ellipsis;
-}
-
-.workspace-hero__slogan {
-  display: block;
-  font-size: $pm-font-body;
-  font-weight: $pm-weight-medium;
-  color: #fff;
-  line-height: 1.5;
-  margin-bottom: 24rpx;
-}
-
-.workspace-hero__chips {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12rpx;
-}
-
-.workspace-hero__chip {
-  padding: 16rpx 8rpx;
-  border-radius: 16rpx;
-  background: rgba(255, 255, 255, 0.14);
-  text-align: center;
-
-  &:active {
-    background: rgba(255, 255, 255, 0.22);
-  }
-}
-
-.workspace-hero__chip--warn .workspace-hero__chip-value {
-  color: #fecaca;
-}
-
-.workspace-hero__chip-value {
-  display: block;
-  font-size: 30rpx;
-  font-weight: $pm-weight-semibold;
-  color: #fff;
-  line-height: 1.2;
-}
-
-.workspace-hero__chip-label {
-  display: block;
-  margin-top: 4rpx;
-  font-size: 20rpx;
-  color: rgba(255, 255, 255, 0.75);
-}
 
 .workspace-alert {
   margin: $pm-space-md $pm-space-lg 0;

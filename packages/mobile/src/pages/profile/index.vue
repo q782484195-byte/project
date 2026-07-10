@@ -1,38 +1,31 @@
 <template>
   <view class="tab-page profile-page">
-    <view class="profile-hero">
-      <view class="profile-hero__safe" />
-      <view class="profile-hero__decor profile-hero__decor--1" />
-      <view class="profile-hero__decor profile-hero__decor--2" />
-      <view class="profile-hero__body">
-        <view class="profile-hero__user">
-          <view class="profile-hero__avatar">
+    <pm-tab-header title="我的">
+      <template #bottom>
+        <view class="profile-card__user">
+          <view class="profile-card__avatar">
             <text>{{ avatarText }}</text>
           </view>
-          <view class="profile-hero__info">
-            <text class="profile-hero__name">{{ userStore.displayName }}</text>
-            <text class="profile-hero__account">
-              {{ userStore.user?.username || "未登录" }}
-            </text>
-            <view v-if="roleLabel" class="profile-hero__badge">{{ roleLabel }}</view>
+          <view class="profile-card__info">
+            <text class="profile-card__name">{{ userStore.displayName }}</text>
+            <text v-if="profileSubline" class="profile-card__subline">{{ profileSubline }}</text>
           </view>
         </view>
-      </view>
-    </view>
+        <view class="tab-stat-row profile-card__stats">
+          <view
+            v-for="item in weekStats"
+            :key="item.key"
+            class="tab-stat-card tab-stat-card--hero"
+            @click="goTasksWithFilter(item.key)"
+          >
+            <text class="tab-stat-card__value">{{ item.value }}</text>
+            <text class="tab-stat-card__label">{{ item.label }}</text>
+          </view>
+        </view>
+      </template>
+    </pm-tab-header>
 
-    <view class="profile-stats tab-surface">
-      <view
-        v-for="item in weekStats"
-        :key="item.key"
-        class="profile-stats__item"
-        @click="goTasksWithFilter(item.key)"
-      >
-        <text class="profile-stats__value">{{ item.value }}</text>
-        <text class="profile-stats__label">{{ item.label }}</text>
-      </view>
-    </view>
-
-    <view class="tab-section">
+    <view class="tab-section profile-section">
       <view class="tab-section__head">
         <text class="tab-section__title">账号与安全</text>
       </view>
@@ -103,9 +96,9 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { onShow } from "@dcloudio/uni-app";
-import { getTaskStatistics, selectMyTasks } from "@/api/task";
-import { unwrapList } from "@/utils/api";
-import { mapTaskToMobile } from "@/utils/task-mapper";
+import PmTabHeader from "@/components/pm-tab-header/pm-tab-header.vue";
+import { loadMyTasksForStats } from "@/utils/task-loader";
+import { summarizeTaskSegments } from "@/utils/task-segments";
 import type { TaskListSegment } from "@/utils/task-filter";
 import { useTaskNavStore } from "@/stores/task-nav";
 import { useUserStore } from "@/stores/user";
@@ -125,6 +118,13 @@ const roleLabel = computed(() => {
   return "";
 });
 
+const profileSubline = computed(() => {
+  const account = userStore.user?.username || "";
+  const name = userStore.displayName;
+  if (account && account !== name) return account;
+  return roleLabel.value || "";
+});
+
 const weekStats = ref([
   { key: "todo" as TaskListSegment, label: "待办", value: 0 },
   { key: "doing" as TaskListSegment, label: "进行中", value: 0 },
@@ -133,28 +133,12 @@ const weekStats = ref([
 
 async function loadProfileStats() {
   try {
-    const [statisticsRes, tasksRes] = await Promise.all([
-      getTaskStatistics().catch(() => null),
-      selectMyTasks({ page: 1, page_size: 100 }).catch(() => null)
-    ]);
-    const taskList = tasksRes ? unwrapList(tasksRes).map(mapTaskToMobile) : [];
-    const doing = taskList.filter((item) =>
-      ["任务进行中", "进行中", "待测试", "测试中"].includes(item.status)
-    ).length;
+    const taskList = await loadMyTasksForStats();
+    const summary = summarizeTaskSegments(taskList);
     weekStats.value = [
-      {
-        key: "todo",
-        label: "待办",
-        value: statisticsRes?.未完成任务 ?? taskList.length
-      },
-      { key: "doing", label: "进行中", value: doing },
-      {
-        key: "done",
-        label: "已完成",
-        value:
-          statisticsRes?.已完成任务 ??
-          taskList.filter((item) => item.status === "已完成").length
-      }
+      { key: "todo", label: "待办", value: summary.todo },
+      { key: "doing", label: "进行中", value: summary.doing },
+      { key: "done", label: "已完成", value: summary.done }
     ];
   } catch {
     // 个人页统计失败时保持默认 0
@@ -214,57 +198,24 @@ function handleLogout() {
 @import "@/styles/mixins.scss";
 @import "@/styles/tab-page.scss";
 
-.profile-hero {
-  position: relative;
-  overflow: hidden;
-  background: linear-gradient(135deg, $pm-primary 0%, $pm-primary-dark 100%);
-  padding-bottom: 56rpx;
+.profile-section {
+  margin-top: $pm-space-lg;
 }
 
-.profile-hero__safe {
-  height: var(--status-bar-height, 44px);
-}
-
-.profile-hero__decor {
-  position: absolute;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.08);
-  pointer-events: none;
-}
-
-.profile-hero__decor--1 {
-  width: 240rpx;
-  height: 240rpx;
-  top: -80rpx;
-  right: -60rpx;
-}
-
-.profile-hero__decor--2 {
-  width: 140rpx;
-  height: 140rpx;
-  bottom: 20rpx;
-  left: -40rpx;
-}
-
-.profile-hero__body {
-  position: relative;
-  z-index: 1;
-  padding: 16rpx $pm-space-lg 0;
-}
-
-.profile-hero__user {
+.profile-card__user {
   display: flex;
   align-items: center;
-  gap: 28rpx;
+  gap: 24rpx;
+  margin-bottom: 24rpx;
 }
 
-.profile-hero__avatar {
-  width: 120rpx;
-  height: 120rpx;
+.profile-card__avatar {
+  width: 104rpx;
+  height: 104rpx;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.95);
   color: $pm-primary;
-  font-size: 48rpx;
+  font-size: 44rpx;
   font-weight: $pm-weight-semibold;
   display: flex;
   align-items: center;
@@ -274,60 +225,30 @@ function handleLogout() {
   box-shadow: 0 8rpx 24rpx rgba(15, 23, 42, 0.12);
 }
 
-.profile-hero__name {
+.profile-card__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.profile-card__name {
   display: block;
-  font-size: 40rpx;
+  font-size: 36rpx;
   font-weight: $pm-weight-semibold;
   color: #fff;
   line-height: 1.3;
+  @include pm-ellipsis;
 }
 
-.profile-hero__account {
+.profile-card__subline {
   display: block;
-  margin-top: 8rpx;
+  margin-top: 10rpx;
   font-size: $pm-font-caption;
   color: rgba(255, 255, 255, 0.78);
+  @include pm-ellipsis;
 }
 
-.profile-hero__badge {
-  display: inline-block;
-  margin-top: 14rpx;
-  padding: 6rpx 18rpx;
-  border-radius: $pm-radius-full;
-  background: rgba(255, 255, 255, 0.18);
-  color: rgba(255, 255, 255, 0.95);
-  font-size: 22rpx;
-}
-
-.profile-stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  margin: -36rpx $pm-space-lg 0;
-  position: relative;
-  z-index: 2;
-  padding: 28rpx 12rpx;
-}
-
-.profile-stats__item {
-  text-align: center;
-
-  &:active {
-    opacity: 0.75;
-  }
-}
-
-.profile-stats__value {
-  display: block;
-  font-size: 40rpx;
-  font-weight: $pm-weight-semibold;
-  color: $pm-text-primary;
-}
-
-.profile-stats__label {
-  display: block;
-  margin-top: 6rpx;
-  font-size: $pm-font-mini;
-  color: $pm-text-placeholder;
+.profile-card__stats {
+  margin-top: 4rpx;
 }
 
 .profile-menu__item {

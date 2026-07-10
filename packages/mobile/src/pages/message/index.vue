@@ -2,22 +2,22 @@
   <view class="tab-page message-page">
     <pm-tab-header title="消息中心" :subtitle="headerSubtitle">
       <template #extra>
-        <view class="tab-icon-btn" @click="markAllRead">
-          <text class="message-page__read-btn">已读</text>
+        <view class="tab-hero__action-btn" @click="markAllRead">
+          <text>已读</text>
         </view>
       </template>
       <template #bottom>
-        <scroll-view scroll-x class="message-page__tabs" :show-scrollbar="false">
-          <view class="message-page__tabs-inner">
+        <scroll-view scroll-x class="tab-hero__tabs" :show-scrollbar="false">
+          <view class="tab-hero__tabs-inner">
             <view
               v-for="tab in tabs"
               :key="tab.value"
-              class="message-page__tab"
+              class="tab-hero__tab"
               :class="{ 'is-active': activeTab === tab.value }"
               @click="activeTab = tab.value"
             >
               <text>{{ tab.label }}</text>
-              <text v-if="tab.badge" class="tab-pill__badge">{{ tab.badge }}</text>
+              <text v-if="tab.badge" class="tab-hero__tab-badge">{{ tab.badge }}</text>
             </view>
           </view>
         </scroll-view>
@@ -204,45 +204,6 @@ onShow(() => {
 @import "@/styles/tokens.scss";
 @import "@/styles/mixins.scss";
 @import "@/styles/tab-page.scss";
-
-.message-page__read-btn {
-  font-size: 24rpx;
-  font-weight: $pm-weight-medium;
-  color: $pm-primary;
-}
-
-.message-page__tabs {
-  margin-top: 24rpx;
-  white-space: nowrap;
-  width: 100%;
-}
-
-.message-page__tabs-inner {
-  display: inline-flex;
-  gap: 12rpx;
-  padding-bottom: 4rpx;
-}
-
-.message-page__tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 8rpx;
-  height: 64rpx;
-  padding: 0 28rpx;
-  border-radius: $pm-radius-full;
-  font-size: $pm-font-caption;
-  color: $pm-text-secondary;
-  background: rgba(255, 255, 255, 0.72);
-  border: 1rpx solid rgba(37, 99, 235, 0.08);
-
-  &.is-active {
-    color: $pm-primary;
-    background: #fff;
-    border-color: rgba(37, 99, 235, 0.22);
-    font-weight: $pm-weight-semibold;
-    box-shadow: 0 4rpx 12rpx rgba(37, 99, 235, 0.1);
-  }
-}
 
 .message-page__list {
   padding: $pm-space-lg;
