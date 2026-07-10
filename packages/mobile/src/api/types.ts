@@ -31,8 +31,12 @@ export interface TaskListItem {
   project_name?: string;
   requirement_name?: string;
   当前处理人?: string;
+  current_handler?: string;
+  assignee?: string;
   default_person?: string;
   creator?: string;
+  指派人?: string;
+  测试部负责人?: string;
   进度?: number;
   progress?: number;
   task_deadline?: string;
@@ -42,6 +46,9 @@ export interface TaskListItem {
   attachment?: unknown[];
   历史记录?: string[];
   show_color?: string;
+  next_state?: string[];
+  need_assign?: boolean[];
+  need_reason?: boolean[];
   [key: string]: unknown;
 }
 

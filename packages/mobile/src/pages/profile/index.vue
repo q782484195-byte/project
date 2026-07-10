@@ -1,85 +1,134 @@
 <template>
-  <pm-page-layout :tabbar="true">
-    <template #header>
-      <view class="profile-head">
-        <view class="profile-head__avatar">
-          <text>{{ avatarText }}</text>
-        </view>
-        <view class="profile-head__info">
-          <text class="profile-head__name">{{ userStore.displayName }}</text>
-          <text class="profile-head__account">
-            {{ userStore.user?.username || "未登录" }}
-          </text>
+  <view class="tab-page profile-page">
+    <view class="profile-hero">
+      <view class="profile-hero__safe" />
+      <view class="profile-hero__decor profile-hero__decor--1" />
+      <view class="profile-hero__decor profile-hero__decor--2" />
+      <view class="profile-hero__body">
+        <view class="profile-hero__user">
+          <view class="profile-hero__avatar">
+            <text>{{ avatarText }}</text>
+          </view>
+          <view class="profile-hero__info">
+            <text class="profile-hero__name">{{ userStore.displayName }}</text>
+            <text class="profile-hero__account">
+              {{ userStore.user?.username || "未登录" }}
+            </text>
+            <view v-if="roleLabel" class="profile-hero__badge">{{ roleLabel }}</view>
+          </view>
         </view>
       </view>
-    </template>
+    </view>
 
-    <view class="profile-stats">
-      <view v-for="item in weekStats" :key="item.label" class="profile-stats__item">
+    <view class="profile-stats tab-surface">
+      <view
+        v-for="item in weekStats"
+        :key="item.key"
+        class="profile-stats__item"
+        @click="goTasksWithFilter(item.key)"
+      >
         <text class="profile-stats__value">{{ item.value }}</text>
         <text class="profile-stats__label">{{ item.label }}</text>
       </view>
     </view>
 
-    <view class="profile-menu">
-      <view class="profile-menu__item" @click="toggleNotify">
-        <text>消息通知</text>
-        <view class="profile-switch" :class="{ 'is-off': !notifyOn }" />
+    <view class="tab-section">
+      <view class="tab-section__head">
+        <text class="tab-section__title">账号与安全</text>
       </view>
-      <view class="profile-menu__item" @click="toggleOverdue">
-        <text>任务逾期提醒</text>
-        <view class="profile-switch" :class="{ 'is-off': !overdueOn }" />
-      </view>
-      <view class="profile-menu__item" @click="onPassword">
-        <text>修改密码</text>
-        <text class="profile-menu__arrow">›</text>
-      </view>
-      <view class="profile-menu__item" @click="onClearCache">
-        <text>清除缓存</text>
-        <view class="profile-menu__right">
-          <text class="profile-menu__meta">{{ cacheSize }}</text>
+      <view class="tab-surface profile-menu">
+        <view class="profile-menu__item" @click="toggleNotify">
+          <view class="profile-menu__left">
+            <view class="profile-menu__icon profile-menu__icon--blue">铃</view>
+            <text>消息通知</text>
+          </view>
+          <view class="profile-switch" :class="{ 'is-off': !notifyOn }" />
+        </view>
+        <view class="profile-menu__item" @click="toggleOverdue">
+          <view class="profile-menu__left">
+            <view class="profile-menu__icon profile-menu__icon--warn">逾</view>
+            <text>任务逾期提醒</text>
+          </view>
+          <view class="profile-switch" :class="{ 'is-off': !overdueOn }" />
+        </view>
+        <view class="profile-menu__item" @click="onPassword">
+          <view class="profile-menu__left">
+            <view class="profile-menu__icon profile-menu__icon--green">密</view>
+            <text>修改密码</text>
+          </view>
           <text class="profile-menu__arrow">›</text>
+        </view>
+        <view class="profile-menu__item" @click="onClearCache">
+          <view class="profile-menu__left">
+            <view class="profile-menu__icon profile-menu__icon--mute">缓</view>
+            <text>清除缓存</text>
+          </view>
+          <view class="profile-menu__right">
+            <text class="profile-menu__meta">{{ cacheSize }}</text>
+            <text class="profile-menu__arrow">›</text>
+          </view>
         </view>
       </view>
     </view>
 
-    <view class="profile-menu">
-      <view class="profile-menu__item" @click="onAbout">
-        <text>关于系统</text>
-        <view class="profile-menu__right">
-          <text class="profile-menu__meta">v1.0.0</text>
+    <view class="tab-section">
+      <view class="tab-section__head">
+        <text class="tab-section__title">更多</text>
+      </view>
+      <view class="tab-surface profile-menu">
+        <view class="profile-menu__item" @click="onAbout">
+          <view class="profile-menu__left">
+            <view class="profile-menu__icon profile-menu__icon--blue">关</view>
+            <text>关于系统</text>
+          </view>
+          <view class="profile-menu__right">
+            <text class="profile-menu__meta">v1.0.0</text>
+            <text class="profile-menu__arrow">›</text>
+          </view>
+        </view>
+        <view class="profile-menu__item" @click="onFeedback">
+          <view class="profile-menu__left">
+            <view class="profile-menu__icon profile-menu__icon--warn">馈</view>
+            <text>意见反馈</text>
+          </view>
           <text class="profile-menu__arrow">›</text>
         </view>
-      </view>
-      <view class="profile-menu__item" @click="onFeedback">
-        <text>意见反馈</text>
-        <text class="profile-menu__arrow">›</text>
       </view>
     </view>
 
     <view class="profile-logout" @click="handleLogout">退出登录</view>
-  </pm-page-layout>
+  </view>
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { onShow } from "@dcloudio/uni-app";
-import PmPageLayout from "@/components/pm-page-layout/pm-page-layout.vue";
 import { getTaskStatistics, selectMyTasks } from "@/api/task";
 import { unwrapList } from "@/utils/api";
 import { mapTaskToMobile } from "@/utils/task-mapper";
+import type { TaskListSegment } from "@/utils/task-filter";
+import { useTaskNavStore } from "@/stores/task-nav";
 import { useUserStore } from "@/stores/user";
 
 const userStore = useUserStore();
+const taskNavStore = useTaskNavStore();
 const avatarText = computed(() => userStore.displayName.slice(0, 1) || "用");
 const notifyOn = ref(true);
 const overdueOn = ref(true);
 const cacheSize = ref("-");
 
+const roleLabel = computed(() => {
+  const roles = userStore.user?.roles || [];
+  if (roles.includes("ProjectManager")) return "项目负责人";
+  if (roles.includes("DepartmentManager")) return "部门负责人";
+  if (roles.includes("Member")) return "团队成员";
+  return "";
+});
+
 const weekStats = ref([
-  { label: "待办", value: 0 },
-  { label: "进行中", value: 0 },
-  { label: "已完成", value: 0 }
+  { key: "todo" as TaskListSegment, label: "待办", value: 0 },
+  { key: "doing" as TaskListSegment, label: "进行中", value: 0 },
+  { key: "done" as TaskListSegment, label: "已完成", value: 0 }
 ]);
 
 async function loadProfileStats() {
@@ -94,11 +143,13 @@ async function loadProfileStats() {
     ).length;
     weekStats.value = [
       {
+        key: "todo",
         label: "待办",
         value: statisticsRes?.未完成任务 ?? taskList.length
       },
-      { label: "进行中", value: doing },
+      { key: "doing", label: "进行中", value: doing },
       {
+        key: "done",
         label: "已完成",
         value:
           statisticsRes?.已完成任务 ??
@@ -118,6 +169,10 @@ onShow(() => {
   loadProfileStats();
 });
 
+function goTasksWithFilter(segment: TaskListSegment) {
+  taskNavStore.navigateToTasks({ segment });
+}
+
 function toggleNotify() {
   notifyOn.value = !notifyOn.value;
 }
@@ -127,7 +182,7 @@ function toggleOverdue() {
 }
 
 function onPassword() {
-  uni.showToast({ title: "请在 PC 端修改密码", icon: "none" });
+  uni.navigateTo({ url: "/pages/profile/password" });
 }
 
 function onClearCache() {
@@ -157,79 +212,127 @@ function handleLogout() {
 <style lang="scss" scoped>
 @import "@/styles/tokens.scss";
 @import "@/styles/mixins.scss";
+@import "@/styles/tab-page.scss";
 
-.profile-head {
+.profile-hero {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, $pm-primary 0%, $pm-primary-dark 100%);
+  padding-bottom: 56rpx;
+}
+
+.profile-hero__safe {
+  height: var(--status-bar-height, 44px);
+}
+
+.profile-hero__decor {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  pointer-events: none;
+}
+
+.profile-hero__decor--1 {
+  width: 240rpx;
+  height: 240rpx;
+  top: -80rpx;
+  right: -60rpx;
+}
+
+.profile-hero__decor--2 {
+  width: 140rpx;
+  height: 140rpx;
+  bottom: 20rpx;
+  left: -40rpx;
+}
+
+.profile-hero__body {
+  position: relative;
+  z-index: 1;
+  padding: 16rpx $pm-space-lg 0;
+}
+
+.profile-hero__user {
   display: flex;
   align-items: center;
   gap: 28rpx;
-  padding: 16rpx 0 8rpx;
 }
 
-.profile-head__avatar {
-  width: 112rpx;
-  height: 112rpx;
+.profile-hero__avatar {
+  width: 120rpx;
+  height: 120rpx;
   border-radius: 50%;
-  background: $pm-primary-light;
+  background: rgba(255, 255, 255, 0.95);
   color: $pm-primary;
-  font-size: 44rpx;
+  font-size: 48rpx;
   font-weight: $pm-weight-semibold;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  line-height: 1;
+  border: 4rpx solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 8rpx 24rpx rgba(15, 23, 42, 0.12);
 }
 
-.profile-head__name {
+.profile-hero__name {
   display: block;
-  font-size: 36rpx;
+  font-size: 40rpx;
   font-weight: $pm-weight-semibold;
-  color: $pm-text-primary;
+  color: #fff;
+  line-height: 1.3;
 }
 
-.profile-head__account {
+.profile-hero__account {
   display: block;
   margin-top: 8rpx;
   font-size: $pm-font-caption;
-  color: $pm-text-placeholder;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.profile-hero__badge {
+  display: inline-block;
+  margin-top: 14rpx;
+  padding: 6rpx 18rpx;
+  border-radius: $pm-radius-full;
+  background: rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 22rpx;
 }
 
 .profile-stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  background: $pm-bg-card;
-  border-bottom: 1rpx solid $pm-border;
-  padding: 28rpx 16rpx;
+  margin: -36rpx $pm-space-lg 0;
+  position: relative;
+  z-index: 2;
+  padding: 28rpx 12rpx;
 }
 
 .profile-stats__item {
   text-align: center;
+
+  &:active {
+    opacity: 0.75;
+  }
 }
 
 .profile-stats__value {
   display: block;
-  font-size: 36rpx;
+  font-size: 40rpx;
   font-weight: $pm-weight-semibold;
   color: $pm-text-primary;
 }
 
 .profile-stats__label {
   display: block;
-  margin-top: 4rpx;
+  margin-top: 6rpx;
   font-size: $pm-font-mini;
   color: $pm-text-placeholder;
 }
 
-.profile-menu {
-  margin-top: $pm-space-md;
-  background: $pm-bg-card;
-  border-top: 1rpx solid $pm-border;
-  border-bottom: 1rpx solid $pm-border;
-}
-
 .profile-menu__item {
   @include pm-flex-between;
-  padding: 32rpx $pm-space-lg;
+  padding: 28rpx $pm-space-lg;
   font-size: $pm-font-body;
   color: $pm-text-primary;
   border-bottom: 1rpx solid $pm-border;
@@ -241,6 +344,44 @@ function handleLogout() {
   &:active {
     background: $pm-bg-hover;
   }
+}
+
+.profile-menu__left {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.profile-menu__icon {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
+  font-weight: $pm-weight-semibold;
+  flex-shrink: 0;
+}
+
+.profile-menu__icon--blue {
+  background: $pm-primary-light;
+  color: $pm-primary;
+}
+
+.profile-menu__icon--warn {
+  background: $pm-warning-light;
+  color: $pm-warning;
+}
+
+.profile-menu__icon--green {
+  background: $pm-success-light;
+  color: $pm-success;
+}
+
+.profile-menu__icon--mute {
+  background: $pm-bg-muted;
+  color: $pm-text-secondary;
 }
 
 .profile-menu__right {
@@ -276,6 +417,7 @@ function handleLogout() {
     height: 40rpx;
     border-radius: 50%;
     background: #fff;
+    transition: all 0.2s ease;
   }
 
   &.is-off {
@@ -289,15 +431,20 @@ function handleLogout() {
 }
 
 .profile-logout {
-  margin: 48rpx $pm-space-lg 0;
-  margin-bottom: $pm-space-lg;
-  height: 88rpx;
-  line-height: 88rpx;
+  margin: $pm-space-xl $pm-space-lg $pm-space-lg;
+  height: 92rpx;
+  line-height: 92rpx;
   text-align: center;
   border-radius: $pm-radius-xl;
   color: $pm-danger;
   background: $pm-bg-card;
   border: 1rpx solid $pm-danger-light;
   font-size: $pm-font-body;
+  font-weight: $pm-weight-medium;
+  box-shadow: 0 6rpx 20rpx rgba(15, 23, 42, 0.04);
+
+  &:active {
+    background: $pm-danger-light;
+  }
 }
 </style>

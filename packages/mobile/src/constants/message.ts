@@ -16,4 +16,5 @@ export interface MobileMessage {
   time: string;
   read: boolean;
   category: "all" | "task" | "system" | "mention";
+  taskId?: string;
 }

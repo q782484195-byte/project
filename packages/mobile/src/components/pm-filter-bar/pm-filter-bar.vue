@@ -1,5 +1,5 @@
 <template>
-  <view class="pm-filter-bar">
+  <view class="pm-filter-bar" :class="{ 'pm-filter-bar--embedded': embedded }">
     <view class="pm-filter-bar__search">
       <pm-icon name="search" :size="32" />
       <input
@@ -41,12 +41,14 @@ withDefaults(
     placeholder?: string;
     chips?: FilterChip[];
     activeChip?: string;
+    embedded?: boolean;
   }>(),
   {
     modelValue: "",
     placeholder: "搜索任务标题 / 编号",
     chips: () => [],
-    activeChip: ""
+    activeChip: "",
+    embedded: false
   }
 );
 
@@ -68,6 +70,12 @@ function onInput(e: { detail: { value: string } }) {
   padding: $pm-space-md $pm-space-lg $pm-space-sm;
   background: $pm-bg-card;
   border-bottom: 1rpx solid $pm-border;
+}
+
+.pm-filter-bar--embedded {
+  background: transparent;
+  border-bottom: none;
+  padding-top: $pm-space-lg;
 }
 
 .pm-filter-bar__search {

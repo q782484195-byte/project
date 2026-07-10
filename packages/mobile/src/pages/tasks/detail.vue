@@ -5,7 +5,6 @@
       <view class="task-detail-page__tags">
         <pm-status-tag :label="statusLabel" :tone="getStatusTone(task.status)" />
         <pm-status-tag :label="task.priority" :tone="getPriorityTone(task.priority)" />
-        <pm-status-tag label="前端" tone="info" />
       </view>
     </view>
 
@@ -36,7 +35,7 @@
         v-for="file in attachments"
         :key="file.id"
         class="attach-row"
-        @click="onAttach(file.name)"
+        @click="onAttach(file)"
       >
         <view class="attach-row__icon">
           <pm-icon name="attach" :size="56" />
@@ -46,6 +45,15 @@
           <text class="attach-row__size">{{ file.size }}</text>
         </view>
         <text class="attach-row__ext">{{ file.ext }}</text>
+      </view>
+    </view>
+
+    <view v-if="bugs.length" class="task-detail-page__panel">
+      <text class="task-detail-page__panel-title">BUG 记录（{{ bugs.length }}）</text>
+      <view v-for="item in bugs" :key="item.id" class="bug-row">
+        <text class="bug-row__name">{{ item.name }}</text>
+        <text class="bug-row__desc">{{ item.describe }}</text>
+        <text class="bug-row__meta">{{ item.meta }}</text>
       </view>
     </view>
 
@@ -65,17 +73,31 @@
       </view>
     </view>
 
-    <view class="task-detail-page__comment" @click="onComment">
-      写评论或 @同事…
-    </view>
-
-    <view class="task-detail-page__footer">
-      <pm-action-bar
-        secondary-text="记录 BUG"
-        primary-text="进度汇报"
-        @secondary="handleBug"
-        @primary="handleReport"
-      />
+    <view class="task-detail-page__footer detail-actions">
+      <view
+        class="detail-actions__item"
+        :class="{ 'is-disabled': !canFlow }"
+        @click="goFlow"
+      >
+        <view class="detail-actions__icon detail-actions__icon--flow">流</view>
+        <text class="detail-actions__label">状态流转</text>
+      </view>
+      <view
+        class="detail-actions__item"
+        :class="{ 'is-disabled': !canTransfer }"
+        @click="goTransfer"
+      >
+        <view class="detail-actions__icon detail-actions__icon--transfer">转</view>
+        <text class="detail-actions__label">转让</text>
+      </view>
+      <view class="detail-actions__item" @click="handleReport">
+        <view class="detail-actions__icon detail-actions__icon--report">报</view>
+        <text class="detail-actions__label">进度汇报</text>
+      </view>
+      <view class="detail-actions__item" @click="handleBug">
+        <view class="detail-actions__icon detail-actions__icon--bug">Bug</view>
+        <text class="detail-actions__label">记录 BUG</text>
+      </view>
     </view>
   </view>
 </template>
@@ -84,18 +106,25 @@
 import { computed, ref } from "vue";
 import { onLoad } from "@dcloudio/uni-app";
 import PmStatusTag from "@/components/pm-status-tag/pm-status-tag.vue";
-import PmActionBar from "@/components/pm-action-bar/pm-action-bar.vue";
 import PmIcon from "@/components/pm-icon/pm-icon.vue";
 import { getTaskInfo, selectReportList } from "@/api/task";
+import { selectBugsByTask } from "@/api/bug";
+import type { TaskListItem } from "@/api/types";
 import { unwrapItem, unwrapList } from "@/utils/api";
+import { previewAttachment } from "@/utils/file";
 import { getPriorityTone, getStatusTone } from "@/utils/status";
+import { canFlowTask, canTransferTask } from "@/utils/task-permissions";
 import {
   getTaskDescription,
   mapTaskToMobile,
   type MobileTask
 } from "@/utils/task-mapper";
+import { useUserStore } from "@/stores/user";
+
+const userStore = useUserStore();
 
 const taskId = ref("");
+const rawTask = ref<TaskListItem | null>(null);
 const task = ref<MobileTask>({
   id: "",
   title: "加载中...",
@@ -110,9 +139,17 @@ const task = ref<MobileTask>({
   tags: [],
   meta: "-"
 });
-const attachments = ref<Array<{ id: string; name: string; size: string; ext: string }>>([]);
+const attachments = ref<Array<{ id: string; name: string; size: string; ext: string; path: string }>>([]);
+const bugs = ref<Array<{ id: string; name: string; describe: string; meta: string }>>([]);
 const timeline = ref<Array<{ id: string; text: string; time: string; active?: boolean }>>([]);
 const loading = ref(false);
+
+const username = computed(() => userStore.user?.username || "");
+const nickname = computed(() => userStore.user?.nickname || userStore.user?.name || "");
+const canFlow = computed(() => canFlowTask(rawTask.value, username.value, nickname.value));
+const canTransfer = computed(() =>
+  canTransferTask(rawTask.value, username.value, nickname.value)
+);
 
 const statusLabel = computed(() =>
   task.value.status === "任务进行中" ? "进行中" : task.value.status
@@ -137,18 +174,34 @@ function formatDueDate(due: string) {
 
 function mapAttachments(raw: unknown[] = []) {
   return raw.map((item, index) => {
+    const path = typeof item === "string" ? item : String((item as { path?: string; url?: string }).path || (item as { url?: string }).url || "");
     const name =
       typeof item === "string"
         ? item.split("/").pop() || `附件${index + 1}`
-        : String((item as { name?: string }).name || `附件${index + 1}`);
+        : String((item as { name?: string }).name || path.split("/").pop() || `附件${index + 1}`);
     const ext = name.includes(".") ? name.split(".").pop()?.toUpperCase() || "FILE" : "FILE";
     return {
       id: `attach-${index}`,
       name,
       size: "-",
-      ext
+      ext,
+      path: path || name
     };
   });
+}
+
+async function loadBugs(id: string) {
+  try {
+    const res = await selectBugsByTask({ task_id: id, page: 1, page_size: 10 });
+    bugs.value = unwrapList(res).map((item, index) => ({
+      id: String(item._id || item.id || `bug-${index}`),
+      name: item.bug_name || "未命名 BUG",
+      describe: item.describe || "-",
+      meta: `${item.creator || "未知"} · ${item.create_time || "-"}`
+    }));
+  } catch {
+    bugs.value = [];
+  }
 }
 
 async function loadTaskDetail(id: string) {
@@ -158,6 +211,7 @@ async function loadTaskDetail(id: string) {
     const raw = unwrapItem(infoRes);
     if (!raw) throw new Error("未找到任务详情");
 
+    rawTask.value = raw;
     task.value = mapTaskToMobile({
       ...raw,
       description: getTaskDescription(raw)
@@ -165,6 +219,7 @@ async function loadTaskDetail(id: string) {
     attachments.value = mapAttachments(
       Array.isArray(raw.attachment) ? raw.attachment : []
     );
+    await loadBugs(id);
 
     // 汇报失败不影响详情主体展示
     try {
@@ -209,31 +264,42 @@ onLoad((query) => {
 });
 
 function handleBug() {
-  uni.showToast({ title: "请在 PC 端记录 BUG", icon: "none" });
+  uni.navigateTo({ url: `/pages/tasks/bug?id=${taskId.value}` });
 }
 
 function handleReport() {
-  uni.showToast({ title: "请在 PC 端提交进度汇报", icon: "none" });
+  uni.navigateTo({ url: `/pages/tasks/report?id=${taskId.value}` });
 }
 
-function onComment() {
-  uni.showToast({ title: "请在 PC 端评论", icon: "none" });
+function goFlow() {
+  if (!canFlow.value) {
+    uni.showToast({ title: "当前不可进行状态流转", icon: "none" });
+    return;
+  }
+  uni.navigateTo({ url: `/pages/tasks/flow?id=${taskId.value}` });
 }
 
-function onAttach(name: string) {
-  uni.showToast({ title: name, icon: "none" });
+function goTransfer() {
+  if (!canTransfer.value) {
+    uni.showToast({ title: "当前不可转让任务", icon: "none" });
+    return;
+  }
+  uni.navigateTo({ url: `/pages/tasks/transfer?id=${taskId.value}` });
+}
+
+function onAttach(file: { name: string; path: string }) {
+  previewAttachment(file.path);
 }
 </script>
 
 <style lang="scss" scoped>
 @import "@/styles/tokens.scss";
 @import "@/styles/mixins.scss";
+@import "@/styles/wizard-page.scss";
 
 .task-detail-page {
   @include pm-page;
-  padding-bottom: calc(
-    #{$pm-action-bar-height} + #{$pm-space-2xl} + env(safe-area-inset-bottom)
-  );
+  padding-bottom: calc(180rpx + env(safe-area-inset-bottom));
 }
 
 .task-detail-page__head {
@@ -363,6 +429,37 @@ function onAttach(name: string) {
   font-weight: $pm-weight-semibold;
 }
 
+.bug-row {
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid $pm-border;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.bug-row__name {
+  display: block;
+  font-size: $pm-font-caption;
+  font-weight: $pm-weight-semibold;
+  color: $pm-text-primary;
+}
+
+.bug-row__desc {
+  display: block;
+  margin-top: 8rpx;
+  font-size: $pm-font-caption;
+  color: $pm-text-secondary;
+  line-height: 1.45;
+}
+
+.bug-row__meta {
+  display: block;
+  margin-top: 8rpx;
+  font-size: $pm-font-mini;
+  color: $pm-text-placeholder;
+}
+
 .timeline {
   padding: 8rpx 0 24rpx;
 }
@@ -441,5 +538,11 @@ function onAttach(name: string) {
   border-top: 1rpx solid $pm-border;
   padding: $pm-space-md $pm-space-lg;
   padding-bottom: calc(#{$pm-space-md} + env(safe-area-inset-bottom));
+}
+
+.task-detail-page__footer.detail-actions {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12rpx;
 }
 </style>

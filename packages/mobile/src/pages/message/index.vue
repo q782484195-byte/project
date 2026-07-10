@@ -1,54 +1,65 @@
 <template>
-  <view class="message-page">
-    <view class="message-page__tabs">
-      <view
-        v-for="tab in tabs"
-        :key="tab.value"
-        class="message-page__tab"
-        :class="{ 'is-active': activeTab === tab.value }"
-        @click="activeTab = tab.value"
-      >
-        <text>{{ tab.label }}</text>
-        <text v-if="tab.badge" class="message-page__badge">{{ tab.badge }}</text>
-      </view>
-    </view>
+  <view class="tab-page message-page">
+    <pm-tab-header title="消息中心" :subtitle="headerSubtitle">
+      <template #extra>
+        <view class="tab-icon-btn" @click="markAllRead">
+          <text class="message-page__read-btn">已读</text>
+        </view>
+      </template>
+      <template #bottom>
+        <scroll-view scroll-x class="message-page__tabs" :show-scrollbar="false">
+          <view class="message-page__tabs-inner">
+            <view
+              v-for="tab in tabs"
+              :key="tab.value"
+              class="message-page__tab"
+              :class="{ 'is-active': activeTab === tab.value }"
+              @click="activeTab = tab.value"
+            >
+              <text>{{ tab.label }}</text>
+              <text v-if="tab.badge" class="tab-pill__badge">{{ tab.badge }}</text>
+            </view>
+          </view>
+        </scroll-view>
+      </template>
+    </pm-tab-header>
 
-    <view class="message-page__toolbar">
-      <text class="message-page__read-all" @click="markAllRead">全部标为已读</text>
-    </view>
-
-    <view class="message-page__list" v-if="filteredMessages.length">
+    <view v-if="filteredMessages.length" class="message-page__list">
       <view
         v-for="item in filteredMessages"
         :key="item.id"
-        class="message-page__item"
+        class="message-card"
+        :class="{ 'message-card--unread': !item.read }"
         @click="openMessage(item.id)"
       >
-        <image
-          class="message-page__type"
-          :src="`/static/icons/${MSG_ICON_MAP[item.type]}.png`"
-          mode="aspectFit"
-        />
-        <view class="message-page__body">
-          <view class="message-page__top">
-            <text class="message-page__title">{{ item.title }}</text>
-            <text class="message-page__time">{{ item.time }}</text>
-          </view>
-          <text class="message-page__content">{{ item.content }}</text>
+        <view class="message-card__icon" :class="`message-card__icon--${item.type}`">
+          <image
+            class="message-card__icon-img"
+            :src="`/static/icons/${MSG_ICON_MAP[item.type]}.png`"
+            mode="aspectFit"
+          />
         </view>
-        <view
-          class="message-page__dot"
-          :class="{ 'message-page__dot--read': item.read }"
-        />
+        <view class="message-card__body">
+          <view class="message-card__top">
+            <text class="message-card__title">{{ item.title }}</text>
+            <text class="message-card__time">{{ item.time }}</text>
+          </view>
+          <text class="message-card__content">{{ item.content }}</text>
+          <view class="message-card__footer">
+            <text class="message-card__tag">{{ categoryLabel(item.category) }}</text>
+            <text v-if="item.taskId" class="message-card__link">查看任务 ›</text>
+          </view>
+        </view>
+        <view v-if="!item.read" class="message-card__dot" />
       </view>
     </view>
-    <view v-else class="message-page__empty">
+    <view v-else class="tab-empty">
       <image
-        class="message-page__empty-img"
+        class="tab-empty__img"
         src="/static/illustrations/empty-task.png"
         mode="aspectFit"
       />
-      <text class="message-page__empty-text">暂无消息</text>
+      <text class="tab-empty__text">暂无消息，有新动态会出现在这里</text>
     </view>
   </view>
 </template>
@@ -56,6 +67,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { onShow } from "@dcloudio/uni-app";
+import PmTabHeader from "@/components/pm-tab-header/pm-tab-header.vue";
 import { MSG_ICON_MAP, type MobileMessage } from "@/constants/message";
 import { selectPendingTasks, selectReportList } from "@/api/task";
 import { unwrapList } from "@/utils/api";
@@ -68,11 +80,33 @@ const messages = ref<MobileMessage[]>([]);
 
 const unreadCount = computed(() => messages.value.filter((m) => !m.read).length);
 
+const headerSubtitle = computed(() => {
+  if (!messages.value.length) return "任务汇报与待办提醒将汇总在此";
+  if (unreadCount.value > 0) return `${unreadCount.value} 条未读消息，点击查看详情`;
+  return "所有消息已读，继续保持";
+});
+
 const tabs = computed(() => [
-  { label: "全部", value: "all" as const, badge: unreadCount.value || 0 },
-  { label: "任务", value: "task" as const, badge: 0 },
-  { label: "系统", value: "system" as const, badge: 0 },
-  { label: "@我", value: "mention" as const, badge: 0 }
+  {
+    label: "全部",
+    value: "all" as const,
+    badge: unreadCount.value || 0
+  },
+  {
+    label: "任务",
+    value: "task" as const,
+    badge: messages.value.filter((m) => m.category === "task" && !m.read).length
+  },
+  {
+    label: "系统",
+    value: "system" as const,
+    badge: messages.value.filter((m) => m.category === "system" && !m.read).length
+  },
+  {
+    label: "@我",
+    value: "mention" as const,
+    badge: messages.value.filter((m) => m.category === "mention" && !m.read).length
+  }
 ]);
 
 const filteredMessages = computed(() => {
@@ -80,10 +114,21 @@ const filteredMessages = computed(() => {
   return messages.value.filter((m) => m.category === activeTab.value);
 });
 
+function categoryLabel(category: MobileMessage["category"]) {
+  if (category === "task") return "任务";
+  if (category === "system") return "系统";
+  if (category === "mention") return "@我";
+  return "全部";
+}
+
 function openMessage(id: string) {
   const item = messages.value.find((m) => m.id === id);
   if (item) item.read = true;
-  uni.showToast({ title: `消息 ${id}`, icon: "none" });
+  if (item?.taskId) {
+    uni.navigateTo({ url: `/pages/tasks/detail?id=${item.taskId}` });
+    return;
+  }
+  uni.showToast({ title: "暂无关联任务", icon: "none" });
 }
 
 function markAllRead() {
@@ -118,7 +163,8 @@ async function loadMessages() {
           content: `${item.creator || "成员"} 汇报了「${item.task_name || "任务"}」：${item.message || "进度更新"}`,
           time: formatMessageTime(item.create_time),
           read: false,
-          category: "task" as const
+          category: "task" as const,
+          taskId: String(item.task_id || "")
         }))
       : [];
 
@@ -130,7 +176,8 @@ async function loadMessages() {
           content: `「${item.任务名 || item.task_name || "任务"}」待处理，状态：${item.状态 || item.status || "-"}`,
           time: formatMessageTime(item.create_time),
           read: false,
-          category: "task" as const
+          category: "task" as const,
+          taskId: String(item._id || item.id || "")
         }))
       : [];
 
@@ -156,114 +203,122 @@ onShow(() => {
 <style lang="scss" scoped>
 @import "@/styles/tokens.scss";
 @import "@/styles/mixins.scss";
+@import "@/styles/tab-page.scss";
 
-.message-page {
-  min-height: 100vh;
-  background: $pm-bg-page;
-  padding-bottom: calc(
-    #{$pm-tabbar-height} + #{$pm-space-lg} + env(safe-area-inset-bottom)
-  );
-  box-sizing: border-box;
+.message-page__read-btn {
+  font-size: 24rpx;
+  font-weight: $pm-weight-medium;
+  color: $pm-primary;
 }
 
 .message-page__tabs {
-  display: flex;
-  background: $pm-bg-card;
-  border-bottom: 1rpx solid $pm-border;
-  padding: 0 16rpx;
+  margin-top: 24rpx;
+  white-space: nowrap;
+  width: 100%;
+}
+
+.message-page__tabs-inner {
+  display: inline-flex;
+  gap: 12rpx;
+  padding-bottom: 4rpx;
 }
 
 .message-page__tab {
-  flex: 1;
-  height: 80rpx;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
   gap: 8rpx;
+  height: 64rpx;
+  padding: 0 28rpx;
+  border-radius: $pm-radius-full;
   font-size: $pm-font-caption;
   color: $pm-text-secondary;
-  position: relative;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1rpx solid rgba(37, 99, 235, 0.08);
 
   &.is-active {
     color: $pm-primary;
+    background: #fff;
+    border-color: rgba(37, 99, 235, 0.22);
     font-weight: $pm-weight-semibold;
-
-    &::after {
-      content: "";
-      position: absolute;
-      left: 20%;
-      right: 20%;
-      bottom: 0;
-      height: 4rpx;
-      background: $pm-primary;
-      border-radius: 2rpx;
-    }
+    box-shadow: 0 4rpx 12rpx rgba(37, 99, 235, 0.1);
   }
 }
 
-.message-page__badge {
-  min-width: 32rpx;
-  height: 32rpx;
-  padding: 0 8rpx;
-  border-radius: 16rpx;
-  background: $pm-danger;
-  color: #fff;
-  font-size: 20rpx;
-  font-weight: $pm-weight-semibold;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.message-page__toolbar {
-  display: flex;
-  justify-content: flex-end;
-  padding: 16rpx $pm-space-lg;
-  background: $pm-bg-card;
-  border-bottom: 1rpx solid $pm-border;
-}
-
-.message-page__read-all {
-  font-size: $pm-font-caption;
-  color: $pm-primary;
-  font-weight: $pm-weight-medium;
-}
-
 .message-page__list {
-  background: $pm-bg-card;
+  padding: $pm-space-lg;
+  display: flex;
+  flex-direction: column;
+  gap: $pm-space-sm;
 }
 
-.message-page__item {
+.message-card {
   display: flex;
   align-items: flex-start;
   gap: 20rpx;
-  padding: 28rpx $pm-space-lg;
-  border-bottom: 1rpx solid $pm-border;
+  padding: 28rpx;
+  background: $pm-bg-card;
+  border: 1rpx solid $pm-border;
+  border-radius: $pm-radius-xl;
+  box-shadow: 0 6rpx 20rpx rgba(15, 23, 42, 0.04);
+  position: relative;
 
   &:active {
     background: $pm-bg-hover;
   }
+
+  &--unread {
+    border-color: rgba(37, 99, 235, 0.16);
+    background: linear-gradient(135deg, #fff 0%, #f8fbff 100%);
+  }
 }
 
-.message-page__type {
-  width: 72rpx;
-  height: 72rpx;
+.message-card__icon {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 22rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
-  border-radius: 20rpx;
 }
 
-.message-page__body {
+.message-card__icon--report {
+  background: $pm-success-light;
+}
+
+.message-card__icon--due {
+  background: $pm-warning-light;
+}
+
+.message-card__icon--assign {
+  background: $pm-primary-light;
+}
+
+.message-card__icon--status {
+  background: $pm-info-light;
+}
+
+.message-card__icon--mention {
+  background: #f5f3ff;
+}
+
+.message-card__icon-img {
+  width: 44rpx;
+  height: 44rpx;
+}
+
+.message-card__body {
   flex: 1;
   min-width: 0;
 }
 
-.message-page__top {
+.message-card__top {
   @include pm-flex-between;
   gap: $pm-space-md;
-  margin-bottom: 8rpx;
+  margin-bottom: 10rpx;
 }
 
-.message-page__title {
+.message-card__title {
   font-size: $pm-font-body;
   font-weight: $pm-weight-semibold;
   color: $pm-text-primary;
@@ -272,47 +327,47 @@ onShow(() => {
   min-width: 0;
 }
 
-.message-page__time {
+.message-card__time {
   font-size: $pm-font-mini;
   color: $pm-text-placeholder;
   flex-shrink: 0;
 }
 
-.message-page__content {
+.message-card__content {
+  display: block;
   font-size: $pm-font-caption;
   color: $pm-text-secondary;
-  line-height: 1.45;
-  @include pm-ellipsis;
+  line-height: 1.5;
+  @include pm-ellipsis-multi(2);
 }
 
-.message-page__dot {
-  width: 16rpx;
-  height: 16rpx;
+.message-card__footer {
+  @include pm-flex-between;
+  margin-top: 16rpx;
+  gap: $pm-space-sm;
+}
+
+.message-card__tag {
+  font-size: 22rpx;
+  color: $pm-text-placeholder;
+  padding: 4rpx 14rpx;
+  border-radius: $pm-radius-full;
+  background: $pm-bg-muted;
+}
+
+.message-card__link {
+  font-size: $pm-font-mini;
+  color: $pm-primary;
+  font-weight: $pm-weight-medium;
+}
+
+.message-card__dot {
+  position: absolute;
+  top: 28rpx;
+  right: 28rpx;
+  width: 14rpx;
+  height: 14rpx;
   border-radius: 50%;
   background: $pm-primary;
-  margin-top: 28rpx;
-  flex-shrink: 0;
-}
-
-.message-page__dot--read {
-  background: transparent;
-}
-
-.message-page__empty {
-  padding: 80rpx $pm-space-lg;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.message-page__empty-img {
-  width: 240rpx;
-  height: 240rpx;
-  margin-bottom: $pm-space-md;
-}
-
-.message-page__empty-text {
-  font-size: $pm-font-caption;
-  color: $pm-text-placeholder;
 }
 </style>

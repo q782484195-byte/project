@@ -1,6 +1,7 @@
 <template>
   <view
     class="pm-task-row"
+    :class="{ 'pm-task-row--card': variant === 'card' }"
     @click="$emit('click')"
   >
     <view class="pm-task-row__bar" :class="`pm-task-row__bar--${barTone}`" />
@@ -45,11 +46,13 @@ const props = withDefaults(
     status?: string;
     bar?: StatusBarTone;
     actionText?: string;
+    variant?: "list" | "card";
   }>(),
   {
     tags: () => [],
     meta: "",
-    actionText: ""
+    actionText: "",
+    variant: "list"
   }
 );
 
@@ -76,6 +79,20 @@ const barTone = computed<StatusBarTone>(
 
   &:active {
     background: $pm-bg-hover;
+  }
+}
+
+.pm-task-row--card {
+  margin: 0 $pm-space-lg $pm-space-sm;
+  min-height: 132rpx;
+  border: 1rpx solid $pm-border;
+  border-radius: $pm-radius-xl;
+  border-bottom: 1rpx solid $pm-border;
+  box-shadow: 0 6rpx 20rpx rgba(15, 23, 42, 0.04);
+  overflow: hidden;
+
+  &:last-child {
+    margin-bottom: 0;
   }
 }
 

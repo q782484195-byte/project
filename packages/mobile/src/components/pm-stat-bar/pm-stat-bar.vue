@@ -67,7 +67,7 @@ defineEmits<{
 
 .pm-stat-bar__value {
   display: block;
-  font-size: $pm-font-display;
+  font-size: $pm-font-title;
   font-weight: $pm-weight-semibold;
   color: $pm-primary;
   line-height: 1.2;

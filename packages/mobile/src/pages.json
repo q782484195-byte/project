@@ -25,6 +25,7 @@
       "path": "pages/tasks/index",
       "style": {
         "navigationBarTitleText": "我的任务",
+        "navigationStyle": "custom",
         "enablePullDownRefresh": true
       }
     },
@@ -35,9 +36,49 @@
       }
     },
     {
+      "path": "pages/tasks/report",
+      "style": {
+        "navigationBarTitleText": "进度汇报"
+      }
+    },
+    {
+      "path": "pages/tasks/bug",
+      "style": {
+        "navigationBarTitleText": "记录 BUG"
+      }
+    },
+    {
+      "path": "pages/tasks/create",
+      "style": {
+        "navigationBarTitleText": "新建任务",
+        "navigationBarBackgroundColor": "#F1F5F9"
+      }
+    },
+    {
+      "path": "pages/tasks/flow",
+      "style": {
+        "navigationBarTitleText": "状态流转",
+        "navigationBarBackgroundColor": "#F1F5F9"
+      }
+    },
+    {
+      "path": "pages/tasks/transfer",
+      "style": {
+        "navigationBarTitleText": "任务转让",
+        "navigationBarBackgroundColor": "#F1F5F9"
+      }
+    },
+    {
+      "path": "pages/report/daily",
+      "style": {
+        "navigationBarTitleText": "写日报"
+      }
+    },
+    {
       "path": "pages/message/index",
       "style": {
-        "navigationBarTitleText": "消息"
+        "navigationBarTitleText": "消息",
+        "navigationStyle": "custom"
       }
     },
     {
@@ -45,6 +86,12 @@
       "style": {
         "navigationBarTitleText": "我的",
         "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/profile/password",
+      "style": {
+        "navigationBarTitleText": "修改密码"
       }
     }
   ],
@@ -58,7 +105,7 @@
     "color": "#94A3B8",
     "selectedColor": "#2563EB",
     "backgroundColor": "#FFFFFF",
-    "borderStyle": "black",
+    "borderStyle": "white",
     "list": [
       {
         "pagePath": "pages/workspace/index",

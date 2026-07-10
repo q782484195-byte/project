@@ -1,0 +1,136 @@
+@import "./tokens.scss";
+@import "./mixins.scss";
+
+.form-page {
+  min-height: 100vh;
+  background: $pm-bg-page;
+  padding: $pm-space-lg;
+  box-sizing: border-box;
+}
+
+.form-page__card {
+  background: $pm-bg-card;
+  border-radius: $pm-radius-xl;
+  border: 1rpx solid $pm-border;
+  padding: 8rpx $pm-space-lg;
+}
+
+.form-page__readonly,
+.form-page__field {
+  padding: 24rpx 0;
+  border-bottom: 1rpx solid $pm-border;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.form-page__label {
+  display: block;
+  font-size: $pm-font-mini;
+  color: $pm-text-placeholder;
+  margin-bottom: 10rpx;
+}
+
+.form-page__value {
+  display: block;
+  font-size: $pm-font-body;
+  color: $pm-text-primary;
+  line-height: 1.45;
+}
+
+.form-page__input {
+  width: 100%;
+  height: 80rpx;
+  padding: 0 20rpx;
+  border-radius: $pm-radius-md;
+  background: $pm-bg-muted;
+  font-size: $pm-font-body;
+  color: $pm-text-primary;
+  box-sizing: border-box;
+}
+
+.form-page__textarea {
+  width: 100%;
+  min-height: 200rpx;
+  padding: 20rpx;
+  border-radius: $pm-radius-md;
+  background: $pm-bg-muted;
+  font-size: $pm-font-body;
+  color: $pm-text-primary;
+  line-height: 1.5;
+  box-sizing: border-box;
+}
+
+.form-page__picker {
+  height: 80rpx;
+  line-height: 80rpx;
+  padding: 0 20rpx;
+  border-radius: $pm-radius-md;
+  background: $pm-bg-muted;
+  font-size: $pm-font-body;
+  color: $pm-text-primary;
+}
+
+.form-page__submit {
+  margin-top: 40rpx;
+  height: 88rpx;
+  line-height: 88rpx;
+  text-align: center;
+  border-radius: $pm-radius-xl;
+  background: $pm-primary;
+  color: #fff;
+  font-size: $pm-font-body;
+  font-weight: $pm-weight-semibold;
+
+  &.is-loading {
+    opacity: 0.7;
+  }
+
+  &:active {
+    opacity: 0.85;
+  }
+}
+
+.form-page__list {
+  margin-top: $pm-space-lg;
+}
+
+.form-page__list-title {
+  display: block;
+  margin-bottom: $pm-space-sm;
+  padding: 0 4rpx;
+  font-size: $pm-font-caption;
+  font-weight: $pm-weight-semibold;
+  color: $pm-text-secondary;
+}
+
+.form-page__list-item {
+  background: $pm-bg-card;
+  border: 1rpx solid $pm-border;
+  border-radius: $pm-radius-lg;
+  padding: 24rpx;
+  margin-bottom: $pm-space-sm;
+}
+
+.form-page__list-name {
+  display: block;
+  font-size: $pm-font-body;
+  font-weight: $pm-weight-semibold;
+  color: $pm-text-primary;
+}
+
+.form-page__list-desc {
+  display: block;
+  margin-top: 8rpx;
+  font-size: $pm-font-caption;
+  color: $pm-text-secondary;
+  line-height: 1.45;
+}
+
+.form-page__list-meta {
+  display: block;
+  margin-top: 8rpx;
+  font-size: $pm-font-mini;
+  color: $pm-text-placeholder;
+}
