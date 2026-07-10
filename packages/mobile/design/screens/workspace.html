@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=375, initial-scale=1" />
+    <title>工作台</title>
+    <link rel="stylesheet" href="../assets/design.css" />
+  </head>
+  <body>
+    <div class="screen screen--with-tab">
+      <div class="status-bar">
+        <span class="status-bar__time">9:41</span>
+        <div class="status-bar__icons"><span></span></div>
+      </div>
+
+      <div class="page-body page-scroll">
+        <header class="workspace-header">
+          <div>
+            <div class="workspace-header__greet">你好，张三</div>
+            <div class="workspace-header__date">7月9日 周四 · 本周还剩 3 个待办</div>
+          </div>
+          <div class="workspace-header__bell" aria-label="通知">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9a6 6 0 0 1 12 0c0 7 3 7 3 9H3c0-2 3-2 3-9"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>
+            <span class="workspace-header__bell-dot"></span>
+          </div>
+        </header>
+
+        <div class="alert-banner">
+          <span class="alert-banner__text">有 <strong>2</strong> 个任务已逾期，请尽快处理</span>
+          <span class="alert-banner__link">查看</span>
+        </div>
+
+        <div class="stat-strip" style="margin-top: 12px; border-top: 1px solid var(--pm-border)">
+          <div class="stat-strip__item">
+            <span class="stat-strip__value is-warn">2</span>
+            <span class="stat-strip__label">逾期</span>
+          </div>
+          <div class="stat-strip__item">
+            <span class="stat-strip__value">12</span>
+            <span class="stat-strip__label">待办</span>
+          </div>
+          <div class="stat-strip__item">
+            <span class="stat-strip__value">8</span>
+            <span class="stat-strip__label">进行中</span>
+          </div>
+          <div class="stat-strip__item">
+            <span class="stat-strip__value">156</span>
+            <span class="stat-strip__label">已完成</span>
+          </div>
+        </div>
+
+        <div class="quick-grid">
+          <div class="quick-item">
+            <div class="quick-item__icon">报</div>
+            进度汇报
+          </div>
+          <div class="quick-item">
+            <div class="quick-item__icon quick-item__icon--warn">Bug</div>
+            记录 BUG
+          </div>
+          <div class="quick-item">
+            <div class="quick-item__icon quick-item__icon--ok">日</div>
+            写日报
+          </div>
+          <div class="quick-item">
+            <div class="quick-item__icon quick-item__icon--mute">扫</div>
+            扫码加入
+          </div>
+        </div>
+
+        <div class="workspace-section">
+          <div class="section-head">
+            <div class="section-title">我参与的项目</div>
+            <span class="section-head__more">全部</span>
+          </div>
+          <div class="project-card">
+            <div class="project-card__top">
+              <span class="project-card__name">智能硬件 V2.0</span>
+              <span class="project-card__pct">72%</span>
+            </div>
+            <div class="project-card__track">
+              <div class="project-card__fill" style="width: 72%"></div>
+            </div>
+            <div class="project-card__meta">5 个进行中 · 截止 07-31</div>
+          </div>
+          <div class="project-card">
+            <div class="project-card__top">
+              <span class="project-card__name">项目管理系统</span>
+              <span class="project-card__pct">48%</span>
+            </div>
+            <div class="project-card__track">
+              <div class="project-card__fill" style="width: 48%"></div>
+            </div>
+            <div class="project-card__meta">3 个进行中 · 截止 08-15</div>
+          </div>
+        </div>
+
+        <div class="workspace-section">
+          <div class="section-head">
+            <div class="section-title">今日待办</div>
+            <span class="section-head__more">更多</span>
+          </div>
+          <div class="task-list">
+            <div class="task-row">
+              <div class="task-row__bar task-row__bar--block"></div>
+              <div class="task-row__main">
+                <div class="task-row__title">联调日报导出接口</div>
+                <div class="task-row__meta">
+                  <span class="tag tag--high">逾期</span>
+                  <span class="task-row__meta-text">智能硬件 · 昨天到期</span>
+                </div>
+              </div>
+              <div class="task-row__action">汇报</div>
+            </div>
+            <div class="task-row">
+              <div class="task-row__bar task-row__bar--doing"></div>
+              <div class="task-row__main">
+                <div class="task-row__title">优化登录页表单校验逻辑</div>
+                <div class="task-row__meta">
+                  <span class="tag tag--doing">进行中</span>
+                  <span class="task-row__meta-text">65% · 07-15</span>
+                </div>
+              </div>
+              <div class="task-row__action">汇报</div>
+            </div>
+            <div class="task-row">
+              <div class="task-row__bar task-row__bar--test"></div>
+              <div class="task-row__main">
+                <div class="task-row__title">修复任务列表分页异常</div>
+                <div class="task-row__meta">
+                  <span class="tag tag--test">待测试</span>
+                  <span class="task-row__meta-text">90% · 07-10</span>
+                </div>
+              </div>
+              <div class="task-row__action">汇报</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="workspace-section" style="margin-bottom: 16px">
+          <div class="section-head">
+            <div class="section-title">团队动态</div>
+            <span class="section-head__more">全部</span>
+          </div>
+          <div class="feed-list">
+            <div class="feed-item">
+              <div class="feed-item__avatar">李</div>
+              <div class="feed-item__body">
+                <div class="feed-item__text"><strong>李四</strong> 汇报了「修复任务列表分页异常」进度至 90%</div>
+                <div class="feed-item__time">10 分钟前</div>
+              </div>
+            </div>
+            <div class="feed-item">
+              <div class="feed-item__avatar">王</div>
+              <div class="feed-item__body">
+                <div class="feed-item__text"><strong>王五</strong> 将「补充消息推送文案」分配给你</div>
+                <div class="feed-item__time">1 小时前</div>
+              </div>
+            </div>
+            <div class="feed-item">
+              <div class="feed-item__avatar">赵</div>
+              <div class="feed-item__body">
+                <div class="feed-item__text"><strong>赵六</strong> 提交了 BUG：导出 PDF 中文乱码</div>
+                <div class="feed-item__time">昨天 18:20</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <nav class="tab-bar">
+        <div class="tab-bar__item is-active">
+          <div class="tab-bar__icon">
+            <svg viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5z"/></svg>
+          </div>
+          工作台
+        </div>
+        <div class="tab-bar__item">
+          <div class="tab-bar__icon">
+            <svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 9h8M8 13h5"/></svg>
+          </div>
+          任务
+        </div>
+        <div class="tab-bar__item">
+          <div class="tab-bar__icon">
+            <svg viewBox="0 0 24 24"><path d="M5 6h14v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6z"/><path d="m5 7 7 5 7-5"/></svg>
+          </div>
+          消息
+          <span class="tab-bar__dot"></span>
+        </div>
+        <div class="tab-bar__item">
+          <div class="tab-bar__icon">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="3.5"/><path d="M6 19c1.5-3 4-4.5 6-4.5S16.5 16 18 19"/></svg>
+          </div>
+          我的
+        </div>
+      </nav>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=375, initial-scale=1" />
+    <title>我的</title>
+    <link rel="stylesheet" href="../assets/design.css" />
+  </head>
+  <body>
+    <div class="screen screen--with-tab">
+      <div class="status-bar">
+        <span class="status-bar__time">9:41</span>
+        <div class="status-bar__icons"><span></span></div>
+      </div>
+
+      <div class="page-body page-scroll">
+        <div class="profile-head">
+          <div class="profile-avatar">张</div>
+          <div>
+            <div class="profile-head__name">张三</div>
+            <div class="profile-head__account">研发一部 · zhangsan</div>
+          </div>
+        </div>
+
+        <div class="profile-stats">
+          <div class="profile-stats__item">
+            <span class="profile-stats__value">12</span>
+            <span class="profile-stats__label">本周待办</span>
+          </div>
+          <div class="profile-stats__item">
+            <span class="profile-stats__value">8</span>
+            <span class="profile-stats__label">进行中</span>
+          </div>
+          <div class="profile-stats__item">
+            <span class="profile-stats__value">23</span>
+            <span class="profile-stats__label">本周完成</span>
+          </div>
+        </div>
+
+        <div class="profile-menu">
+          <div class="profile-menu__item">
+            <span>消息通知</span>
+            <span class="switch"></span>
+          </div>
+          <div class="profile-menu__item">
+            <span>任务逾期提醒</span>
+            <span class="switch"></span>
+          </div>
+          <div class="profile-menu__item">
+            <span>修改密码</span>
+            <span class="profile-menu__arrow">›</span>
+          </div>
+          <div class="profile-menu__item">
+            <span>清除缓存</span>
+            <span>
+              <span class="profile-menu__meta">12.4 MB</span>
+              <span class="profile-menu__arrow">›</span>
+            </span>
+          </div>
+        </div>
+
+        <div class="profile-menu">
+          <div class="profile-menu__item">
+            <span>关于系统</span>
+            <span>
+              <span class="profile-menu__meta">v1.0.0</span>
+              <span class="profile-menu__arrow">›</span>
+            </span>
+          </div>
+          <div class="profile-menu__item">
+            <span>意见反馈</span>
+            <span class="profile-menu__arrow">›</span>
+          </div>
+        </div>
+
+        <div class="profile-logout">
+          <button class="btn btn--ghost-danger" type="button">退出登录</button>
+        </div>
+        <div style="height: 24px"></div>
+      </div>
+
+      <nav class="tab-bar">
+        <div class="tab-bar__item">
+          <div class="tab-bar__icon">
+            <svg viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5z"/></svg>
+          </div>
+          工作台
+        </div>
+        <div class="tab-bar__item">
+          <div class="tab-bar__icon">
+            <svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 9h8M8 13h5"/></svg>
+          </div>
+          任务
+        </div>
+        <div class="tab-bar__item">
+          <div class="tab-bar__icon">
+            <svg viewBox="0 0 24 24"><path d="M5 6h14v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6z"/><path d="m5 7 7 5 7-5"/></svg>
+          </div>
+          消息
+          <span class="tab-bar__dot"></span>
+        </div>
+        <div class="tab-bar__item is-active">
+          <div class="tab-bar__icon">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="3.5"/><path d="M6 19c1.5-3 4-4.5 6-4.5S16.5 16 18 19"/></svg>
+          </div>
+          我的
+        </div>
+      </nav>
+    </div>
+  </body>
+</html>

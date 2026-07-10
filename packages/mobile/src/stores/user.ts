@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
-import { LOGIN_API } from "@/config/api";
+import { loginApi } from "@/api/user";
+import { isApiSuccess } from "@/utils/api";
 import {
   clearToken,
   getStoredUser,
@@ -7,16 +8,6 @@ import {
   setStoredUser,
   setToken
 } from "@/utils/auth";
-import { http } from "@/utils/http";
-
-export interface LoginApiResponse {
-  code: number;
-  message?: string;
-  token?: string;
-  username?: string;
-  role?: string[];
-  button_permissions?: string[];
-}
 
 export interface MobileUser {
   id?: string;
@@ -46,28 +37,24 @@ export const useUserStore = defineStore("user", {
       this.user = getStoredUser<MobileUser>();
     },
     async login(username: string, password: string) {
-      const res = await http.post<LoginApiResponse>("/login", {
-        username,
-        password
-      });
+      const response = await loginApi({ username, password });
 
-      if (typeof res !== "object" || res === null) {
-        throw new Error(`接口返回异常（${LOGIN_API}）`);
+      if (!isApiSuccess(response) || !response.token) {
+        throw new Error(response.message || "登录失败");
       }
 
-      if (res.code !== 200 || !res.token) {
-        throw new Error(res.message || res.msg || "登录失败");
-      }
-
-      this.token = res.token;
-      setToken(res.token);
-      this.user = {
-        username: res.username || username,
-        nickname: res.username || username,
-        roles: res.role || [],
-        permissions: res.button_permissions || []
+      const user: MobileUser = {
+        username: response.username,
+        nickname: response.username,
+        name: response.username,
+        roles: response.role || [],
+        permissions: response.button_permissions || []
       };
-      setStoredUser(this.user);
+
+      this.token = response.token;
+      setToken(response.token);
+      this.user = user;
+      setStoredUser(user);
     },
     logout() {
       this.token = "";

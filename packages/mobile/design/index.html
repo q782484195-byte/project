@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>项目管理 · 移动端设计稿</title>
+    <link rel="stylesheet" href="./assets/design.css" />
+  </head>
+  <body>
+    <div class="preview-shell">
+      <h1 class="preview-shell__title">项目管理 · 移动端设计稿</h1>
+      <p class="preview-shell__desc">
+        App / 小程序共用 · 企业蓝 · 375×812 · 功能增强版
+      </p>
+
+      <nav class="preview-nav" id="nav">
+        <button class="preview-nav__btn is-active" data-screen="login">登录</button>
+        <button class="preview-nav__btn" data-screen="workspace">工作台</button>
+        <button class="preview-nav__btn" data-screen="tasks">我的任务</button>
+        <button class="preview-nav__btn" data-screen="detail">任务详情</button>
+        <button class="preview-nav__btn" data-screen="message">消息</button>
+        <button class="preview-nav__btn" data-screen="profile">我的</button>
+      </nav>
+
+      <div class="phone">
+        <iframe
+          id="frame"
+          class="phone__screen"
+          src="./screens/login.html"
+          title="设计稿预览"
+        ></iframe>
+      </div>
+    </div>
+
+    <script>
+      const frame = document.getElementById("frame");
+      const nav = document.getElementById("nav");
+      const map = {
+        login: "./screens/login.html",
+        workspace: "./screens/workspace.html",
+        tasks: "./screens/tasks.html",
+        detail: "./screens/detail.html",
+        message: "./screens/message.html",
+        profile: "./screens/profile.html"
+      };
+
+      nav.addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-screen]");
+        if (!btn) return;
+        const key = btn.dataset.screen;
+        frame.src = map[key];
+        nav.querySelectorAll(".preview-nav__btn").forEach((el) => {
+          el.classList.toggle("is-active", el === btn);
+        });
+      });
+    </script>
+  </body>
+</html>

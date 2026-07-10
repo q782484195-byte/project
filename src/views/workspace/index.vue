@@ -46,10 +46,10 @@
                   </el-table-column>
                   <el-table-column prop="状态" label="状态">
                     <template #default="{ row }">
-                      <el-tooltip :content="row.状态 || row.status || '-'" placement="top"
-                        :disabled="!row.状态 && !row.status">
-                        <div class="status-text text-ellipsis">{{ row.状态 || row.status || "-" }}</div>
-                      </el-tooltip>
+                      <el-tag :type="getStatusType(row.状态 || row.status, row) || undefined" size="small"
+                        effect="light">
+                        {{ getDisplayStatus(row) }}
+                      </el-tag>
                     </template>
                   </el-table-column>
                   <el-table-column prop="优先级" label="优先级">
@@ -107,8 +107,8 @@
                       :style="getTaskCardStyle(row)">
                       <div class="workspace-mobile-card__title">{{ row.任务名 || row.task_name || row.title || "-" }}</div>
                       <div class="workspace-mobile-card__meta">
-                        <el-tag v-if="row.状态 || row.status" size="small" effect="light">{{ row.状态 || row.status
-                          }}</el-tag>
+                        <el-tag v-if="getDisplayStatus(row) !== '-'" :type="getStatusType(row.状态 || row.status, row)"
+                          size="small" effect="light">{{ getDisplayStatus(row) }}</el-tag>
                         <el-tag v-if="row.优先级 || row.priority" :type="getPriorityType(row.优先级 || row.priority)"
                           size="small">{{ row.优先级 || row.priority }}</el-tag>
                       </div>
@@ -204,8 +204,9 @@
               <el-table-column prop="指派人" label="负责人" />
               <el-table-column prop="状态" label="状态" width="140">
                 <template #default="{ row }">
-                  <el-tag :type="getStatusType(row.状态)" size="small">
-                    {{ row.状态 }}
+                  <el-tag :type="getStatusType(row.状态 || row.status, row) || undefined" size="small"
+                    effect="light">
+                    {{ getDisplayStatus(row) }}
                   </el-tag>
                 </template>
               </el-table-column>
@@ -270,7 +271,8 @@
                   class="workspace-mobile-card" :style="getTaskCardStyle(row)">
                   <div class="workspace-mobile-card__title">{{ row.任务名 || row.task_name || row.title || "-" }}</div>
                   <div class="workspace-mobile-card__meta">
-                    <el-tag v-if="row.状态" :type="getStatusType(row.状态)" size="small">{{ row.状态 }}</el-tag>
+                    <el-tag v-if="getDisplayStatus(row) !== '-'" :type="getStatusType(row.状态 || row.status, row)"
+                      size="small" effect="light">{{ getDisplayStatus(row) }}</el-tag>
                     <el-tag v-if="row.优先级" :type="getPriorityType(row.优先级)" size="small">{{ row.优先级 }}</el-tag>
                   </div>
                   <div class="workspace-mobile-card__row">
@@ -724,13 +726,25 @@ const updateTime = () => {
   currentTime.value = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 };
 
+const isTaskDelayed = (row: any): boolean => row?.delay?.task_is_delay === true;
+
+const getDisplayStatus = (row: any): string => {
+  if (isTaskDelayed(row)) return "延期";
+  return row.状态 || row.status || "-";
+};
+
 // 获取状态类型
-const getStatusType = (status: string) => {
+const getStatusType = (
+  status: string,
+  row?: any
+): "success" | "info" | "warning" | "danger" | undefined => {
+  if (row && isTaskDelayed(row)) return "danger";
   const statusMap: Record<string, "success" | "info" | "warning" | "danger" | undefined> = {
     草稿: "info",
     进行中: "warning",
     已完成: "success",
     已取消: "danger",
+    延期: "danger",
     待分配给部门负责人: "info",
     待指派给成员: "info",
     任务未开始: "info",

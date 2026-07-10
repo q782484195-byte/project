@@ -31,6 +31,22 @@ page {
   margin-bottom: $pm-space-sm;
 }
 
+.pm-section-head {
+  @include pm-flex-between;
+  padding: 0 $pm-space-lg;
+  margin-bottom: $pm-space-sm;
+}
+
+.pm-section-head .pm-section-title {
+  margin-bottom: 0;
+}
+
+.pm-section-more {
+  font-size: $pm-font-caption;
+  color: $pm-primary;
+  font-weight: $pm-weight-medium;
+}
+
 .pm-divider {
   height: 1rpx;
   background: $pm-border;
@@ -40,4 +56,9 @@ page {
 .pm-link {
   color: $pm-primary;
   font-size: $pm-font-caption;
+  font-weight: $pm-weight-medium;
+}
+
+.pm-surface {
+  background: $pm-bg-card;
 }

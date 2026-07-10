@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=375, initial-scale=1" />
+    <title>任务详情</title>
+    <link rel="stylesheet" href="../assets/design.css" />
+  </head>
+  <body>
+    <div class="screen screen--with-action">
+      <div class="status-bar">
+        <span class="status-bar__time">9:41</span>
+        <div class="status-bar__icons"><span></span></div>
+      </div>
+      <div class="nav-bar">
+        <div class="nav-bar__back">返回</div>
+        <div class="nav-bar__title">任务详情</div>
+      </div>
+
+      <div class="page-body page-scroll">
+        <div class="detail-head">
+          <div class="detail-head__title">优化登录页表单校验逻辑</div>
+          <div class="detail-head__tags">
+            <span class="tag tag--doing">进行中</span>
+            <span class="tag tag--high">高</span>
+            <span class="tag tag--mid">前端</span>
+          </div>
+        </div>
+
+        <div class="detail-panel">
+          <div class="detail-row">
+            <span class="detail-row__label">所属项目</span>
+            <span class="detail-row__value">智能硬件 V2.0</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-row__label">当前处理人</span>
+            <span class="detail-row__value">张三</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-row__label">协作人</span>
+            <span class="detail-row__value">李四、王五</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-row__label">计划完成</span>
+            <span class="detail-row__value">2026-07-15</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-row__label">进度</span>
+            <span class="detail-row__value">
+              <span class="progress-line">
+                <span class="progress-line__track">
+                  <span class="progress-line__fill" style="width: 65%"></span>
+                </span>
+                65%
+              </span>
+            </span>
+          </div>
+        </div>
+
+        <div class="detail-panel">
+          <div class="detail-panel__title">任务描述</div>
+          <p class="detail-desc">
+            完善前端表单校验与错误提示，覆盖账号、密码、验证码场景。保证空值、格式错误与网络异常时提示清晰，并与后端错误码对齐。
+          </p>
+        </div>
+
+        <div class="detail-panel">
+          <div class="detail-panel__title">附件（2）</div>
+          <div class="attach-row">
+            <div class="attach-row__icon">PDF</div>
+            <div class="attach-row__name">登录校验需求说明.pdf</div>
+            <div class="attach-row__size">1.2 MB</div>
+          </div>
+          <div class="attach-row">
+            <div class="attach-row__icon">PNG</div>
+            <div class="attach-row__name">错误提示示意.png</div>
+            <div class="attach-row__size">340 KB</div>
+          </div>
+        </div>
+
+        <div class="detail-panel">
+          <div class="detail-panel__title">动态</div>
+          <div class="timeline">
+            <div class="timeline__item">
+              <div class="timeline__dot"></div>
+              <div class="timeline__content">
+                <div class="timeline__text">张三 更新进度至 65%</div>
+                <div class="timeline__time">今天 09:20</div>
+              </div>
+            </div>
+            <div class="timeline__item">
+              <div class="timeline__dot timeline__dot--mute"></div>
+              <div class="timeline__content">
+                <div class="timeline__text">李四 评论：验证码场景也要覆盖超时</div>
+                <div class="timeline__time">昨天 16:42</div>
+              </div>
+            </div>
+            <div class="timeline__item">
+              <div class="timeline__dot timeline__dot--mute"></div>
+              <div class="timeline__content">
+                <div class="timeline__text">王五 将任务分配给 张三</div>
+                <div class="timeline__time">07-07 11:05</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="comment-box">写评论或 @同事…</div>
+        <div style="height: 16px"></div>
+      </div>
+
+      <div class="action-bar">
+        <button class="btn btn--secondary" type="button">记录 BUG</button>
+        <button class="btn btn--primary" type="button">进度汇报</button>
+      </div>
+    </div>
+  </body>
+</html>

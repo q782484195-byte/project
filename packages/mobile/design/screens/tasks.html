@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=375, initial-scale=1" />
+    <title>我的任务</title>
+    <link rel="stylesheet" href="../assets/design.css" />
+  </head>
+  <body>
+    <div class="screen screen--with-tab">
+      <div class="status-bar">
+        <span class="status-bar__time">9:41</span>
+        <div class="status-bar__icons"><span></span></div>
+      </div>
+      <div class="nav-bar">
+        <div class="nav-bar__title">我的任务</div>
+      </div>
+
+      <div class="page-body page-scroll">
+        <div class="filter-bar">
+          <div class="search-box">
+            <span class="search-box__icon"></span>
+            <span>搜索任务标题 / 编号</span>
+          </div>
+          <div class="chip-row">
+            <span class="chip is-active">全部项目</span>
+            <span class="chip">智能硬件 V2.0</span>
+            <span class="chip">项目管理系统</span>
+            <span class="chip">运营后台</span>
+          </div>
+        </div>
+
+        <div style="background: var(--pm-surface); padding-top: 10px">
+          <div class="segment">
+            <div class="segment__item is-active">全部</div>
+            <div class="segment__item">待办</div>
+            <div class="segment__item">进行中</div>
+            <div class="segment__item">完成</div>
+          </div>
+          <div class="toolbar-row">
+            <span>共 24 条</span>
+            <span class="toolbar-row__sort">排序：最近更新 ▾</span>
+          </div>
+        </div>
+
+        <div class="task-list">
+          <div class="task-row">
+            <div class="task-row__bar task-row__bar--block"></div>
+            <div class="task-row__main">
+              <div class="task-row__title">联调日报导出接口</div>
+              <div class="task-row__meta">
+                <span class="tag tag--high">逾期</span>
+                <span class="tag tag--high">高</span>
+                <span class="task-row__meta-text">40% · 07-08</span>
+              </div>
+            </div>
+          </div>
+          <div class="task-row">
+            <div class="task-row__bar task-row__bar--doing"></div>
+            <div class="task-row__main">
+              <div class="task-row__title">优化登录页表单校验逻辑</div>
+              <div class="task-row__meta">
+                <span class="tag tag--doing">进行中</span>
+                <span class="tag tag--high">高</span>
+                <span class="task-row__meta-text">65% · 07-15</span>
+              </div>
+            </div>
+          </div>
+          <div class="task-row">
+            <div class="task-row__bar task-row__bar--test"></div>
+            <div class="task-row__main">
+              <div class="task-row__title">修复任务列表分页异常</div>
+              <div class="task-row__meta">
+                <span class="tag tag--test">待测试</span>
+                <span class="tag tag--mid">中</span>
+                <span class="task-row__meta-text">90% · 07-10</span>
+              </div>
+            </div>
+          </div>
+          <div class="task-row">
+            <div class="task-row__bar task-row__bar--todo"></div>
+            <div class="task-row__main">
+              <div class="task-row__title">补充移动端消息推送文案</div>
+              <div class="task-row__meta">
+                <span class="tag tag--todo">待办</span>
+                <span class="tag tag--mid">中</span>
+                <span class="task-row__meta-text">0% · 07-12</span>
+              </div>
+            </div>
+          </div>
+          <div class="task-row">
+            <div class="task-row__bar task-row__bar--done"></div>
+            <div class="task-row__main">
+              <div class="task-row__title">整理本周日报模板</div>
+              <div class="task-row__meta">
+                <span class="tag tag--done">已完成</span>
+                <span class="task-row__meta-text">100% · 07-08</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="fab" title="新建任务">+</div>
+
+      <nav class="tab-bar">
+        <div class="tab-bar__item">
+          <div class="tab-bar__icon">
+            <svg viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5z"/></svg>
+          </div>
+          工作台
+        </div>
+        <div class="tab-bar__item is-active">
+          <div class="tab-bar__icon">
+            <svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 9h8M8 13h5"/></svg>
+          </div>
+          任务
+        </div>
+        <div class="tab-bar__item">
+          <div class="tab-bar__icon">
+            <svg viewBox="0 0 24 24"><path d="M5 6h14v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6z"/><path d="m5 7 7 5 7-5"/></svg>
+          </div>
+          消息
+          <span class="tab-bar__dot"></span>
+        </div>
+        <div class="tab-bar__item">
+          <div class="tab-bar__icon">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="3.5"/><path d="M6 19c1.5-3 4-4.5 6-4.5S16.5 16 18 19"/></svg>
+          </div>
+          我的
+        </div>
+      </nav>
+    </div>
+  </body>
+</html>

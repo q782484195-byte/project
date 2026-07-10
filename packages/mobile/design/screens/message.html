@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=375, initial-scale=1" />
+    <title>消息</title>
+    <link rel="stylesheet" href="../assets/design.css" />
+  </head>
+  <body>
+    <div class="screen screen--with-tab">
+      <div class="status-bar">
+        <span class="status-bar__time">9:41</span>
+        <div class="status-bar__icons"><span></span></div>
+      </div>
+      <div class="nav-bar">
+        <div class="nav-bar__title">消息</div>
+      </div>
+
+      <div class="page-body page-scroll">
+        <div class="msg-tabs">
+          <div class="msg-tabs__item is-active">
+            全部<span class="msg-tabs__badge">3</span>
+          </div>
+          <div class="msg-tabs__item">任务</div>
+          <div class="msg-tabs__item">系统</div>
+          <div class="msg-tabs__item">@我</div>
+        </div>
+        <div class="msg-toolbar">
+          <span class="msg-toolbar__btn">全部标为已读</span>
+        </div>
+
+        <div class="message-list">
+          <div class="message-row">
+            <div class="message-row__type">派</div>
+            <div class="message-row__body">
+              <div class="message-row__top">
+                <span class="message-row__title">任务分配提醒</span>
+                <span class="message-row__time">10:30</span>
+              </div>
+              <div class="message-row__content">
+                张三将任务「优化登录页表单校验逻辑」分配给你
+              </div>
+            </div>
+            <span class="message-row__dot" style="margin-top: 14px"></span>
+          </div>
+
+          <div class="message-row">
+            <div class="message-row__type message-row__type--warn">期</div>
+            <div class="message-row__body">
+              <div class="message-row__top">
+                <span class="message-row__title">截止日期临近</span>
+                <span class="message-row__time">09:12</span>
+              </div>
+              <div class="message-row__content">
+                「联调日报导出接口」已逾期 1 天，请及时更新进度
+              </div>
+            </div>
+            <span class="message-row__dot" style="margin-top: 14px"></span>
+          </div>
+
+          <div class="message-row">
+            <div class="message-row__type">@</div>
+            <div class="message-row__body">
+              <div class="message-row__top">
+                <span class="message-row__title">有人提到了你</span>
+                <span class="message-row__time">08:55</span>
+              </div>
+              <div class="message-row__content">
+                李四在「登录校验」评论中 @了你：验证码超时也要覆盖
+              </div>
+            </div>
+            <span class="message-row__dot" style="margin-top: 14px"></span>
+          </div>
+
+          <div class="message-row">
+            <div class="message-row__type message-row__type--ok">报</div>
+            <div class="message-row__body">
+              <div class="message-row__top">
+                <span class="message-row__title">进度汇报</span>
+                <span class="message-row__time">昨天</span>
+              </div>
+              <div class="message-row__content">
+                李四提交了任务进度汇报，当前进度 90%
+              </div>
+            </div>
+            <span class="message-row__dot message-row__dot--read" style="margin-top: 14px"></span>
+          </div>
+
+          <div class="message-row">
+            <div class="message-row__type message-row__type--ok">态</div>
+            <div class="message-row__body">
+              <div class="message-row__top">
+                <span class="message-row__title">状态变更</span>
+                <span class="message-row__time">周一</span>
+              </div>
+              <div class="message-row__content">
+                「整理本周日报模板」已标记为已完成
+              </div>
+            </div>
+            <span class="message-row__dot message-row__dot--read" style="margin-top: 14px"></span>
+          </div>
+        </div>
+      </div>
+
+      <nav class="tab-bar">
+        <div class="tab-bar__item">
+          <div class="tab-bar__icon">
+            <svg viewBox="0 0 24 24"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5z"/></svg>
+          </div>
+          工作台
+        </div>
+        <div class="tab-bar__item">
+          <div class="tab-bar__icon">
+            <svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 9h8M8 13h5"/></svg>
+          </div>
+          任务
+        </div>
+        <div class="tab-bar__item is-active">
+          <div class="tab-bar__icon">
+            <svg viewBox="0 0 24 24"><path d="M5 6h14v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6z"/><path d="m5 7 7 5 7-5"/></svg>
+          </div>
+          消息
+        </div>
+        <div class="tab-bar__item">
+          <div class="tab-bar__icon">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="3.5"/><path d="M6 19c1.5-3 4-4.5 6-4.5S16.5 16 18 19"/></svg>
+          </div>
+          我的
+        </div>
+      </nav>
+    </div>
+  </body>
+</html>

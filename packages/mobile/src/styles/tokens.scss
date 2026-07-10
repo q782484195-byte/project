@@ -1,40 +1,41 @@
 /**
  * 项目管理系统 · 移动端设计 Token
- * App 与微信小程序共用，与 PC 端 EpThemeColor #409EFF 对齐
+ * App 与微信小程序共用 · 企业蓝 + Slate
  */
 
 // ── 品牌色 ──
-$pm-primary: #409eff;
-$pm-primary-light: #ecf5ff;
-$pm-primary-dark: #337ecc;
+$pm-primary: #2563eb;
+$pm-primary-light: #dbeafe;
+$pm-primary-dark: #1d4ed8;
 
 // ── 功能色 ──
-$pm-success: #67c23a;
-$pm-success-light: #f0f9eb;
-$pm-warning: #e6a23c;
-$pm-warning-light: #fdf6ec;
-$pm-danger: #f56c6c;
-$pm-danger-light: #fef0f0;
-$pm-info: #909399;
-$pm-info-light: #f4f4f5;
+$pm-success: #16a34a;
+$pm-success-light: #dcfce7;
+$pm-warning: #ea580c;
+$pm-warning-light: #ffedd5;
+$pm-danger: #dc2626;
+$pm-danger-light: #fee2e2;
+$pm-info: #475569;
+$pm-info-light: #f1f5f9;
 
 // ── 中性色 ──
-$pm-text-primary: #303133;
-$pm-text-regular: #606266;
-$pm-text-secondary: #909399;
-$pm-text-placeholder: #c0c4cc;
-$pm-border: #ebeef5;
-$pm-border-light: #f2f6fc;
-$pm-bg-page: #f5f7fa;
+$pm-text-primary: #0f172a;
+$pm-text-regular: #64748b;
+$pm-text-secondary: #64748b;
+$pm-text-placeholder: #94a3b8;
+$pm-border: #e2e8f0;
+$pm-border-light: #f1f5f9;
+$pm-bg-page: #f1f5f9;
 $pm-bg-card: #ffffff;
-$pm-bg-hover: #fafafa;
+$pm-bg-hover: #f8fafc;
+$pm-bg-muted: #f1f5f9;
 
-// ── 字号（rpx，750 设计稿）──
-$pm-font-display: 40rpx;
-$pm-font-title: 32rpx;
-$pm-font-body: 28rpx;
-$pm-font-caption: 24rpx;
-$pm-font-mini: 22rpx;
+// ── 字号（rpx，750 设计稿 ≈ 375×2）──
+$pm-font-display: 44rpx;
+$pm-font-title: 34rpx;
+$pm-font-body: 30rpx;
+$pm-font-caption: 26rpx;
+$pm-font-mini: 24rpx;
 
 // ── 字重 ──
 $pm-weight-normal: 400;
@@ -64,13 +65,20 @@ $pm-input-height: 88rpx;
 $pm-btn-height: 88rpx;
 $pm-btn-height-sm: 64rpx;
 
-// ── 任务 show_color 行背景（与 PC workspace 一致）──
-$pm-task-bg-red: #fef0f0;
-$pm-task-bg-green: #f0f9eb;
-$pm-task-bg-blue: #ecf5ff;
-$pm-task-bg-yellow: #fdfce6;
-$pm-task-bg-orange: #fdf6ec;
-$pm-task-bg-purple: #f5f0ff;
-$pm-task-bg-gray: #f4f4f5;
-$pm-task-bg-pink: #fef0f5;
-$pm-task-bg-cyan: #e8f8f8;
+// ── 任务状态色条 ──
+$pm-bar-todo: #94a3b8;
+$pm-bar-doing: #2563eb;
+$pm-bar-test: #ea580c;
+$pm-bar-done: #16a34a;
+$pm-bar-block: #dc2626;
+
+// ── 任务 show_color 行背景（兼容旧字段）──
+$pm-task-bg-red: #fef2f2;
+$pm-task-bg-green: #f0fdf4;
+$pm-task-bg-blue: #eff6ff;
+$pm-task-bg-yellow: #fefce8;
+$pm-task-bg-orange: #fff7ed;
+$pm-task-bg-purple: #f5f3ff;
+$pm-task-bg-gray: #f8fafc;
+$pm-task-bg-pink: #fdf2f8;
+$pm-task-bg-cyan: #ecfeff;

@@ -2,8 +2,13 @@
   <view class="pm-page-layout">
     <view v-if="title || $slots.header" class="pm-page-layout__header">
       <slot name="header">
-        <text v-if="title" class="pm-page-layout__title">{{ title }}</text>
-        <text v-if="subtitle" class="pm-page-layout__subtitle">{{ subtitle }}</text>
+        <view class="pm-page-layout__header-row">
+          <view class="pm-page-layout__titles">
+            <text v-if="title" class="pm-page-layout__title">{{ title }}</text>
+            <text v-if="subtitle" class="pm-page-layout__subtitle">{{ subtitle }}</text>
+          </view>
+          <slot name="extra" />
+        </view>
       </slot>
     </view>
 
@@ -49,7 +54,20 @@ withDefaults(
 }
 
 .pm-page-layout__header {
-  margin-bottom: $pm-space-lg;
+  padding: $pm-space-md $pm-space-lg $pm-space-sm;
+  padding-top: calc(#{$pm-space-md} + var(--status-bar-height, 20px));
+  background: $pm-bg-card;
+}
+
+.pm-page-layout__header-row {
+  @include pm-flex-between;
+  align-items: flex-start;
+  gap: $pm-space-md;
+}
+
+.pm-page-layout__titles {
+  flex: 1;
+  min-width: 0;
 }
 
 .pm-page-layout__title {
@@ -57,13 +75,14 @@ withDefaults(
   font-size: $pm-font-display;
   font-weight: $pm-weight-semibold;
   color: $pm-text-primary;
+  line-height: 1.3;
 }
 
 .pm-page-layout__subtitle {
   display: block;
   margin-top: $pm-space-xs;
   font-size: $pm-font-caption;
-  color: $pm-text-secondary;
+  color: $pm-text-placeholder;
 }
 
 .pm-page-layout__body {
@@ -71,11 +90,15 @@ withDefaults(
 }
 
 .pm-page-layout__body--with-tab {
-  padding-bottom: calc(#{$pm-tabbar-height} + #{$pm-space-lg});
+  padding-bottom: calc(
+    #{$pm-tabbar-height} + #{$pm-space-lg} + env(safe-area-inset-bottom)
+  );
 }
 
 .pm-page-layout__body--with-action {
-  padding-bottom: calc(#{$pm-action-bar-height} + #{$pm-space-lg});
+  padding-bottom: calc(
+    #{$pm-action-bar-height} + #{$pm-space-lg} + env(safe-area-inset-bottom)
+  );
 }
 
 .pm-page-layout__action {
@@ -87,6 +110,5 @@ withDefaults(
   background: $pm-bg-card;
   border-top: 1rpx solid $pm-border;
   padding: $pm-space-md $pm-space-lg;
-  @include pm-safe-bottom;
 }
 </style>

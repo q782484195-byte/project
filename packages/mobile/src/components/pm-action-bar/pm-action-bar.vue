@@ -40,33 +40,33 @@ defineEmits<{
 @import "@/styles/mixins.scss";
 
 .pm-action-bar {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
   gap: $pm-space-md;
-  @include pm-safe-bottom;
 }
 
 .pm-action-bar__btn {
   height: $pm-btn-height;
   line-height: $pm-btn-height;
   text-align: center;
-  border-radius: $pm-radius-md;
+  border-radius: $pm-radius-xl;
   font-size: $pm-font-body;
   font-weight: $pm-weight-medium;
 }
 
 .pm-action-bar__btn--ghost {
-  color: $pm-text-regular;
+  flex: 1;
+  color: $pm-text-primary;
   background: $pm-bg-card;
   border: 1rpx solid $pm-border;
 }
 
 .pm-action-bar__btn--primary {
+  flex: 1.2;
   color: #fff;
   background: $pm-primary;
 }
 
 .pm-action-bar__btn--full {
-  grid-column: 1 / -1;
+  flex: 1;
 }
 </style>

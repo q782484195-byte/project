@@ -13,4 +13,4 @@ const envUrl = import.meta.env.VITE_API_URL as string | undefined;
 
 export const API_BASE_URL = normalizeBaseUrl(envUrl || DEFAULT_API_BASE);
 
-export const LOGIN_API = `${API_BASE_URL}/login`;
+export const LOGIN_API = `${API_BASE_URL}/user/login`;

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=375, initial-scale=1" />
+    <title>登录</title>
+    <link rel="stylesheet" href="../assets/design.css" />
+  </head>
+  <body>
+    <div class="screen">
+      <div class="status-bar">
+        <span class="status-bar__time">9:41</span>
+        <div class="status-bar__icons"><span></span></div>
+      </div>
+
+      <div class="login">
+        <div class="login__hero">
+          <div class="login__brand">项目<span>管理</span></div>
+          <p class="login__desc">任务、进度、协作，一个入口搞定</p>
+        </div>
+
+        <div class="login__field">
+          <label class="login__label">账号</label>
+          <input class="login__input" type="text" placeholder="手机号 / 工号 / 邮箱" value="zhangsan" readonly />
+        </div>
+        <div class="login__field">
+          <label class="login__label">密码</label>
+          <input class="login__input" type="password" placeholder="请输入密码" value="••••••••" readonly />
+        </div>
+
+        <div class="login__row">
+          <label class="login__check">
+            <span class="login__check-box"></span>
+            记住账号
+          </label>
+          <span class="login__link">忘记密码？</span>
+        </div>
+
+        <div class="login__submit">
+          <button class="btn btn--block" type="button">登录</button>
+        </div>
+
+        <div class="login__divider">其他方式</div>
+        <div class="login__sso">
+          <span class="login__sso-icon"></span>
+          企业微信快捷登录
+        </div>
+
+        <p class="login__hint">API: https://api.example.com/v1</p>
+      </div>
+    </div>
+  </body>
+</html>

@@ -3,3 +3,9 @@ dist
 .unh
 *.local
 .DS_Store
+
+# 签名证书（勿提交）
+keystore/
+*.keystore
+keystore.local.json
+local-android.config.json

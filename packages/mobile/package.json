@@ -10,6 +10,11 @@
     "build": "unh build",
     "build:wx": "uni build -p mp-weixin",
     "build:app": "uni build -p app",
+    "build:apk": "uni build -p app && node scripts/print-local-pack-guide.mjs",
+    "build:apk:local": "powershell -ExecutionPolicy Bypass -File scripts/build-apk-local.ps1",
+    "build:apk:local:release": "powershell -ExecutionPolicy Bypass -File scripts/build-apk-local.ps1 -Release",
+    "cert:info": "powershell -ExecutionPolicy Bypass -File scripts/show-signing-info.ps1",
+    "keystore:gen": "powershell -ExecutionPolicy Bypass -File scripts/gen-keystore.ps1",
     "type-check": "vue-tsc --noEmit"
   },
   "dependencies": {
@@ -29,10 +34,28 @@
     "@dcloudio/uni-mp-weixin": "3.0.0-5000720260410001",
     "@dcloudio/uni-mp-xhs": "3.0.0-5000720260410001",
     "@dcloudio/uni-quickapp-webview": "3.0.0-5000720260410001",
+    "@vue/compiler-core": "3.4.21",
+    "@vue/compiler-dom": "3.4.21",
+    "@vue/compiler-sfc": "3.4.21",
+    "@vue/reactivity": "3.4.21",
+    "@vue/runtime-core": "3.4.21",
+    "@vue/runtime-dom": "3.4.21",
+    "@vue/shared": "3.4.21",
     "pinia": "2.2.4",
     "vue": "3.4.21",
     "vue-i18n": "9.6.2",
     "vue-router": "4.5.1"
+  },
+  "pnpm": {
+    "overrides": {
+      "@vue/compiler-core": "3.4.21",
+      "@vue/compiler-dom": "3.4.21",
+      "@vue/compiler-sfc": "3.4.21",
+      "@vue/reactivity": "3.4.21",
+      "@vue/runtime-core": "3.4.21",
+      "@vue/runtime-dom": "3.4.21",
+      "@vue/shared": "3.4.21"
+    }
   },
   "devDependencies": {
     "@dcloudio/types": "3.4.28",
@@ -45,7 +68,6 @@
     "@uni-helper/plugin-uni": "0.1.0",
     "@uni-helper/unh": "^0.3.1",
     "@uni-helper/uni-types": "^1.0.0-alpha.8",
-    "@vue/runtime-core": "3.4.21",
     "@vue/tsconfig": "^0.9.1",
     "miniprogram-api-typings": "^5.1.2",
     "sass": "1.64.2",

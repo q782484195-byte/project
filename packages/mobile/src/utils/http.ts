@@ -39,20 +39,25 @@ function request<T>(
   const fullUrl = method === "GET" ? buildUrl(url, params) : API_BASE_URL + path;
 
   return new Promise((resolve, reject) => {
+    const token = getToken();
+    const header: Record<string, string> = {
+      "Content-Type": "application/json"
+    };
+    if (token) {
+      header.Authorization = formatToken(token);
+    }
+
     uni.request({
       url: fullUrl,
       method,
-      data: method === "GET" ? undefined : data,
-      header: {
-        "Content-Type": "application/json",
-        Authorization: getToken() ? formatToken(getToken()) : ""
-      },
+      data: method === "GET" ? undefined : (data as UniApp.RequestOptions["data"]),
+      header,
       success(res) {
         const status = res.statusCode ?? 0;
         if (status === 401) {
           clearToken();
           uni.reLaunch({ url: "/pages/login/index" });
-          reject(new Error("未登录"));
+          reject(new Error("登录已过期，请重新登录"));
           return;
         }
         if (status < 200 || status >= 300) {

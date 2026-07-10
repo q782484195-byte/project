@@ -1,5 +1,5 @@
 <template>
-  <view :class="['pm-status-tag', `pm-status-tag--${tone}`]">
+  <view class="pm-status-tag" :class="`pm-status-tag--${tone}`">
     <slot>{{ label }}</slot>
   </view>
 </template>
@@ -25,10 +25,12 @@ withDefaults(
 .pm-status-tag {
   display: inline-flex;
   align-items: center;
-  padding: 4rpx 16rpx;
-  border-radius: $pm-radius-full;
+  height: 40rpx;
+  padding: 0 16rpx;
+  border-radius: $pm-radius-sm;
   font-size: $pm-font-mini;
-  line-height: 1.4;
+  font-weight: $pm-weight-medium;
+  line-height: 1;
   white-space: nowrap;
 }
 

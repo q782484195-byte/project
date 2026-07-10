@@ -36,6 +36,10 @@
   padding-bottom: env(safe-area-inset-bottom);
 }
 
+@mixin pm-safe-top {
+  padding-top: var(--status-bar-height, 20px);
+}
+
 @mixin pm-page {
   min-height: 100vh;
   background: $pm-bg-page;
