@@ -7,7 +7,7 @@ export default {
   redirect: "/personal-task/list",
   meta: {
     icon: "ri:task-line",
-    title: "个人任务",
+    title: "日常任务",
     rank: 5,
     /** 不在侧边栏展示「任务」模块，仍保留路由供项目卡片等跳转 */
     showLink: true
@@ -24,19 +24,17 @@ export default {
         roles: ["Admin", "ProjectManager", 'ProjectDirector']
       }
     },
-    // {
-    //   path: "/tasks/detail/:id",
-    //   name: "TaskDetail",
-    //   component: () => import("@/views/tasks/detail.vue"),
-    //   meta: {
-    //     title: "任务详情",
-    //     showLink: false,
-    //     /** 侧边栏高亮任务列表 */
-    //     activePath: "/tasks/list",
-    //     /** 允许在标签栏同时打开多个任务详情（超出后关闭最早打开的） */
-    //     dynamicLevel: 15,
-    //     roles: ["Admin", "ProjectManager", "Member", "DepartmentManager", 'ProjectDirector', 'BusinessDepartmentMembers']
-    //   }
-    // }
+    {
+      path: "/personal-task/detail/:id",
+      name: "PersonalTaskDetail",
+      component: () => import("@/views/personal-task/detail.vue"),
+      meta: {
+        title: "任务详情",
+        showLink: false,
+        activePath: "/personal-task/list",
+        dynamicLevel: 15,
+        roles: ["Admin", "ProjectManager", "ProjectDirector", "DepartmentManager"]
+      }
+    }
   ]
 } satisfies RouteConfigsTable;

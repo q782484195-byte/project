@@ -1,4 +1,5 @@
 import { http } from "@/utils/http";
+import type { DescribeContent } from "@/api/project";
 import {
   joinTaskContent,
   parseTaskContentFromItem
@@ -19,13 +20,32 @@ export interface DailyTaskValue {
   [key: string]: unknown;
 }
 
-/** 个人任务列表项（select 接口，不含 value） */
+/** 个人任务列表项（select 接口） */
 export interface DailyTaskListItem {
   _id?: string;
   daily_task_id?: string;
+  task_id?: string;
+  daily_task?: boolean;
+  index?: number;
+  任务名?: string;
   daily_task_name?: string | number;
+  describe?: DescribeContent[] | string[];
+  状态?: string;
   state?: string;
+  优先级?: string;
+  priority?: string;
   creator?: string;
+  指派人?: string[] | string;
+  assigner?: string[] | string;
+  assigner_fished?: boolean[];
+  进度?: number;
+  task_deadline?: string;
+  attachment?: string[];
+  assignment_time?: string;
+  rejection_reason?: string;
+  历史记录?: string[];
+  delay?: { task_is_delay?: boolean };
+  pause?: boolean;
   create_time?: string;
   update_time?: string;
   created_at?: string;
@@ -33,7 +53,7 @@ export interface DailyTaskListItem {
   [key: string]: unknown;
 }
 
-/** 个人任务详情（info 接口，含 value） */
+/** 个人任务详情（info 接口） */
 export interface DailyTaskItem extends DailyTaskListItem {
   value?: DailyTaskValue | string;
   description?: string;
@@ -53,6 +73,8 @@ export interface ApiResponse<T = unknown> {
 
 /** 列表查询参数 */
 export interface SelectDailyTasksParams {
+  task_name?: string;
+  state?: string;
   page: number;
   page_size: number;
 }
@@ -68,27 +90,150 @@ export interface DailyTaskListResponse {
 /** 新增参数 */
 export interface AddDailyTaskParams {
   daily_task_name: string;
-  value: DailyTaskValue;
+  assigner: string[];
+  describe: string[];
+  priority: string;
+  task_deadline: string;
+  attachment: string[];
 }
 
-/** 更新参数 */
-export interface UpdateDailyTaskParams {
-  daily_task_id: string;
-  value: DailyTaskValue;
+/** 创建人更新参数 */
+export interface CreatorUpdateDailyTaskParams {
+  task_id: string;
+  describe: string[];
+  attachment: string[];
+  daily_task_name: string;
+  state: string;
+  priority: string;
+  task_deadline: string;
+}
+
+/** 指派人更新参数 */
+export interface AssignerUpdateDailyTaskParams {
+  task_id: string;
+  describe: string[];
+  attachment: string[];
 }
 
 /** 删除参数 */
 export interface DeleteDailyTaskParams {
-  daily_task_id: string;
+  task_id: string;
 }
 
 /** 详情参数 */
 export interface DailyTaskInfoParams {
-  daily_task_id: string;
+  task_id: string;
 }
 
+/** 指派人完成任务参数 */
+export interface AssignerFinishDailyTaskParams {
+  task_id: string;
+}
+
+/** 指派人及完成状态（下标与 指派人、assigner_fished 对应） */
+export interface DailyTaskAssignerItem {
+  name: string;
+  finished: boolean;
+}
+
+const isAssignerFinishedFlag = (value: unknown): boolean =>
+  value === true || value === 1 || value === "true" || value === "1";
+
+/** 从任务对象解析指派人列表 */
+export const getDailyTaskAssigners = (task: DailyTaskListItem): string[] => {
+  const assigner = task.指派人 ?? task.assigner;
+  if (Array.isArray(assigner)) {
+    return assigner.map(item => String(item).trim()).filter(Boolean);
+  }
+  if (typeof assigner === "string" && assigner.trim()) {
+    return [assigner.trim()];
+  }
+  return [];
+};
+
+/** 解析指派人及完成状态列表 */
+export const getDailyTaskAssignerItems = (
+  task: DailyTaskListItem | null | undefined
+): DailyTaskAssignerItem[] => {
+  if (!task) return [];
+  const assigners = getDailyTaskAssigners(task);
+  const finished = task.assigner_fished;
+  return assigners.map((name, index) => ({
+    name,
+    finished:
+      Array.isArray(finished) &&
+      index < finished.length &&
+      isAssignerFinishedFlag(finished[index])
+  }));
+};
+
+/** 判断当前用户是否为任务创建人 */
+export const isDailyTaskCreator = (
+  task: DailyTaskListItem,
+  username: string
+): boolean => {
+  const current = username.trim();
+  const creator = String(task.creator || "").trim();
+  return Boolean(current && creator && current === creator);
+};
+
+/** 判断当前指派人是否已标记完成 */
+export const hasAssignerFinishedDailyTask = (
+  task: DailyTaskListItem,
+  username: string
+): boolean => {
+  const assigners = getDailyTaskAssigners(task);
+  const current = username.trim();
+  const index = assigners.findIndex(name => name === current);
+  if (index < 0) return false;
+  const finished = task.assigner_fished;
+  if (!Array.isArray(finished) || index >= finished.length) return false;
+  return isAssignerFinishedFlag(finished[index]);
+};
+
+/** 判断当前用户是否为任务指派人 */
+export const isDailyTaskAssigner = (
+  task: DailyTaskListItem,
+  username: string
+): boolean => {
+  const current = username.trim();
+  if (!current) return false;
+  return getDailyTaskAssigners(task).some(name => name === current);
+};
+
+/** 判断当前用户是否可编辑任务（创建人或 Admin） */
+export const canEditDailyTask = (
+  task: DailyTaskListItem,
+  username: string,
+  roles: string[] = []
+): boolean => {
+  if (roles.includes("Admin")) return true;
+  return isDailyTaskCreator(task, username);
+};
+
 export const getDailyTaskId = (task: DailyTaskListItem): string =>
-  String(task.daily_task_id || task._id || "");
+  String(task._id || task.daily_task_id || task.task_id || "");
+
+/** 将指派人/负责人字段格式化为展示文本（兼容 string | string[]） */
+export const formatTaskAssigneeText = (
+  value: string | string[] | null | undefined,
+  separator = "、"
+): string => {
+  if (Array.isArray(value)) {
+    const names = value.map(item => String(item).trim()).filter(Boolean);
+    return names.length ? names.join(separator) : "-";
+  }
+  const text = String(value ?? "").trim();
+  return text || "-";
+};
+
+/** 从任务行解析负责人展示文本 */
+export const getTaskAssigneeText = (
+  task: {
+    指派人?: string | string[];
+    assignee?: string | string[];
+  } | null | undefined
+): string => formatTaskAssigneeText(task?.指派人 ?? task?.assignee);
 
 /** 格式化任务名称（兼容后端返回 number / 0 / 空值） */
 export const formatDailyTaskName = (name: unknown): string => {
@@ -98,12 +243,36 @@ export const formatDailyTaskName = (name: unknown): string => {
   return text;
 };
 
-/** @alias formatDailyTaskName */
+/** 获取任务名称 */
 export const getDailyTaskName = (task: DailyTaskListItem): string =>
-  formatDailyTaskName(task.daily_task_name);
+  formatDailyTaskName(task.任务名 ?? task.daily_task_name);
 
-/** 详情内容摘要（value 仅 info 接口返回） */
+/** 获取任务状态 */
+export const getDailyTaskState = (task: DailyTaskListItem): string =>
+  String(task.状态 ?? task.state ?? "");
+
+/** 获取任务优先级 */
+export const getDailyTaskPriority = (task: DailyTaskListItem): string =>
+  String(task.优先级 ?? task.priority ?? "");
+
+/** 获取任务进度 */
+export const getDailyTaskProgress = (task: DailyTaskListItem): number => {
+  const progress = task.进度;
+  if (typeof progress === "number") return progress;
+  const parsed = Number(progress);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+/** 详情内容摘要 */
 export const getDailyTaskDescription = (task: DailyTaskItem): string => {
+  if (Array.isArray(task.describe) && task.describe.length > 0) {
+    return task.describe
+      .map(item =>
+        typeof item === "string" ? item : String(item.content ?? "")
+      )
+      .filter(Boolean)
+      .join("\n");
+  }
   if (task.value == null && !task.description && !task.content && !task.html) {
     return "";
   }
@@ -151,11 +320,24 @@ export const addDailyTask = (params: AddDailyTaskParams) => {
   });
 };
 
-/** 更新个人任务 */
-export const updateDailyTask = (params: UpdateDailyTaskParams) => {
-  return http.request<ApiResponse<DailyTaskItem>>("post", "/daily_task/update", {
-    data: params
-  });
+/** 创建人更新个人任务 */
+export const creatorUpdateDailyTask = (params: CreatorUpdateDailyTaskParams) => {
+  return http.request<ApiResponse<DailyTaskItem>>(
+    "post",
+    "/daily_task/creator_update",
+    { data: params }
+  );
+};
+
+/** 指派人更新个人任务 */
+export const assignerUpdateDailyTask = (
+  params: AssignerUpdateDailyTaskParams
+) => {
+  return http.request<ApiResponse<DailyTaskItem>>(
+    "post",
+    "/daily_task/assigner_update",
+    { data: params }
+  );
 };
 
 /** 删除个人任务 */
@@ -169,6 +351,8 @@ export const deleteDailyTask = (params: DeleteDailyTaskParams) => {
 export const selectDailyTasks = (params: SelectDailyTasksParams) => {
   return http.request<DailyTaskListResponse>("post", "/daily_task/select", {
     data: {
+      task_name: params.task_name ?? "",
+      state: params.state ?? "",
       page: params.page,
       page_size: params.page_size
     }
@@ -177,7 +361,18 @@ export const selectDailyTasks = (params: SelectDailyTasksParams) => {
 
 /** 查询个人任务详情 */
 export const getDailyTaskInfo = (params: DailyTaskInfoParams) => {
-  return http.request<ApiResponse<DailyTaskItem>>("post", "/daily_task/info", {
-    data: params
+  return http.request<ApiResponse<DailyTaskItem>>("get", "/daily_task/info", {
+    params
   });
+};
+
+/** 指派人完成任务 */
+export const assignerFinishDailyTask = (
+  params: AssignerFinishDailyTaskParams
+) => {
+  return http.request<ApiResponse<DailyTaskItem>>(
+    "post",
+    "/daily_task/assigner_fish",
+    { data: params }
+  );
 };

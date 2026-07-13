@@ -494,6 +494,8 @@ export interface TaskListItem {
   startDate?: string;
   endDate?: string;
   create_time?: string;
+  /** 是否为日常任务（待办列表 task/pending 可能混入） */
+  daily_task?: boolean;
   /** 行背景色标识，如 red、green */
   show_color?: string;
   [key: string]: any;

@@ -12,6 +12,7 @@
     "build:app": "uni build -p app",
     "build:apk": "uni build -p app && node scripts/print-local-pack-guide.mjs",
     "build:apk:local": "powershell -ExecutionPolicy Bypass -File scripts/build-apk-local.ps1",
+    "build:apk:local:clean": "powershell -ExecutionPolicy Bypass -File scripts/build-apk-local.ps1 -Clean",
     "build:apk:local:release": "powershell -ExecutionPolicy Bypass -File scripts/build-apk-local.ps1 -Release",
     "cert:info": "powershell -ExecutionPolicy Bypass -File scripts/show-signing-info.ps1",
     "keystore:gen": "powershell -ExecutionPolicy Bypass -File scripts/gen-keystore.ps1",

@@ -38,9 +38,18 @@
                   </el-table-column>
                   <el-table-column prop="指派人" label="负责人">
                     <template #default="{ row }">
-                      <el-tooltip :content="row.指派人 || row.assignee || '-'" placement="top"
-                        :disabled="!row.指派人 && !row.assignee">
-                        <div class="assignee-text text-ellipsis">{{ row.指派人 || row.assignee || "-" }}</div>
+                      <DailyTaskAssigneeTags
+                        v-if="row.daily_task"
+                        :task="row"
+                        class="assignee-text text-ellipsis"
+                      />
+                      <el-tooltip
+                        v-else
+                        :content="getTaskAssigneeText(row)"
+                        placement="top"
+                        :disabled="getTaskAssigneeText(row) === '-'"
+                      >
+                        <div class="assignee-text text-ellipsis">{{ getTaskAssigneeText(row) }}</div>
                       </el-tooltip>
                     </template>
                   </el-table-column>
@@ -118,7 +127,10 @@
                       </div>
                       <div class="workspace-mobile-card__row">
                         <span class="workspace-mobile-card__label">负责人</span>
-                        <span class="workspace-mobile-card__value">{{ row.指派人 || row.assignee || "-" }}</span>
+                        <span class="workspace-mobile-card__value">
+                          <DailyTaskAssigneeTags v-if="row.daily_task" :task="row" />
+                          <template v-else>{{ getTaskAssigneeText(row) }}</template>
+                        </span>
                       </div>
                       <div class="workspace-mobile-card__row">
                         <span class="workspace-mobile-card__label">进度</span>
@@ -201,7 +213,12 @@
               :height="allTasksTableHeight" :cell-style="getTaskCellStyle">
               <el-table-column prop="project_name" label="项目名称" />
               <el-table-column prop="任务名" label="任务名称" />
-              <el-table-column prop="指派人" label="负责人" />
+              <el-table-column prop="指派人" label="负责人">
+                <template #default="{ row }">
+                  <DailyTaskAssigneeTags v-if="row.daily_task" :task="row" />
+                  <template v-else>{{ getTaskAssigneeText(row) }}</template>
+                </template>
+              </el-table-column>
               <el-table-column prop="状态" label="状态" width="140">
                 <template #default="{ row }">
                   <el-tag :type="getStatusType(row.状态 || row.status, row) || undefined" size="small"
@@ -548,8 +565,10 @@ import { selectSelfReports, selectReports, type ReportRecord } from "@/api/repor
 import { ElMessage } from "element-plus";
 import { User, Clock, Document, DataLine, OfficeBuilding } from "@element-plus/icons-vue";
 import type { TaskListItem, RequirementListItem, ProjectListItem } from "@/api/project";
+import { getTaskAssigneeText } from "@/api/daily-task";
 import { TaskStatus } from "@/types";
 import TaskStatusFlowDialog from "@/components/TaskStatusFlowDialog.vue";
+import DailyTaskAssigneeTags from "@/components/DailyTaskAssigneeTags.vue";
 import type { FormInstance, FormRules } from "element-plus";
 
 defineOptions({
@@ -978,12 +997,22 @@ const handleProjectDropdownCommand = (command: string, row: any) => {
 };
 
 const viewTask = (task: TaskListItem) => {
-  // 使用 sessionStorage 临时存储任务数据
   const taskId = task._id || task.id;
   if (!taskId) {
     ElMessage.error("任务ID不存在");
     return;
   }
+
+  // 日常任务走 /daily_task/info 与日常任务详情页
+  if (task.daily_task === true) {
+    router.push({
+      name: "PersonalTaskDetail",
+      params: { id: taskId },
+      query: { from: "workspace" }
+    });
+    return;
+  }
+
   sessionStorage.setItem(`task_${taskId}`, JSON.stringify(task));
   router.push({
     name: "TaskDetail",
@@ -1613,7 +1642,8 @@ const openReportDialog = (task: any) => {
   reportForm.progress = Number(task.进度) || 0;
   reportForm.use_time = Number(task.已用工时 || task.actualHours || 0);
   reportForm.recipient = task.creator || "";
-  reportForm.cc_person = task.指派人 || task.assignee || "";
+  const assigneeText = getTaskAssigneeText(task);
+  reportForm.cc_person = assigneeText === "-" ? "" : assigneeText;
   reportForm.message = "";
   reportForm.state = task.状态 || task.status || "";
   reportDialogVisible.value = true;

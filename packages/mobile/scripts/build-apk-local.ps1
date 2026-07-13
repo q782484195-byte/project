@@ -3,10 +3,12 @@
 #   pnpm build:apk:local
 #   pnpm build:apk:local -- -Release
 #   pnpm build:apk:local -- -SkipBuild
+#   pnpm build:apk:local -- -Clean
 
 param(
     [switch]$Release,
-    [switch]$SkipBuild
+    [switch]$SkipBuild,
+    [switch]$Clean
 )
 
 $ErrorActionPreference = "Stop"
@@ -25,6 +27,79 @@ function Fail([string]$Message) {
     Write-Host ""
     Write-Host "[ERROR] $Message" -ForegroundColor Red
     exit 1
+}
+
+function Get-PathLastWriteTime([string]$Path) {
+    if (-not (Test-Path $Path)) { return $null }
+    return (Get-Item $Path).LastWriteTime
+}
+
+function Resolve-ResourceSource {
+    param(
+        [string]$CliAppDir,
+        [string]$HbResourceDir,
+        [bool]$PreferCli
+    )
+
+    $cliExists = Test-Path $CliAppDir
+    $hbExists = Test-Path $HbResourceDir
+
+    if ($PreferCli) {
+        if ($cliExists) {
+            return @{
+                Type = "cli"
+                Path = $CliAppDir
+                Label = "CLI (dist/build/app)"
+            }
+        }
+        Fail "uni build did not produce: $CliAppDir"
+    }
+
+    if ($cliExists -and $hbExists) {
+        $cliTime = Get-PathLastWriteTime $CliAppDir
+        $hbTime = Get-PathLastWriteTime $HbResourceDir
+        if ($cliTime -ge $hbTime) {
+            Write-Host "  Note: Using newer CLI build instead of stale HBuilderX cache." -ForegroundColor Yellow
+            return @{
+                Type = "cli"
+                Path = $CliAppDir
+                Label = "CLI (dist/build/app)"
+            }
+        }
+        Write-Host "  Warning: HBuilderX cache is newer than CLI output; using HBuilderX resources." -ForegroundColor Yellow
+        Write-Host "  Run without -SkipBuild to refresh CLI output." -ForegroundColor Yellow
+        return @{
+            Type = "hb"
+            Path = $HbResourceDir
+            Label = "HBuilderX (src/unpackage/resources)"
+        }
+    }
+
+    if ($cliExists) {
+        return @{
+            Type = "cli"
+            Path = $CliAppDir
+            Label = "CLI (dist/build/app)"
+        }
+    }
+
+    if ($hbExists) {
+        Write-Host "  Warning: Only HBuilderX cache found. Run without -SkipBuild for latest code." -ForegroundColor Yellow
+        return @{
+            Type = "hb"
+            Path = $HbResourceDir
+            Label = "HBuilderX (src/unpackage/resources)"
+        }
+    }
+
+    $msg = @"
+No frontend resources found.
+Expected one of:
+  - $CliAppDir
+  - $HbResourceDir
+Run: pnpm build:apk:local
+"@
+    Fail $msg
 }
 
 if (-not (Test-Path $configPath)) {
@@ -67,12 +142,31 @@ if (-not (Test-Path $gradlew)) {
     Fail "gradlew.bat not found: $gradlew"
 }
 
+if ($Clean) {
+    Write-Step "0/3 Clean previous outputs (-Clean)"
+    if (Test-Path (Join-Path $mobileRoot "dist")) {
+        Remove-Item (Join-Path $mobileRoot "dist") -Recurse -Force
+        Write-Host "  Removed dist/"
+    }
+    if (Test-Path $hbResourceDir) {
+        Remove-Item $hbResourceDir -Recurse -Force
+        Write-Host "  Removed stale HBuilderX resources: $hbResourceDir"
+    }
+    if (Test-Path $targetAppDir) {
+        Remove-Item $targetAppDir -Recurse -Force
+        Write-Host "  Removed synced Android assets: $targetAppDir"
+    }
+}
+
 if (-not $SkipBuild) {
     Write-Step "1/3 Build uni-app resources (uni build -p app)"
     Push-Location $mobileRoot
     try {
         pnpm exec uni build -p app
         if ($LASTEXITCODE -ne 0) { Fail "uni build failed with exit code $LASTEXITCODE" }
+        if (-not (Test-Path $cliAppDir)) {
+            Fail "uni build finished but output not found: $cliAppDir"
+        }
     } finally {
         Pop-Location
     }
@@ -86,33 +180,33 @@ if (-not (Test-Path $assetsAppsDir)) {
     New-Item -ItemType Directory -Force -Path $assetsAppsDir | Out-Null
 }
 
-if (Test-Path $hbResourceDir) {
-    Write-Host "  Source (HBuilderX): $hbResourceDir"
-    if (Test-Path $targetAppDir) {
-        Remove-Item $targetAppDir -Recurse -Force
-    }
-    Copy-Item $hbResourceDir $targetAppDir -Recurse
-} elseif (Test-Path $cliAppDir) {
-    Write-Host "  Source (CLI): $cliAppDir"
-    if (Test-Path $targetAppDir) {
-        Remove-Item $targetAppDir -Recurse -Force
-    }
-    New-Item -ItemType Directory -Force -Path $targetWwwDir | Out-Null
-    Copy-Item (Join-Path $cliAppDir "*") $targetWwwDir -Recurse
+$source = Resolve-ResourceSource -CliAppDir $cliAppDir -HbResourceDir $hbResourceDir -PreferCli:(-not $SkipBuild)
+Write-Host "  Source: $($source.Label)"
+Write-Host "  Path  : $($source.Path)"
+
+if (Test-Path $targetAppDir) {
+    Remove-Item $targetAppDir -Recurse -Force
+}
+
+if ($source.Type -eq "hb") {
+    Copy-Item $source.Path $targetAppDir -Recurse
 } else {
-    $msg = "No frontend resources found.`nExpected one of:`n  - $hbResourceDir`n  - $cliAppDir"
-    Fail $msg
+    New-Item -ItemType Directory -Force -Path $targetWwwDir | Out-Null
+    Copy-Item (Join-Path $source.Path "*") $targetWwwDir -Recurse -Force
 }
 
 Write-Host "  Synced to: $targetAppDir"
 
 $gradleTask = if ($variant -eq "release") { "assembleRelease" } else { "assembleDebug" }
+if ($Clean) {
+    $gradleTask = "clean $gradleTask"
+}
 
 Write-Step "3/3 Gradle package ($gradleTask)"
 
 Push-Location $integrateRoot
 try {
-    & $gradlew $gradleTask
+    & $gradlew @($gradleTask.Split(" "))
     if ($LASTEXITCODE -ne 0) { Fail "Gradle build failed with exit code $LASTEXITCODE" }
 } finally {
     Pop-Location
@@ -126,7 +220,8 @@ Write-Host "========================================" -ForegroundColor Green
 Write-Host "  BUILD SUCCESSFUL" -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "  APK: $apkPath" -ForegroundColor Yellow
+Write-Host "  Resource: $($source.Label)" -ForegroundColor Yellow
+Write-Host "  APK     : $apkPath" -ForegroundColor Yellow
 Write-Host ""
 
 if (Test-Path $apkPath) {

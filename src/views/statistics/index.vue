@@ -50,11 +50,8 @@
             </el-table-column>
             <el-table-column prop="当前处理人" label="责任人" min-width="120">
               <template #default="{ row }">
-                <div class="assignee-chips">
-                  <el-tag type="primary" size="small" effect="light" class="assignee-chips__tag">
-                    <span class="assignee-text">{{ row.当前处理人 || row.assignee || "-" }}</span>
-                  </el-tag>
-                </div>
+                <DailyTaskAssigneeTags v-if="shouldUseAssignerTags(row)" :task="row" />
+                <span v-else>{{ getTaskAssigneeDisplay(row) }}</span>
               </template>
             </el-table-column>
             <el-table-column prop="状态" label="状态" width="150" align="center">
@@ -113,12 +110,9 @@
                 </div>
                 <div class="mobile-task-card__row">
                   <span class="mobile-task-card__label">责任人</span>
-                  <span class="mobile-task-card__value mobile-task-card__value--chips">
-                    <span class="assignee-chips assignee-chips--compact">
-                      <el-tag type="primary" size="small" effect="light" class="assignee-chips__tag">
-                        <span class="assignee-text">{{ row.当前处理人 || row.assignee || "-" }}</span>
-                      </el-tag>
-                    </span>
+                  <span class="mobile-task-card__value">
+                    <DailyTaskAssigneeTags v-if="shouldUseAssignerTags(row)" :task="row" />
+                    <span v-else>{{ getTaskAssigneeDisplay(row) }}</span>
                   </span>
                 </div>
                 <div class="mobile-task-card__row">
@@ -159,6 +153,8 @@ import { ElMessage } from "element-plus";
 import { deviceDetection } from "@pureadmin/utils";
 import { selectTaskStatistics } from "@/api/project";
 import { selectAllUsers, flattenDepartmentSelectUsers } from "@/api/system";
+import { getTaskAssigneeText } from "@/api/daily-task";
+import DailyTaskAssigneeTags from "@/components/DailyTaskAssigneeTags.vue";
 import { TaskStatus } from "@/types";
 
 const router = useRouter();
@@ -244,6 +240,16 @@ const getMemberOptionLabel = (m: DeptMember): string => {
 
 const getDepartmentMemberCount = (departmentName: string): number => {
   return deptMembersMap.value[departmentName]?.length ?? 0;
+};
+
+/** 日常任务或多指派人：用 assigner_fished 展示绿色标签 */
+const shouldUseAssignerTags = (row: any): boolean =>
+  row?.daily_task === true || Array.isArray(row?.assigner_fished);
+
+const getTaskAssigneeDisplay = (row: any): string => {
+  const text = getTaskAssigneeText(row);
+  if (text !== "-") return text;
+  return row.当前处理人 || row.assignee || "-";
 };
 
 const getProjectId = (row: Record<string, unknown>): string => {

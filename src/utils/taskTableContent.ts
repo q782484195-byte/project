@@ -127,6 +127,7 @@ export function parseTaskContent(value: unknown): TaskContentData {
 /** 从 info 详情解析完整编辑器 HTML */
 export function parseTaskEditorHtmlFromItem(item: {
   value?: unknown;
+  describe?: unknown;
   daily_task_name?: string | number;
   description?: string;
   content?: string;
@@ -136,6 +137,21 @@ export function parseTaskEditorHtmlFromItem(item: {
   if (item.value != null && item.value !== "") {
     const html = parseTaskEditorHtml(item.value);
     if (html.trim()) return html;
+  }
+
+  if (Array.isArray(item.describe) && item.describe.length > 0) {
+    const describeHtml = item.describe
+      .map(part => String(part).trim())
+      .filter(Boolean)
+      .join("");
+    if (describeHtml) {
+      return normalizeAttachmentLinksInTable(
+        mergeLegacyAttachmentsIntoHtml(
+          describeHtml,
+          parseTaskAttachmentsFromItem(item)
+        )
+      );
+    }
   }
 
   const fallback = String(item.description || item.content || item.html || "");
@@ -212,7 +228,7 @@ export function parseTaskAttachmentsFromItem(item: {
   return [];
 }
 
-/** 构建提交给后端的 value */
+/** @deprecated 兼容旧表格编辑器提交逻辑 */
 export function buildTaskValue(html: string, dailyTaskName: string): DailyTaskValue {
   const fullHtml = html.trim();
   const tableHtml = extractFirstTableHtml(fullHtml);
