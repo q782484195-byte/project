@@ -59,14 +59,17 @@
           </el-table-column>
           <el-table-column label="优先级" width="90">
             <template #default="{ row }">
-              <el-tag :type="row.priority === '紧急' ? 'danger' : 'warning'" size="small">
+              <el-tag :type="row.priority === '紧急' ? 'danger' : 'success'" size="small">
                 {{ row.priority || "-" }}
               </el-tag>
             </template>
           </el-table-column>
           <el-table-column prop="state" label="状态" width="100" show-overflow-tooltip>
             <template #default="{ row }">
-              {{ row.state || "-" }}
+              <el-tag v-if="row.state" :type="getStateTagType(row.state)" size="small">
+                {{ row.state }}
+              </el-tag>
+              <span v-else>-</span>
             </template>
           </el-table-column>
           <el-table-column label="进度" width="80">
@@ -221,6 +224,17 @@ interface PersonalTaskItem {
 const router = useRouter();
 const userStore = useUserStoreHook();
 const currentUsername = computed(() => (userStore.username || "").trim());
+
+type StateTagType = "success" | "info" | "warning" | "danger" | undefined;
+
+const getStateTagType = (state: string): StateTagType => {
+  const map: Record<string, StateTagType> = {
+    未完成: "warning",
+    已完成: "success",
+    已取消: "danger"
+  };
+  return map[state];
+};
 
 const mapDailyTask = (item: DailyTaskListItem): PersonalTaskItem => {
   const indexValue = Number(item.index);

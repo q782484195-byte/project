@@ -106,7 +106,7 @@
               </el-select>
               <el-tag
                 v-else
-                :type="currentPriority === '紧急' ? 'danger' : 'warning'"
+                :type="currentPriority === '紧急' ? 'danger' : 'success'"
                 size="small"
               >
                 {{ currentPriority || "-" }}
