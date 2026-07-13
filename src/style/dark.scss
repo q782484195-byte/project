@@ -30,65 +30,20 @@ html.dark {
     background: #020409 !important;
   }
 
-  /* 标签页 - 商务风暗色 */
+  /* 标签页 - 下划线暗色 */
   .tags-view {
-    --tagbar-bg: #141414;
-    --tag-inactive-bg: transparent;
-    --tag-active-bg: var(--el-bg-color);
-
-    background: var(--tagbar-bg) !important;
+    background: var(--el-bg-color) !important;
     border-bottom-color: var(--pure-border-color);
-    box-shadow: inset 0 -1px 0 rgb(255 255 255 / 6%);
+    box-shadow: none;
 
     .scroll-item {
-      &::after {
+      &:not(:last-child)::after {
         background: var(--pure-border-color);
       }
 
-      &:hover:not(.is-active) {
-        background: rgb(255 255 255 / 5%);
-      }
-
-      .el-icon-close:hover {
-        color: rgb(255 255 255 / 88%) !important;
-        background-color: rgb(255 255 255 / 10%);
-      }
-
       &.is-active {
-        border-color: var(--pure-border-color);
-        box-shadow:
-          0 -2px 12px rgb(0 0 0 / 35%),
-          0 0 0 1px rgb(64 158 255 / 25%) inset;
+        border-bottom-color: var(--el-color-primary);
       }
-
-      .chrome-tab {
-        .tag-title {
-          color: var(--el-text-color-secondary);
-        }
-
-        &:hover {
-          .chrome-tab__bg {
-            color: rgb(255 255 255 / 8%);
-          }
-
-          .tag-title {
-            color: var(--el-text-color-primary);
-          }
-        }
-      }
-    }
-
-    .arrow-left,
-    .arrow-right,
-    .arrow-down {
-      &:hover {
-        background: rgb(255 255 255 / 8%);
-      }
-    }
-
-    .contextmenu {
-      border-color: var(--pure-border-color);
-      box-shadow: 0 8px 28px rgb(0 0 0 / 45%);
     }
   }
 

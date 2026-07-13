@@ -32,7 +32,6 @@ export default {
         title: "任务详情",
         showLink: false,
         activePath: "/personal-task/list",
-        dynamicLevel: 15,
         roles: ["Admin", "ProjectManager", "ProjectDirector", "DepartmentManager"]
       }
     }

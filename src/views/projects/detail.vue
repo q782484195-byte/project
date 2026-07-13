@@ -674,7 +674,7 @@ const loadProject = async () => {
       // 加载项目统计数据
       await loadProjectStatistics(projectId.value);
       // 加载BUG统计数据
-      await loadBugStatistics(projectId.value);
+      // await loadBugStatistics(projectId.value);
     } else {
       ElMessage.error("项目不存在");
       router.push("/projects/index");
@@ -704,33 +704,33 @@ const loadProjectStatistics = async (projectId: string) => {
 };
 
 // 加载BUG统计数据
-const loadBugStatistics = async (projectId: string) => {
-  bugStatisticsLoading.value = true;
-  try {
-    const response = await selectProjectSelectAll({ project_id: projectId });
-    if (response.code === 200) {
-      // 处理返回的数据，如果是数组则直接使用
-      if (Array.isArray(response.result)) {
-        bugList.value = response.result;
-      } else if (Array.isArray(response.data)) {
-        bugList.value = response.data;
-      } else {
-        bugList.value = [];
-      }
-    } else {
-      ElMessage.error(response.message || "加载BUG统计失败");
-      bugList.value = [];
-    }
-  } catch (error: any) {
-    console.error("加载BUG统计失败:", error);
-    ElMessage.error(
-      error?.response?.data?.message || error?.message || "加载BUG统计失败"
-    );
-    bugList.value = [];
-  } finally {
-    bugStatisticsLoading.value = false;
-  }
-};
+// const loadBugStatistics = async (projectId: string) => {
+//   bugStatisticsLoading.value = true;
+//   try {
+//     const response = await selectProjectSelectAll({ project_id: projectId });
+//     if (response.code === 200) {
+//       // 处理返回的数据，如果是数组则直接使用
+//       if (Array.isArray(response.result)) {
+//         bugList.value = response.result;
+//       } else if (Array.isArray(response.data)) {
+//         bugList.value = response.data;
+//       } else {
+//         bugList.value = [];
+//       }
+//     } else {
+//       ElMessage.error(response.message || "加载BUG统计失败");
+//       bugList.value = [];
+//     }
+//   } catch (error: any) {
+//     console.error("加载BUG统计失败:", error);
+//     ElMessage.error(
+//       error?.response?.data?.message || error?.message || "加载BUG统计失败"
+//     );
+//     bugList.value = [];
+//   } finally {
+//     bugStatisticsLoading.value = false;
+//   }
+// };
 
 // 将中文状态映射到 RequirementStatus
 const mapStatusToEnum = (status: string): RequirementStatus => {
@@ -1134,21 +1134,21 @@ watch(
     if (id) {
       structureTreeData.value = null;
       loadProjectStructure();
-      loadBugStatistics(id);
+      // loadBugStatistics(id);
     }
   },
   { immediate: true }
 );
 
-// 监听tab切换，当切换到BUG统计时加载数据
-watch(
-  () => activeTab.value,
-  tab => {
-    if (tab === "bug-statistics" && projectId.value && bugList.value.length === 0) {
-      loadBugStatistics(projectId.value);
-    }
-  }
-);
+// // 监听tab切换，当切换到BUG统计时加载数据
+// watch(
+//   () => activeTab.value,
+//   tab => {
+//     if (tab === "bug-statistics" && projectId.value && bugList.value.length === 0) {
+//       loadBugStatistics(projectId.value);
+//     }
+//   }
+// );
 
 onMounted(() => {
   loadProject();
