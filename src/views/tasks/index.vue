@@ -48,7 +48,8 @@
         <!-- 多层 tab 结构（递归组件）；PC 端显示表格，移动端隐藏表格改用卡片 -->
         <NestedTabs v-if="!isMobile && Object.keys(tasks).length > 0" :data="tasks" :level="0" :active-tabs="activeTabs"
           :table-height="tableHeight" :loading="tabLoading" :processed-cache="processedTasksCache"
-          :hide-table="isMobile" @update:active-tabs="activeTabs = $event" @selection-change="handleSelectionChange">
+          :hide-table="isMobile" @update:active-tabs="activeTabs = $event" @selection-change="handleSelectionChange"
+          @refresh="handleTaskRefresh" @fullscreen-change="calculateTableHeight">
           <!-- <el-table-column type="selection" :selectable="isRowSelectable" /> -->
           <el-table-column prop="任务名" label="任务名称">
             <template #default="{ row }">
@@ -345,6 +346,7 @@ import { TaskStatus } from "@/types";
 import TaskStatusFlowDialog from "@/components/TaskStatusFlowDialog.vue";
 import TaskDrawer from "@/components/TaskDrawer.vue";
 import NestedTabs from "@/components/NestedTabs.vue";
+import { TABLE_PANEL_TOOLBAR_HEIGHT } from "@/components/TablePanel/constants";
 import { useUserStoreHook } from "@/store/modules/user";
 
 const router = useRouter();
@@ -1975,7 +1977,7 @@ const calculateTableHeight = () => {
     const tabsHeaderHeight = 40;
     const cardPadding = 90;
     const bottomPadding = 20;
-    const availableHeight = containerTopToViewportBottom - tabsHeaderHeight - cardPadding - bottomPadding;
+    const availableHeight = containerTopToViewportBottom - tabsHeaderHeight - cardPadding - bottomPadding - TABLE_PANEL_TOOLBAR_HEIGHT;
 
     tableHeight.value = availableHeight
   });

@@ -18,6 +18,7 @@
                 </div>
               </template>
               <template v-if="!isMobile">
+                <TablePanel :loading="tasksLoading" @refresh="loadTodoTasks" @fullscreen-change="calculateTableHeights">
                 <el-table :data="todoTasks" v-loading="tasksLoading" :style="{ width: '100%' }"
                   :height="todoTasksTableHeight" :cell-style="getTaskCellStyle">
                   <el-table-column prop="项目名称" label="项目名称">
@@ -101,6 +102,7 @@
                     </template>
                   </el-table-column>
                 </el-table>
+                </TablePanel>
                 <div class="table-pagination-wrapper">
                   <el-pagination v-model:current-page="todoTasksPage" v-model:page-size="todoTasksPageSize"
                     :total="todoTasksTotal" :page-sizes="[10, 20, 50, 100]"
@@ -209,6 +211,7 @@
             </div>
           </template>
           <template v-if="!isMobile">
+            <TablePanel :loading="allTasksLoading" @refresh="loadAllTasks" @fullscreen-change="calculateTableHeights">
             <el-table :data="allTasks" v-loading="allTasksLoading" :style="{ width: '100%' }"
               :height="allTasksTableHeight" :cell-style="getTaskCellStyle">
               <el-table-column prop="project_name" label="项目名称" />
@@ -273,6 +276,7 @@
                 </template>
               </el-table-column>
             </el-table>
+            </TablePanel>
             <div class="table-pagination-wrapper">
               <el-pagination v-model:current-page="allTasksPage" v-model:page-size="allTasksPageSize"
                 :total="allTasksTotal" :page-sizes="[10, 20, 50, 100]"
@@ -569,6 +573,7 @@ import { getTaskAssigneeText } from "@/api/daily-task";
 import { TaskStatus } from "@/types";
 import TaskStatusFlowDialog from "@/components/TaskStatusFlowDialog.vue";
 import DailyTaskAssigneeTags from "@/components/DailyTaskAssigneeTags.vue";
+import TablePanel from "@/components/TablePanel/index.vue";
 import type { FormInstance, FormRules } from "element-plus";
 
 defineOptions({

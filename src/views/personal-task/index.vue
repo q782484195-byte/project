@@ -1,20 +1,6 @@
 <template>
-  <div class="personal-task-page">
-    <el-card v-loading="loading" shadow="never" class="main-card">
-      <template #header>
-        <div class="card-header">
-          <span class="card-title">日常任务</span>
-          <div class="card-actions">
-            <el-button type="primary" @click="handleAdd">
-              <el-icon>
-                <Plus />
-              </el-icon>
-              新建任务
-            </el-button>
-          </div>
-        </div>
-      </template>
-
+  <div class="personal-task-page" ref="pageRef">
+    <el-card class="search-card mb-20">
       <el-form :model="searchForm" :inline="true" class="search-form" @submit.prevent>
         <el-form-item label="任务名称">
           <el-input v-model="searchForm.task_name" clearable placeholder="请输入任务名称" style="width: 220px"
@@ -32,9 +18,20 @@
           <el-button @click="handleSearchReset">重置</el-button>
         </el-form-item>
       </el-form>
+    </el-card>
 
-      <template v-if="total > 0">
-        <el-table :data="tasks" stripe class="task-table">
+    <el-card v-loading="loading" ref="tableCardRef" shadow="never">
+      <TablePanel :loading="loading" @refresh="loadTasks" @fullscreen-change="calculateTableHeight">
+        <template #toolbar-extra>
+          <el-button type="primary" @click="handleAdd">
+            <el-icon>
+              <Plus />
+            </el-icon>
+            新建任务
+          </el-button>
+        </template>
+
+        <el-table v-if="total > 0" :data="tasks" :style="{ width: '100%' }" :height="tableHeight">
           <el-table-column label="序号" width="80" align="center">
             <template #default="{ row }">
               {{ row.index ?? "-" }}
@@ -99,16 +96,14 @@
           </el-table-column>
         </el-table>
 
-        <div class="pagination-container">
+        <el-empty v-else-if="!loading" description="暂无任务" :image-size="100" />
+
+        <div v-if="total > 0" class="pagination-container">
           <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" :page-sizes="[10, 20, 50, 100]"
             :total="total" layout="total, sizes, prev, pager, next, jumper" @size-change="handleSizeChange"
             @current-change="handlePageChange" />
         </div>
-      </template>
-
-      <el-empty v-else-if="!loading" description="暂无任务" :image-size="100">
-        <el-button type="primary" @click="handleAdd">新建任务</el-button>
-      </el-empty>
+      </TablePanel>
     </el-card>
 
     <el-dialog v-model="createDialogVisible" title="新建任务" width="900px" top="4vh" :close-on-click-modal="false"
@@ -171,13 +166,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from "vue";
+import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { Plus, Upload } from "@element-plus/icons-vue";
 import type { UploadFile, UploadFiles } from "element-plus";
 import RichTextEditor from "@/components/RichTextEditor.vue";
 import DailyTaskAssigneeTags from "@/components/DailyTaskAssigneeTags.vue";
+import TablePanel from "@/components/TablePanel/index.vue";
+import { TABLE_PANEL_TOOLBAR_HEIGHT } from "@/components/TablePanel/constants";
 import type { DescribeContent } from "@/api/project";
 import {
   collectAttachmentUrlsFromFileList,
@@ -224,6 +221,9 @@ interface PersonalTaskItem {
 const router = useRouter();
 const userStore = useUserStoreHook();
 const currentUsername = computed(() => (userStore.username || "").trim());
+const pageRef = ref<HTMLElement>();
+const tableCardRef = ref<InstanceType<typeof import("element-plus").ElCard>>();
+const tableHeight = ref(400);
 
 type StateTagType = "success" | "info" | "warning" | "danger" | undefined;
 
@@ -359,6 +359,7 @@ const loadTasks = async () => {
     );
   } finally {
     loading.value = false;
+    calculateTableHeight();
   }
 };
 
@@ -464,62 +465,67 @@ const handleDelete = (row: PersonalTaskItem) => {
     .catch(() => { });
 };
 
+const calculateTableHeight = () => {
+  nextTick(() => {
+    if (!tableCardRef.value?.$el) return;
+
+    const viewportHeight = window.innerHeight;
+    const cardRect = tableCardRef.value.$el.getBoundingClientRect();
+    const cardTopToViewportBottom = viewportHeight - cardRect.top;
+    const cardPadding = 40;
+    const paginationHeight = 60;
+    const bottomPadding = 20;
+    const availableHeight =
+      cardTopToViewportBottom -
+      cardPadding -
+      paginationHeight -
+      bottomPadding -
+      TABLE_PANEL_TOOLBAR_HEIGHT;
+
+    tableHeight.value = Math.max(400, availableHeight);
+  });
+};
+
+const handleResize = () => {
+  calculateTableHeight();
+};
+
 onMounted(() => {
   loadTasks();
   loadDepartmentManagers();
+  calculateTableHeight();
+  window.addEventListener("resize", handleResize);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("resize", handleResize);
 });
 </script>
 
 <style scoped lang="scss">
 .personal-task-page {
   background: #f5f7fa;
-  min-height: calc(100vh - 130px);
+  min-height: calc(100vh - 200px);
 }
 
-.main-card {
-  min-height: calc(100vh - 130px);
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-
-  .card-title {
-    font-size: 16px;
-    font-weight: 600;
-    color: #303133;
-    flex-shrink: 0;
-  }
-
-  .card-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-  }
+.mb-20 {
+  margin-bottom: 20px;
 }
 
 .search-form {
-  margin-bottom: 16px;
+  margin-bottom: 0;
 }
 
-.task-table {
-  width: 100%;
-  min-height: calc(100vh - 330px);
-
-  :deep(.assignee-cell .cell) {
-    overflow: visible;
-    white-space: normal;
-    line-height: 1.6;
-  }
+:deep(.assignee-cell .cell) {
+  overflow: visible;
+  white-space: normal;
+  line-height: 1.6;
 }
 
 .pagination-container {
   display: flex;
   justify-content: flex-end;
+  margin-top: 16px;
 }
 
 .describe-editor-wrap {
@@ -544,21 +550,6 @@ onMounted(() => {
     flex: 1;
     min-height: 0;
     overflow: auto;
-  }
-}
-
-@media (max-width: 640px) {
-  .card-header {
-    flex-direction: column;
-    align-items: flex-start;
-
-    .card-actions {
-      width: 100%;
-
-      .el-button {
-        flex: 1;
-      }
-    }
   }
 }
 </style>

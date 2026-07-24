@@ -44,7 +44,8 @@
 
     <!-- 任务表格 -->
     <el-card v-loading="loading" ref="tasksCardRef">
-      <el-table :data="filteredTasks" style="width: 100%" :height="tableHeight">
+      <TablePanel :loading="loading" @refresh="loadTasks" @fullscreen-change="calculateTableHeight">
+        <el-table :data="filteredTasks" style="width: 100%" :height="tableHeight">
         <el-table-column prop="任务名" label="任务名称" min-width="200">
           <template #default="{ row }">
             <el-link type="primary" :underline="false" @click="handleView(row)">
@@ -89,6 +90,7 @@
           </template>
         </el-table-column>
       </el-table>
+      </TablePanel>
 
       <!-- 分页 -->
       <div class="pagination-container">
@@ -111,6 +113,8 @@ import {
   type SelectMyTasksParams
 } from "@/api/project";
 import { TaskStatus } from "@/types";
+import TablePanel from "@/components/TablePanel/index.vue";
+import { TABLE_PANEL_TOOLBAR_HEIGHT } from "@/components/TablePanel/constants";
 
 const router = useRouter();
 
@@ -288,7 +292,7 @@ const calculateTableHeight = () => {
     const cardPadding = 40;
     const paginationHeight = 60;
     const bottomPadding = 20;
-    const availableHeight = cardTopToViewportBottom - cardHeaderHeight - cardPadding - paginationHeight - bottomPadding;
+    const availableHeight = cardTopToViewportBottom - cardHeaderHeight - cardPadding - paginationHeight - bottomPadding - TABLE_PANEL_TOOLBAR_HEIGHT;
     tableHeight.value = Math.max(400, availableHeight);
   });
 };

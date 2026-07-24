@@ -38,6 +38,7 @@
           <el-tabs v-model="activeTab" type="border-card" class="time-tracking-tabs">
             <el-tab-pane v-for="(groupName, index) in groupNames" :key="groupName" :label="groupName" :name="groupName">
               <div class="tab-table-container">
+                <TablePanel :loading="loading" @refresh="handleSearch">
                 <el-table :data="groupedTableData.get(groupName) || []" border stripe style="width: 100%" height="100%">
                   <el-table-column v-for="(header, colIndex) in tableHeaders" :key="colIndex" :prop="`col_${colIndex}`"
                     :label="header" :min-width="colIndex === 0 ? 200 : 120" :fixed="colIndex === 0 ? 'left' : false"
@@ -55,6 +56,7 @@
                     </template>
                   </el-table-column>
                 </el-table>
+                </TablePanel>
               </div>
             </el-tab-pane>
           </el-tabs>
@@ -97,6 +99,7 @@
 import { ref, computed, onMounted, onBeforeUnmount } from "vue";
 import { ElMessage } from "element-plus";
 import { Search } from "@element-plus/icons-vue";
+import TablePanel from "@/components/TablePanel/index.vue";
 import {
   timeTracking as timeTrackingApi,
   selectProjects,

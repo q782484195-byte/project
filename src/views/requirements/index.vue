@@ -32,7 +32,8 @@
 
     <!-- 层级列表：桌面端表格 -->
     <el-card v-loading="loading" class="requirements-table-card" ref="requirementsCardRef" v-if="!isMobile">
-      <el-table :data="filteredRequirements" :style="{ width: '100%' }" :height="tableHeight">
+      <TablePanel :loading="loading" @refresh="loadRequirements" @fullscreen-change="calculateTableHeight">
+        <el-table :data="filteredRequirements" :style="{ width: '100%' }" :height="tableHeight">
         <el-table-column prop="requirement_name" label="层级名称" />
         <el-table-column prop="project_name" label="选择项目" />
         <el-table-column prop="priority" label="优先级">
@@ -72,6 +73,7 @@
           </template>
         </el-table-column>
       </el-table>
+      </TablePanel>
     </el-card>
 
     <!-- 移动端：层级卡片列表 -->
@@ -160,6 +162,8 @@ import {
 import type { Requirement, Project } from "@/types";
 import { RequirementStatus, type RequirementPriority } from "@/types";
 import RequirementDrawer from "@/components/RequirementDrawer.vue";
+import TablePanel from "@/components/TablePanel/index.vue";
+import { TABLE_PANEL_TOOLBAR_HEIGHT } from "@/components/TablePanel/constants";
 import { storageLocal } from "@pureadmin/utils";
 
 const router = useRouter();
@@ -701,7 +705,7 @@ const calculateTableHeight = () => {
     const cardPadding = 40;
     const paginationHeight = 60;
     const bottomPadding = 20;
-    const availableHeight = cardTopToViewportBottom - cardHeaderHeight - cardPadding - paginationHeight - bottomPadding;
+    const availableHeight = cardTopToViewportBottom - cardHeaderHeight - cardPadding - paginationHeight - bottomPadding - TABLE_PANEL_TOOLBAR_HEIGHT;
     tableHeight.value = Math.max(400, availableHeight);
   });
 };

@@ -17,7 +17,9 @@ import {
   type UserListResponse,
   type AddUserParams
 } from "@/api/system";
-import { Plus as Add, Edit, Delete, Refresh, Search } from "@element-plus/icons-vue";
+import { Plus as Add, Edit, Delete, Search } from "@element-plus/icons-vue";
+import TablePanel from "@/components/TablePanel/index.vue";
+import { TABLE_PANEL_TOOLBAR_HEIGHT } from "@/components/TablePanel/constants";
 
 defineOptions({
   name: "SystemUser"
@@ -496,7 +498,7 @@ const calculateTableHeight = () => {
     const cardPadding = 40;
     const bottomPadding = 20;
     const availableHeight =
-      cardTopToViewportBottom - cardHeaderHeight - cardPadding - bottomPadding;
+      cardTopToViewportBottom - cardHeaderHeight - cardPadding - bottomPadding - TABLE_PANEL_TOOLBAR_HEIGHT;
     tableHeight.value = Math.max(300, availableHeight);
   });
 };
@@ -558,11 +560,11 @@ onUnmounted(() => {
             <el-button v-perms="'admin:add_user'" type="primary" :icon="Add" @click="handleAdd">
               新增
             </el-button>
-            <el-button :icon="Refresh" @click="handleRefresh">刷新</el-button>
           </div>
         </div>
       </template>
 
+      <TablePanel :loading="loading" @refresh="handleRefresh" @fullscreen-change="calculateTableHeight">
       <pure-table ref="tableRef" :data="tableData" :columns="columns" :loading="loading" :height="tableHeight"
         :header-cell-style="{
           background: 'var(--el-table-row-hover-bg-color)',
@@ -577,6 +579,7 @@ onUnmounted(() => {
           </el-button>
         </template>
       </pure-table>
+      </TablePanel>
     </el-card>
 
     <!-- 新增/编辑对话框 -->

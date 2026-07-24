@@ -4,7 +4,6 @@
       <template #header>
         <div class="card-header">
           <span class="font-medium">项目概览</span>
-          <el-button :icon="Refresh" @click="loadData" class="header-btn">刷新</el-button>
         </div>
       </template>
 
@@ -28,7 +27,8 @@
         </div>
 
         <!-- 桌面端：表格 -->
-        <el-table v-if="!isMobile" v-loading="loading" :data="snapshot.tableData" border stripe style="width: 100%"
+        <TablePanel v-if="!isMobile" :loading="loading" @refresh="loadData">
+        <el-table v-loading="loading" :data="snapshot.tableData" border stripe style="width: 100%"
           :default-expand-all="false" row-key="projectId" empty-text="暂无项目数据" :header-cell-style="{
             background: 'var(--el-table-row-hover-bg-color)',
             color: 'var(--el-text-color-primary)',
@@ -90,6 +90,7 @@
             </template>
           </el-table-column>
         </el-table>
+        </TablePanel>
 
         <!-- 移动端：卡片列表 -->
         <template v-else>
@@ -171,7 +172,8 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import { Refresh, ArrowDown } from '@element-plus/icons-vue';
+import { ArrowDown } from '@element-plus/icons-vue';
+import TablePanel from '@/components/TablePanel/index.vue';
 import { deviceDetection } from '@pureadmin/utils';
 import { selectProjectOverview, selectProjectRecord } from '@/api/project';
 

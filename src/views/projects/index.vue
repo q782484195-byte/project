@@ -205,7 +205,8 @@
 
     <!-- PC 端：表格视图 -->
     <el-card v-else v-loading="loading" class="projects-table">
-      <el-table :data="filteredProjects" style="width: 100%" row-key="id" @row-click="handleTableRowClick">
+      <TablePanel :loading="loading" @refresh="loadProjects">
+        <el-table :data="filteredProjects" style="width: 100%" row-key="id" @row-click="handleTableRowClick">
         <el-table-column prop="name" label="项目名称" min-width="160" fixed="left" show-overflow-tooltip>
           <template #default="{ row }">
             <span class="table-project-name">{{ row.name || "-" }}</span>
@@ -272,6 +273,7 @@
           </template>
         </el-table-column>
       </el-table>
+      </TablePanel>
     </el-card>
 
     <!-- 新建/编辑项目对话框 -->
@@ -301,6 +303,7 @@ import { type Project } from "@/types";
 import { mockProjects } from "@/mock/projects";
 import ProjectFormDialog from "@/components/ProjectFormDialog.vue";
 import ProjectMembersDialog from "@/components/ProjectMembersDialog.vue";
+import TablePanel from "@/components/TablePanel/index.vue";
 import dayjs from "dayjs";
 import {
   selectProjects,

@@ -27,9 +27,11 @@
           </div>
         </div>
 
-        <div class="table-panel" ref="containerRef">
+        <div class="statistics-table-wrap" ref="containerRef">
+          <TablePanel :loading="tasksLoading" @refresh="handleTableRefresh" @fullscreen-change="calculateTableHeight">
           <el-table v-if="!isMobile && showTaskPanel" class="data-table" :data="currentTableTasks"
-            :style="{ width: '100%' }" :height="tableHeight" row-key="rowKey" stripe border>
+            :style="{ width: '100%' }" :height="tableHeight" row-key="rowKey" stripe border
+            :cell-style="getTaskCellStyle">
             <el-table-column prop="project_name" label="项目名称" min-width="80" show-overflow-tooltip>
               <template #default="{ row }">
                 <el-link v-if="getProjectId(row)" type="primary" :underline="false" class="cell-link"
@@ -79,7 +81,8 @@
           </el-table>
           <div v-else-if="isMobile && showTaskPanel" class="mobile-task-list">
             <template v-if="currentTableTasks.length > 0">
-              <div v-for="row in currentTableTasks" :key="row.rowKey" class="mobile-task-card">
+              <div v-for="row in currentTableTasks" :key="row.rowKey" class="mobile-task-card"
+                :style="getTaskCardStyle(row)">
                 <div class="mobile-task-card__row mobile-task-card__row--project">
                   <span class="mobile-task-card__label">项目</span>
                   <span class="mobile-task-card__value">
@@ -137,6 +140,7 @@
           <div v-else class="table-placeholder">
             <el-empty description="请在上方选择部门与人员" :image-size="120" />
           </div>
+          </TablePanel>
         </div>
       </template>
       <div v-else class="empty-page">
@@ -155,6 +159,8 @@ import { selectTaskStatistics } from "@/api/project";
 import { selectAllUsers, flattenDepartmentSelectUsers } from "@/api/system";
 import { getTaskAssigneeText } from "@/api/daily-task";
 import DailyTaskAssigneeTags from "@/components/DailyTaskAssigneeTags.vue";
+import TablePanel from "@/components/TablePanel/index.vue";
+import { TABLE_PANEL_TOOLBAR_HEIGHT } from "@/components/TablePanel/constants";
 import { TaskStatus } from "@/types";
 
 const router = useRouter();
@@ -346,6 +352,35 @@ const getPriorityType = (
   return map[priority] || "";
 };
 
+/** 接口 show_color 对应浅色行背景 */
+const TASK_SHOW_COLOR_MAP: Record<string, string> = {
+  red: "#fef0f0",
+  green: "#f0f9eb",
+  blue: "#ecf5ff",
+  yellow: "#fdfce6",
+  orange: "#fdf6ec",
+  purple: "#f5f0ff",
+  gray: "#f4f4f5",
+  grey: "#f4f4f5",
+  pink: "#fef0f5",
+  cyan: "#e8f8f8"
+};
+
+const getTaskShowColorBackground = (showColor?: string) => {
+  if (!showColor) return undefined;
+  return TASK_SHOW_COLOR_MAP[showColor.trim().toLowerCase()];
+};
+
+const getTaskCellStyle = ({ row }: { row: Record<string, unknown> }) => {
+  const bg = getTaskShowColorBackground(row.show_color as string | undefined);
+  return bg ? { backgroundColor: bg } : {};
+};
+
+const getTaskCardStyle = (row: Record<string, unknown>) => {
+  const bg = getTaskShowColorBackground(row.show_color as string | undefined);
+  return bg ? { backgroundColor: bg } : {};
+};
+
 const calculateTableHeight = () => {
   nextTick(() => {
     if (!containerRef.value || isMobile.value) return;
@@ -356,7 +391,7 @@ const calculateTableHeight = () => {
     const bottomPadding = 28;
     const chromeBelowTable = 32;
     const availableHeight =
-      containerTopToViewportBottom - bottomPadding - chromeBelowTable;
+      containerTopToViewportBottom - bottomPadding - chromeBelowTable - TABLE_PANEL_TOOLBAR_HEIGHT;
 
     tableHeight.value = Math.max(400, availableHeight);
   });
@@ -365,6 +400,10 @@ const calculateTableHeight = () => {
 const handleResize = () => {
   isNarrowScreen.value = window.innerWidth <= MOBILE_BREAKPOINT;
   calculateTableHeight();
+};
+
+const handleTableRefresh = () => {
+  void fetchTaskStatistics(selectedDepartment.value || "", selectedUser.value || "");
 };
 
 /** 将 select_all_users 解析为 部门 -> 成员列表（兼容分组结构） */
@@ -537,7 +576,7 @@ onUnmounted(() => {
   max-width: 100%;
 }
 
-.table-panel {
+.statistics-table-wrap {
   width: 99%;
   max-width: 100%;
   min-height: 280px;
@@ -720,7 +759,7 @@ onUnmounted(() => {
     width: 100%;
   }
 
-  .dept-task-stat.is-mobile .table-panel {
+  .dept-task-stat.is-mobile .statistics-table-wrap {
     min-height: 0;
     overflow: visible;
     border: none;

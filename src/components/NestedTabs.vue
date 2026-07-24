@@ -18,11 +18,13 @@
         <!-- 如果当前节点有 task_list 且是当前选中的 tab，显示表格（移动端 hideTable 时占位由父级渲染卡片） -->
         <div v-if="hasTaskList(child) && currentActiveTab === key" class="table-wrapper">
           <template v-if="!hideTable">
-            <el-table :data="getProcessedTasks(child.task_list, key)" :height="tableHeight" row-key="rowKey"
-              v-loading="loading" element-loading-text="加载任务数据..." empty-text="暂无任务数据"
-              @selection-change="$emit('selection-change', $event)" class="nested-table">
-              <slot></slot>
-            </el-table>
+            <TablePanel :loading="loading" @refresh="$emit('refresh')" @fullscreen-change="$emit('fullscreen-change', $event)">
+              <el-table :data="getProcessedTasks(child.task_list, key)" :height="tableHeight" row-key="rowKey"
+                v-loading="loading" element-loading-text="加载任务数据..." empty-text="暂无任务数据"
+                @selection-change="$emit('selection-change', $event)" class="nested-table">
+                <slot></slot>
+              </el-table>
+            </TablePanel>
           </template>
           <div v-else class="mobile-cards-placeholder" />
         </div>
@@ -30,7 +32,8 @@
         <div v-else-if="isIntermediateNode(child) && currentActiveTab === key" class="nested-content">
           <NestedTabs :data="child" :level="level + 1" :active-tabs="activeTabs" :table-height="tableHeight"
             :loading="loading" :processed-cache="processedCache" :hide-table="hideTable"
-            @update:active-tabs="handleUpdateActiveTabs" @selection-change="$emit('selection-change', $event)">
+            @update:active-tabs="handleUpdateActiveTabs" @selection-change="$emit('selection-change', $event)"
+            @refresh="$emit('refresh')" @fullscreen-change="$emit('fullscreen-change', $event)">
             <slot></slot>
           </NestedTabs>
         </div>
@@ -41,6 +44,7 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted, onBeforeUnmount, nextTick, watch } from "vue";
+import TablePanel from "@/components/TablePanel/index.vue";
 
 const props = withDefaults(
   defineProps<{
@@ -59,6 +63,8 @@ const props = withDefaults(
 const emit = defineEmits<{
   "update:active-tabs": [tabs: string[]];
   "selection-change": [selection: any[]];
+  refresh: [];
+  "fullscreen-change": [value: boolean];
 }>();
 
 // 存储每个 tab 是否被截断的状态

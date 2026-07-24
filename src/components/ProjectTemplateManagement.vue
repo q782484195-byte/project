@@ -11,6 +11,7 @@
     </div>
 
     <div class="content">
+      <TablePanel @refresh="loadData">
       <el-table :data="templates" :style="{ width: '100%' }">
         <el-table-column prop="name" label="模板名称" width="200" />
         <el-table-column prop="type.name" label="项目类型" width="150">
@@ -36,6 +37,7 @@
           </template>
         </el-table-column>
       </el-table>
+      </TablePanel>
     </div>
 
     <!-- 模板详情对话框 -->
@@ -106,6 +108,7 @@ import type { FormInstance, FormRules } from "element-plus";
 import type { ProjectTemplate, ProjectTemplateNode } from "@/types";
 import { useProjectTemplateStoreHook } from "@/store/modules/projectTemplate";
 import { useProjectTypeStoreHook } from "@/store/modules/projectType";
+import TablePanel from "@/components/TablePanel/index.vue";
 import { mockUsers } from "@/mock/users";
 
 const projectTemplateStore = useProjectTemplateStoreHook();

@@ -12,7 +12,9 @@ import {
   type DepartmentListItem,
   type DepartmentSelectUser
 } from "@/api/system";
-import { Plus as Add, Refresh, Search } from "@element-plus/icons-vue";
+import { Plus as Add, Search } from "@element-plus/icons-vue";
+import TablePanel from "@/components/TablePanel/index.vue";
+import { TABLE_PANEL_TOOLBAR_HEIGHT } from "@/components/TablePanel/constants";
 
 defineOptions({
   name: "SystemDepartment"
@@ -367,7 +369,8 @@ const calculateTableHeight = () => {
       cardHeaderHeight -
       cardPadding -
       paginationHeight -
-      bottomPadding;
+      bottomPadding -
+      TABLE_PANEL_TOOLBAR_HEIGHT;
     tableHeight.value = Math.max(300, availableHeight);
   });
 };
@@ -413,11 +416,11 @@ onUnmounted(() => {
             <el-button v-perms="'department:add'" type="primary" :icon="Add" @click="handleAdd">
               新增
             </el-button>
-            <el-button :icon="Refresh" @click="handleRefresh">刷新</el-button>
           </div>
         </div>
       </template>
 
+      <TablePanel :loading="loading" @refresh="handleRefresh" @fullscreen-change="calculateTableHeight">
       <pure-table ref="tableRef" :data="tableData" :columns="columns" :loading="loading" :pagination="pagination"
         :paginationSmall="false" :paginationBackground="true" :height="tableHeight" :tree-props="{
           children: 'children',
@@ -429,6 +432,7 @@ onUnmounted(() => {
         }" @page-size-change="handleSizeChange" @page-current-change="handlePageChange">
         <template #operation />
       </pure-table>
+      </TablePanel>
     </el-card>
 
     <!-- 新增/编辑对话框 -->

@@ -11,6 +11,7 @@
     </div>
 
     <div class="content">
+      <TablePanel @refresh="loadData">
       <el-table :data="projectTypes" style="width: 100%">
         <el-table-column prop="name" label="类型名称" width="200" />
         <el-table-column prop="code" label="类型代码" width="150" />
@@ -42,6 +43,7 @@
           </template>
         </el-table-column>
       </el-table>
+      </TablePanel>
     </div>
 
     <!-- 新增/编辑项目类型对话框 -->
@@ -185,6 +187,7 @@ import { Plus } from "@element-plus/icons-vue";
 import type { FormInstance, FormRules } from "element-plus";
 import type { ProjectTypeConfig, ProjectTypeField } from "@/types";
 import { useProjectTypeStoreHook } from "@/store/modules/projectType";
+import TablePanel from "@/components/TablePanel/index.vue";
 import { ProjectType } from "@/types";
 
 const projectTypeStore = useProjectTypeStoreHook();
