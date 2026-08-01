@@ -1123,14 +1123,6 @@ onBeforeUnmount(() => {
   .el-table__cell {
     padding: 14px 12px;
   }
-
-  .el-table__header {
-    .el-table__cell {
-      background-color: #fafbfc;
-      font-weight: 600;
-      color: #303133;
-    }
-  }
 }
 
 .mb-24 {

@@ -2,6 +2,16 @@
   font-weight: 700;
 }
 
+/* 全局表格表头样式 */
+.el-table {
+  th.el-table__cell {
+    background-color: var(--pure-table-header-bg) !important;
+    color: var(--pure-table-header-color) !important;
+    font-weight: 600;
+    border-bottom: 2px solid var(--pure-table-header-border) !important;
+  }
+}
+
 .el-breadcrumb__inner,
 .el-breadcrumb__inner a {
   font-weight: 400 !important;

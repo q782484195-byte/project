@@ -371,7 +371,6 @@ const handleSaveAllData = async () => {
 }
 
 .form-container {
-  padding: 32px;
   max-height: none;
   overflow-y: visible;
 }

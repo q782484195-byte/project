@@ -24,6 +24,11 @@
   --pure-theme-sidebar-logo: none;
   --pure-theme-menu-title-hover: initial;
   --pure-theme-menu-active-before: transparent;
+
+  /** 表格表头 */
+  --pure-table-header-bg: var(--el-fill-color-light, #f5f7fa);
+  --pure-table-header-color: var(--el-text-color-primary);
+  --pure-table-header-border: var(--el-border-color-lighter, #ebeef5);
 }
 
 /* 灰色模式 */

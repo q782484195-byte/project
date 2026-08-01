@@ -29,19 +29,13 @@
         <!-- 桌面端：表格 -->
         <TablePanel v-if="!isMobile" :loading="loading" @refresh="loadData">
         <el-table v-loading="loading" :data="snapshot.tableData" border stripe style="width: 100%"
-          :default-expand-all="false" row-key="projectId" empty-text="暂无项目数据" :header-cell-style="{
-            background: 'var(--el-table-row-hover-bg-color)',
-            color: 'var(--el-text-color-primary)',
-            textAlign: 'center'
-          }" :cell-style="{ textAlign: 'center' }">
+          :default-expand-all="false" row-key="projectId" empty-text="暂无项目数据" :header-cell-style="{ textAlign: 'center' }"
+          :cell-style="{ textAlign: 'center' }">
           <el-table-column type="expand" width="50">
             <template #default="{ row }">
               <div class="expanded-content">
-                <el-table :data="[row.detailedData]" border style="width: 100%" :show-header="true" :header-cell-style="{
-                  background: 'var(--el-table-row-hover-bg-color)',
-                  color: 'var(--el-text-color-primary)',
-                  textAlign: 'center'
-                }" :cell-style="{ textAlign: 'center' }">
+                <el-table :data="[row.detailedData]" border style="width: 100%" :show-header="true"
+                  :header-cell-style="{ textAlign: 'center' }" :cell-style="{ textAlign: 'center' }">
                   <el-table-column v-for="(header, index) in detailedHeaders" :key="index" :prop="`col_${index}`"
                     :label="header" :min-width="index === 0 ? 120 : 100" show-overflow-tooltip>
                     <template #default="{ row: detailRow }">
@@ -455,18 +449,6 @@ onBeforeUnmount(() => {
     border-radius: 6px;
     overflow: hidden;
 
-    .el-table__header-wrapper {
-      .el-table__header {
-        th {
-          background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-          font-weight: 600;
-          color: #303133;
-          padding: 12px 0;
-          border-bottom: 2px solid #dee2e6;
-        }
-      }
-    }
-
     .el-table__body-wrapper {
       .el-table__body {
         tr {
@@ -504,18 +486,6 @@ onBeforeUnmount(() => {
       border-radius: 4px;
       border: 1px solid #d0e2ff;
       overflow: hidden;
-
-      .el-table__header-wrapper {
-        .el-table__header {
-          th {
-            background: #e3f0ff;
-            font-weight: 500;
-            color: #1f3b5d; // 深蓝标题文字
-            padding: 8px 0;
-            border-bottom: 1px solid #c4d7f5;
-          }
-        }
-      }
 
       .el-table__body-wrapper {
         .el-table__body {

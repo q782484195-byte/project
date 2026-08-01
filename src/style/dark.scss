@@ -14,6 +14,11 @@ html.dark {
   /* switch关闭状态下的color 需要时可取用 */
   --pure-switch-off-color: #ffffff3f;
 
+  /* 表格表头 */
+  --pure-table-header-bg: #1d2a3a;
+  --pure-table-header-color: var(--el-text-color-primary);
+  --pure-table-header-border: #2f455c;
+
   .navbar,
   .tags-view,
   .contextmenu,

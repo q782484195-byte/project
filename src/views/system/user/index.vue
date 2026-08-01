@@ -565,11 +565,7 @@ onUnmounted(() => {
       </template>
 
       <TablePanel :loading="loading" @refresh="handleRefresh" @fullscreen-change="calculateTableHeight">
-      <pure-table ref="tableRef" :data="tableData" :columns="columns" :loading="loading" :height="tableHeight"
-        :header-cell-style="{
-          background: 'var(--el-table-row-hover-bg-color)',
-          color: 'var(--el-text-color-primary)'
-        }">
+      <pure-table ref="tableRef" :data="tableData" :columns="columns" :loading="loading" :height="tableHeight">
         <template #operation="{ row }">
           <el-button v-perms="'admin:update_user'" type="primary" link :icon="Edit" @click="handleEdit(row)">
             编辑

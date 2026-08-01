@@ -85,9 +85,9 @@
               <el-skeleton :rows="3" animated />
             </div>
           </el-tab-pane>
-          <el-tab-pane v-if="!isMobile" label="项目总览" name="overview">
+          <el-tab-pane v-if="!isMobile" label="项目总览" name="overview" class="overview-tab-pane">
             <ProjectStructureTree :tree-data="structureTreeData" :loading="structureTreeLoading"
-              :root-title="project?.name || '项目结构'" />
+              :root-title="project?.name || '项目结构'" @refresh="loadProjectStructure" />
           </el-tab-pane>
           <el-tab-pane label="BUG统计" name="bug-statistics">
             <div v-loading="bugStatisticsLoading" class="bug-statistics-content">
@@ -448,6 +448,17 @@ watch([isMobile, activeTab], ([mobile, tab]) => {
     activeTab.value = "bug-statistics";
   }
 }, { immediate: true });
+
+// 支持从项目列表通过 query.tab=overview 直接打开总览
+watch(
+  () => route.query.tab,
+  tab => {
+    if (tab === "overview") {
+      activeTab.value = isMobile.value ? "bug-statistics" : "overview";
+    }
+  },
+  { immediate: true }
+);
 const structureTreeLoading = ref(false);
 // 需求任务嵌套数据（原始格式）
 const requirementsTasksData = ref<Record<string, any> | null>(null);
@@ -1533,17 +1544,19 @@ const getPriorityText = (priority: "low" | "medium" | "high"): string => {
 
     :deep(.el-tabs__content) {
       padding: 8px;
-      overflow: hidden; // 防止内容超出导致页面滚动
       display: flex;
       flex-direction: column;
+      min-height: 0;
     }
 
     // 项目总览tab内容区域
-    :deep(.el-tab-pane[name="overview"]) {
-      height: 100%;
-      overflow: hidden;
+    :deep(.el-tab-pane.overview-tab-pane) {
+      flex: 1;
+      height: calc(100vh - 260px);
+      min-height: 480px;
       display: flex;
       flex-direction: column;
+      overflow: hidden;
     }
   }
 }
@@ -2357,9 +2370,7 @@ const getPriorityText = (priority: "low" | "medium" | "high"): string => {
       margin: 0;
     }
 
-    .el-tabs__content {
-      padding: 16px;
-    }
+
   }
 }
 

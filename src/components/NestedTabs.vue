@@ -471,17 +471,6 @@ const handleUpdateActiveTabs = (tabs: string[]) => {
   width: 100%;
   height: 100%;
 
-  :deep(.el-table__header-wrapper) {
-    .el-table__header {
-      th {
-        background-color: var(--el-fill-color-lighter);
-        color: var(--el-text-color-primary);
-        font-weight: 600;
-        border-bottom: 1px solid var(--el-border-color-lighter);
-      }
-    }
-  }
-
   :deep(.el-table__body-wrapper) {
     .el-table__body {
       tr {
@@ -530,16 +519,6 @@ html.dark {
 
   .nested-tabs :deep(.el-tabs__item.is-active) .tab-count {
     background-color: var(--el-color-primary-dark-2);
-  }
-
-  .nested-table {
-    :deep(.el-table__header-wrapper) {
-      .el-table__header {
-        th {
-          background-color: var(--el-fill-color-darker);
-        }
-      }
-    }
   }
 }
 

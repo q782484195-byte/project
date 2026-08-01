@@ -251,6 +251,9 @@
               <el-button type="primary" link size="small" @click="openProjectDetail(row)">
                 查看详情
               </el-button>
+              <el-button type="primary" link size="small" @click="openProjectOverview(row)">
+                项目总览
+              </el-button>
               <el-dropdown v-if="hasPerms(['project:update']) || hasPerms(['project:delete_project'])"
                 :key="`table-dropdown-${row.id}-${dropdownTrigger}`" :trigger="dropdownTrigger" placement="bottom-end"
                 @command="handleCommand($event, row)">
@@ -342,10 +345,9 @@ const MOBILE_BREAKPOINT = 640;
 const isMobile = computed(() => windowWidth.value <= MOBILE_BREAKPOINT);
 
 const operationColWidth = computed(() => {
-  const hasEdit = hasPerms(["project:update"]);
-  const hasDelete = hasPerms(["project:delete_project"]);
-  if (hasEdit || hasDelete) return 160;
-  return 100;
+  const hasMore =
+    hasPerms(["project:update"]) || hasPerms(["project:delete_project"]);
+  return hasMore ? 240 : 180;
 });
 
 // 根据设备类型决定下拉菜单的触发方式
@@ -586,6 +588,15 @@ const openProjectDetail = (project: Project) => {
   router.push({
     name: "ProjectDetail",
     params: { id: project.id, state: project.status }
+  });
+};
+
+// 打开项目总览（跳转到详情页并定位到总览标签）
+const openProjectOverview = (project: Project) => {
+  router.push({
+    name: "ProjectDetail",
+    params: { id: project.id, state: project.status },
+    query: { tab: "overview" }
   });
 };
 

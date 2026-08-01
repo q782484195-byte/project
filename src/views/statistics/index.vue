@@ -586,13 +586,6 @@ onUnmounted(() => {
   box-sizing: border-box;
 }
 
-.data-table {
-  :deep(.el-table__header th) {
-    font-weight: 600;
-    background: var(--el-fill-color-light) !important;
-  }
-}
-
 .table-placeholder {
   display: flex;
   align-items: center;

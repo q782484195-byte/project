@@ -426,10 +426,7 @@ onUnmounted(() => {
           children: 'children',
           hasChildren: 'hasChildren',
           checkStrictly: false
-        }" row-key="id" preserve-expanded-content :header-cell-style="{
-          background: 'var(--el-table-row-hover-bg-color)',
-          color: 'var(--el-text-color-primary)'
-        }" @page-size-change="handleSizeChange" @page-current-change="handlePageChange">
+        }" row-key="id" preserve-expanded-content @page-size-change="handleSizeChange" @page-current-change="handlePageChange">
         <template #operation />
       </pure-table>
       </TablePanel>
