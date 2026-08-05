@@ -16,6 +16,7 @@ export default {
       name: "StatisticsList",
       component: () => import("@/views/statistics/index.vue"),
       meta: {
+        icon: "ri:bar-chart-horizontal-line",
         title: "任务统计",
         showLink: true,
         showParent: false,

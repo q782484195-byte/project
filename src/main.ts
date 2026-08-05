@@ -66,6 +66,8 @@ async function initComponents() {
 // 引入 vue-tippy
 import "tippy.js/dist/tippy.css";
 import "tippy.js/themes/light.css";
+// Element Plus 变量覆盖，必须放在所有第三方 CSS 之后
+import "./style/element-vars-override.scss";
 import VueTippy from "vue-tippy";
 
 getPlatformConfig(app).then(async config => {

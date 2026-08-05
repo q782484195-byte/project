@@ -347,8 +347,16 @@ const TreeNode = defineComponent({
     });
 
     return () =>
-      h("div", { class: ["tree-node", { "tree-node--root": nodeProps.level === 0 }] }, [
-        nodeProps.level > 0 ? h("div", { class: "node-connector" }) : null,
+      h("div", {
+        class: [
+          "tree-node",
+          {
+            "tree-node--root": nodeProps.level === 0,
+            "tree-node--has-children":
+              !!nodeProps.node.children?.length && !!nodeProps.node.expanded
+          }
+        ]
+      }, [
         h(
           "div",
           {
@@ -462,33 +470,75 @@ const TreeNode = defineComponent({
     }
   }
 
-  /* 左右结构：子节点在右侧纵向排列，顶部对齐 */
+  /* 左右结构：子节点在右侧纵向排列，父子节点用连线完全贯通 */
+  $tree-line-color: var(--el-border-color);
+  $tree-line-width: 2px;
+  $tree-branch-length: 28px;
+  $tree-node-anchor: 20px;
+  $tree-node-gap: 12px;
+  $tree-spine-left: calc(-#{$tree-branch-length} - #{$tree-line-width});
+
   .tree-node {
     display: flex;
     align-items: flex-start;
     position: relative;
-    margin-bottom: 10px;
-  }
+    margin-bottom: $tree-node-gap;
 
-  .node-connector {
-    position: absolute;
-    left: -14px;
-    top: 18px;
-    width: 14px;
-    height: 1px;
-    background: var(--el-border-color);
+    &:last-child {
+      margin-bottom: 0;
+    }
+
+    /* 子节点：从主干到卡片的水平连线（向左延伸 1px 与主干重叠，消除间隙） */
+    &:not(.tree-node--root)::before {
+      content: "";
+      position: absolute;
+      left: $tree-spine-left;
+      top: $tree-node-anchor;
+      width: calc(#{$tree-branch-length} + #{$tree-line-width});
+      height: $tree-line-width;
+      background: $tree-line-color;
+      transform: translateY(-50%);
+      z-index: 1;
+    }
+
+    /* 兄弟节点之间的垂直主干（逐段连接，精确对齐下一节点锚点） */
+    &:not(:last-child)::after {
+      content: "";
+      position: absolute;
+      left: $tree-spine-left;
+      top: $tree-node-anchor;
+      width: $tree-line-width;
+      height: calc(100% + #{$tree-node-gap});
+      background: $tree-line-color;
+      z-index: 1;
+    }
+
+    /* 父节点到子节点主干的水平连线（向右延伸 1px 与主干重叠） */
+    &--has-children > .tree-children::before {
+      content: "";
+      position: absolute;
+      left: -$tree-branch-length;
+      top: $tree-node-anchor;
+      width: calc(#{$tree-branch-length} + #{$tree-line-width});
+      height: $tree-line-width;
+      background: $tree-line-color;
+      transform: translateY(-50%);
+      z-index: 1;
+    }
   }
 
   .tree-children {
     display: flex;
     flex-direction: column;
-    margin-left: 32px;
-    padding-left: 14px;
-    border-left: 1px solid var(--el-border-color-lighter);
+    position: relative;
+    margin-left: $tree-branch-length;
+    padding-left: $tree-branch-length;
     min-width: 0;
   }
 
   .node-card {
+    position: relative;
+    z-index: 2;
     flex-shrink: 0;
     width: 220px;
     padding: 10px 12px;

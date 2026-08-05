@@ -18,6 +18,7 @@ export default {
       name: "TasksList",
       component: () => import("@/views/tasks/index.vue"),
       meta: {
+        icon: "ri:list-check-2",
         title: "任务列表",
         showLink: true,
         showParent: true,
@@ -29,6 +30,7 @@ export default {
       name: "TimeTracking",
       component: () => import("@/views/tasks/time-tracking.vue"),
       meta: {
+        icon: "ri:time-line",
         title: "工时统计",
         showLink: true,
         roles: ["Admin", "ProjectManager", "DepartmentManager", 'ProjectDirector', 'BusinessDepartmentMembers']
@@ -49,6 +51,7 @@ export default {
       name: "TaskDetail",
       component: () => import("@/views/tasks/detail.vue"),
       meta: {
+        icon: "ri:file-info-line",
         title: "任务详情",
         showLink: false,
         /** 侧边栏高亮任务列表 */

@@ -17,6 +17,7 @@ export default {
       name: "Workspace",
       component: () => import("@/views/workspace/index.vue"),
       meta: {
+        icon: "ep/home-filled",
         title: "待办任务",
         showLink: VITE_HIDE_HOME === "true" ? false : true,
         roles: ["Admin", "DepartmentManager", "Member"]

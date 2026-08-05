@@ -360,7 +360,7 @@ import {
   selectAllRequirementsAndTasks,
   isRequirementItem,
   selectProjectSelectAll,
-  loadRequirementFromJson,
+  loadRequirementFromExcel,
   updateProjectPause,
   type RequirementListItem,
   type DescribeContent,
@@ -1080,46 +1080,29 @@ const handleRequirementTaskRefresh = () => {
 
 // 导入任务
 const handleImportRequirement = () => {
-  // 创建文件输入元素
   const input = document.createElement("input");
   input.type = "file";
-  input.accept = ".json";
+  input.accept = ".xlsx,.xls";
   input.onchange = async (event: Event) => {
     const target = event.target as HTMLInputElement;
     const file = target.files?.[0];
     if (!file) return;
 
+    if (!projectId.value || !project.value?.name) {
+      ElMessage.error("项目信息不完整");
+      return;
+    }
+
     importingRequirement.value = true;
     try {
-      // 读取JSON文件内容
-      const text = await file.text();
-      let jsonData: Record<string, any>;
-
-      try {
-        jsonData = JSON.parse(text);
-      } catch (parseError) {
-        ElMessage.error("JSON文件格式错误，请检查文件内容");
-        importingRequirement.value = false;
-        return;
-      }
-
-      // 验证必填字段
-      if (!projectId.value || !project.value?.name) {
-        ElMessage.error("项目信息不完整");
-        importingRequirement.value = false;
-        return;
-      }
-
-      // 调用导入接口
-      const response = await loadRequirementFromJson({
+      const response = await loadRequirementFromExcel({
+        file,
         project_id: projectId.value,
-        project_name: project.value.name,
-        json_data: jsonData
+        project_name: project.value.name
       });
 
       if (response.code === 200) {
         ElMessage.success("需求导入成功");
-        // 刷新需求任务数据
         if (projectId.value) {
           await loadProjectStructure();
         }
@@ -1127,9 +1110,9 @@ const handleImportRequirement = () => {
         ElMessage.error(response.message || "需求导入失败");
       }
     } catch (error: any) {
-      console.error("导入JSON失败:", error);
+      console.error("导入Excel失败:", error);
       ElMessage.error(
-        error?.response?.data?.message || error?.message || "导入JSON失败"
+        error?.response?.data?.message || error?.message || "导入Excel失败"
       );
     } finally {
       importingRequirement.value = false;

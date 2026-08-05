@@ -442,6 +442,30 @@ export const loadRequirementFromJson = (
   });
 };
 
+/** 导入Excel生成需求参数 */
+export interface LoadRequirementFromExcelParams {
+  file: File;
+  project_id: string;
+  project_name: string;
+}
+
+/** 导入Excel生成需求 */
+export const loadRequirementFromExcel = (
+  params: LoadRequirementFromExcelParams
+) => {
+  const formData = new FormData();
+  formData.append("file", params.file);
+  formData.append("project_id", params.project_id);
+  formData.append("project_name", params.project_name);
+
+  return http.request<ApiResponse<any>>("post", "/requirement/load_excel", {
+    data: formData,
+    headers: {
+      "Content-Type": "multipart/form-data"
+    }
+  });
+};
+
 /** 项目统计数据响应 */
 export interface ProjectStatisticsResponse {
   code: number;

@@ -73,6 +73,7 @@ export default [
         name: "Profile",
         component: () => import("@/views/profile/index.vue"),
         meta: {
+          icon: "ri:user-settings-line",
           title: "个人资料",
           showLink: false
         }

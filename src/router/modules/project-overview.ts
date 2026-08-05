@@ -16,6 +16,7 @@ export default {
       name: "ProjectsOverview",
       component: () => import("@/views/projects/overview.vue"),
       meta: {
+        icon: "ri:table-line",
         title: "项目概览表",
         showLink: true,
         showParent: true,
@@ -27,6 +28,7 @@ export default {
       name: "ProjectOverviewDashboard",
       component: () => import("@/views/dashboard/index.vue"),
       meta: {
+        icon: "ri:pie-chart-line",
         title: "项目汇总",
         showLink: VITE_HIDE_HOME === "true" ? false : true,
         roles: ["Admin", "ProjectManager"]

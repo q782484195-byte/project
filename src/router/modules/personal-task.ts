@@ -18,6 +18,7 @@ export default {
       name: "PersonalTaskList",
       component: () => import("@/views/personal-task/index.vue"),
       meta: {
+        icon: "ri:calendar-check-line",
         title: "日常任务",
         showLink: true,
         showParent: false,
@@ -29,6 +30,7 @@ export default {
       name: "PersonalTaskDetail",
       component: () => import("@/views/personal-task/detail.vue"),
       meta: {
+        icon: "ri:file-info-line",
         title: "任务详情",
         showLink: false,
         activePath: "/personal-task/list",

@@ -16,6 +16,7 @@ export default {
       name: "RequirementsList",
       component: () => import("@/views/requirements/index.vue"),
       meta: {
+        icon: "ri:list-check",
         title: "层级列表",
         showLink: true,
         showParent: true,
@@ -27,6 +28,7 @@ export default {
       name: "RequirementDetail",
       component: () => import("@/views/requirements/detail.vue"),
       meta: {
+        icon: "ri:file-info-line",
         title: "需求详情",
         showLink: false,
         roles: ["Admin", "ProjectManager"]

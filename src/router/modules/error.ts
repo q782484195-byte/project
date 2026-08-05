@@ -13,6 +13,7 @@ export default {
       name: "403",
       component: () => import("@/views/error/403.vue"),
       meta: {
+        icon: "ri:shield-keyhole-line",
         title: "403"
       }
     },
@@ -21,6 +22,7 @@ export default {
       name: "404",
       component: () => import("@/views/error/404.vue"),
       meta: {
+        icon: "ri:file-search-line",
         title: "404"
       }
     },
@@ -29,6 +31,7 @@ export default {
       name: "500",
       component: () => import("@/views/error/500.vue"),
       meta: {
+        icon: "ri:server-line",
         title: "500"
       }
     }

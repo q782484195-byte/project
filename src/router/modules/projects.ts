@@ -16,6 +16,7 @@ export default {
       name: "ProjectsIndex",
       component: () => import("@/views/projects/index.vue"),
       meta: {
+        icon: "ri:folder-line",
         title: "项目列表",
         showLink: true,
         showParent: false,
@@ -27,6 +28,7 @@ export default {
       name: "ProjectDetail",
       component: () => import("@/views/projects/detail.vue"),
       meta: {
+        icon: "ri:file-info-line",
         title: "项目详情",
         showLink: false,
         roles: ["Admin", "ProjectManager", "DepartmentManager", "Member", 'ProjectDirector', 'BusinessDepartmentMembers']
