@@ -19,7 +19,7 @@
         <div v-if="isMobile" class="mobile-tip">
           <el-alert type="info" :closable="false" show-icon>
             <template #title>
-              <span>请前往电脑端查看"项目统计"和"项目总览"</span>
+              <span>请前往电脑端查看"项目统计"和"项目节点"</span>
             </template>
           </el-alert>
         </div>
@@ -85,7 +85,7 @@
               <el-skeleton :rows="3" animated />
             </div>
           </el-tab-pane>
-          <el-tab-pane v-if="!isMobile" label="项目总览" name="overview" class="overview-tab-pane">
+          <el-tab-pane v-if="!isMobile" label="项目节点" name="overview" class="overview-tab-pane">
             <ProjectStructureTree :tree-data="structureTreeData" :loading="structureTreeLoading"
               :root-title="project?.name || '项目结构'" @refresh="loadProjectStructure" />
           </el-tab-pane>
@@ -152,7 +152,7 @@
           <el-descriptions :column="1" border>
             <el-descriptions-item label="项目名称">{{
               project.name
-              }}</el-descriptions-item>
+            }}</el-descriptions-item>
             <el-descriptions-item label="状态">
               <el-select v-model="currentStatus" :loading="statusUpdating" :disabled="currentStatus === '已完成'"
                 size="small" style="width: 120px" @change="handleStatusChange">
@@ -173,13 +173,13 @@
             </el-descriptions-item>
             <el-descriptions-item label="计划开始时间">{{
               formatDate(project.startDate)
-              }}</el-descriptions-item>
+            }}</el-descriptions-item>
             <el-descriptions-item label="计划结束时间">{{
               formatDate(project.endDate)
-              }}</el-descriptions-item>
+            }}</el-descriptions-item>
             <el-descriptions-item v-if="project.createdAt" label="创建时间">{{
               formatDate(project.createdAt)
-              }}</el-descriptions-item>
+            }}</el-descriptions-item>
           </el-descriptions>
         </el-card>
 
@@ -377,6 +377,13 @@ import RequirementTaskTree from "@/components/RequirementTaskTree.vue";
 const route = useRoute();
 const router = useRouter();
 
+const projectType = computed(
+  () =>
+    (route.query.project_type as string) ||
+    project.value?.project_type ||
+    ""
+);
+
 const project = ref<Project | null>(null);
 const projectStatistics = ref<ProjectStatisticsResponse | null>(null);
 const loading = ref(false);
@@ -528,7 +535,8 @@ const handleUpdateStatus = async () => {
     return;
   }
   const response = await updateProjectPause({
-    project_id: project.value?.id || ""
+    project_id: project.value?.id || "",
+    project_type: projectType.value
   });
   if (response.code === 200) {
     ElMessage.success("暂停成功");
@@ -613,6 +621,7 @@ const loadProject = async () => {
     const response = await selectProjects({
       state: route.params.state === '暂停' ? "暂停" : "",
       project_id: projectId.value,
+      project_type: projectType.value,
       page: 1,
       page_size: 1
     });
@@ -667,6 +676,7 @@ const loadProject = async () => {
       project.value = {
         id: item._id,
         name: item.project_name,
+        project_type: (item as any).project_type || projectType.value,
         startDate: item.plant_start_time,
         endDate: item.plant_end_time,
         status: item.state as "未开始" | "进行中" | "已完成",
@@ -704,7 +714,10 @@ const loadProject = async () => {
 // 加载项目统计数据
 const loadProjectStatistics = async (projectId: string) => {
   try {
-    const response = await getProjectStatistics({ project_id: projectId });
+    const response = await getProjectStatistics({
+      project_id: projectId,
+      project_type: projectType.value
+    });
     if (response.code === 200) {
       projectStatistics.value = response;
     }
@@ -856,6 +869,7 @@ const loadProjectRequirements = async (
   try {
     const response = await selectRequirements({
       project_id: projectId,
+      project_type: projectType.value,
       page: page,
       page_size: pageSize
     });
@@ -958,7 +972,8 @@ const loadProjectStructure = async () => {
   structureTreeLoading.value = true;
   try {
     const response = await selectAllRequirementsAndTasks({
-      project_id: projectId.value
+      project_id: projectId.value,
+      project_type: projectType.value
     });
 
     if (response.code === 200) {
@@ -1098,7 +1113,8 @@ const handleImportRequirement = () => {
       const response = await loadRequirementFromExcel({
         file,
         project_id: projectId.value,
-        project_name: project.value.name
+        project_name: project.value.name,
+        project_type: projectType.value
       });
 
       if (response.code === 200) {
@@ -1196,7 +1212,8 @@ const handleStatusChange = async (newStatus: string) => {
     statusUpdating.value = true;
     try {
       const response = await updateProjectState({
-        project_id: project.value.id
+        project_id: project.value.id,
+        project_type: projectType.value
       });
 
       if (response.code === 200) {
@@ -1252,7 +1269,8 @@ const handleViewTask = (task: any) => {
     query: {
       from: "project",
       project_id: projectId.value || "",
-      project_name: project.value?.name || ""
+      project_name: project.value?.name || "",
+      project_type: projectType.value
     }
   });
 };

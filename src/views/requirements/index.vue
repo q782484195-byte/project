@@ -32,6 +32,10 @@
 
     <!-- 层级列表：桌面端表格 -->
     <el-card v-loading="loading" class="requirements-table-card" ref="requirementsCardRef" v-if="!isMobile">
+      <el-tabs v-model="projectTypeTab" class="project-type-tabs" @tab-change="handleProjectTypeTabChange">
+        <el-tab-pane label="定制项目" name="定制项目" />
+        <el-tab-pane label="公模项目" name="公模项目" />
+      </el-tabs>
       <TablePanel :loading="loading" @refresh="loadRequirements" @fullscreen-change="calculateTableHeight">
         <el-table :data="filteredRequirements" :style="{ width: '100%' }" :height="tableHeight">
         <el-table-column prop="requirement_name" label="层级名称" />
@@ -77,7 +81,12 @@
     </el-card>
 
     <!-- 移动端：层级卡片列表 -->
-    <div v-if="isMobile" v-loading="loading" class="requirements-mobile-wrap">
+    <div v-if="isMobile">
+      <el-tabs v-model="projectTypeTab" class="project-type-tabs mobile-project-type-tabs" @tab-change="handleProjectTypeTabChange">
+        <el-tab-pane label="定制项目" name="定制项目" />
+        <el-tab-pane label="公模项目" name="公模项目" />
+      </el-tabs>
+      <div v-loading="loading" class="requirements-mobile-wrap">
       <template v-if="filteredRequirements.length">
         <div v-for="row in filteredRequirements" :key="row.id || row._id" class="mobile-requirement-card">
           <div class="mobile-requirement-card__main">
@@ -131,6 +140,7 @@
         </div>
       </template>
       <el-empty v-else description="暂无层级数据" :image-size="80" class="requirements-mobile-empty" />
+      </div>
     </div>
 
     <div class="pagination">
@@ -170,6 +180,7 @@ const router = useRouter();
 const route = useRoute();
 
 const statusFilter = ref<string>("");
+const projectTypeTab = ref("定制项目");
 const searchRequirementId = ref("");
 const currentPage = ref(1);
 const pageSize = ref(20);
@@ -207,6 +218,7 @@ const saveParamsToCache = () => {
     selectedProjectId: selectedProjectId.value,
     searchRequirementId: searchRequirementId.value,
     statusFilter: statusFilter.value,
+    projectTypeTab: projectTypeTab.value,
     currentPage: currentPage.value,
     pageSize: pageSize.value
   };
@@ -219,6 +231,7 @@ const restoreParamsFromCache = () => {
     selectedProjectId?: string;
     searchRequirementId?: string;
     statusFilter?: string;
+    projectTypeTab?: string;
     currentPage?: number;
     pageSize?: number;
   }>(CACHE_KEY);
@@ -226,6 +239,7 @@ const restoreParamsFromCache = () => {
     if (cached.selectedProjectId) selectedProjectId.value = cached.selectedProjectId;
     if (cached.searchRequirementId) searchRequirementId.value = cached.searchRequirementId;
     if (cached.statusFilter) statusFilter.value = cached.statusFilter;
+    if (cached.projectTypeTab) projectTypeTab.value = cached.projectTypeTab;
     if (cached.currentPage) currentPage.value = cached.currentPage;
     if (cached.pageSize) pageSize.value = cached.pageSize;
   }
@@ -327,6 +341,7 @@ const loadProjects = async () => {
   projectsLoading.value = true;
   try {
     const response = await selectProjects({
+      project_type: projectTypeTab.value,
       page: 1,
       page_size: 100 // 获取所有项目
     });
@@ -388,6 +403,7 @@ const loadRequirements = async () => {
   try {
     const params: SelectRequirementParams & { requirement_id?: string } = {
       project_id: projectId.value || "",
+      project_type: projectTypeTab.value,
       page: currentPage.value,
       page_size: pageSize.value
     };
@@ -450,6 +466,7 @@ const loadRequirementOptions = async () => {
   try {
     const response = await selectRequirements({
       project_id: projectId.value || "",
+      project_type: projectTypeTab.value,
       page: 1,
       page_size: 100
     });
@@ -614,6 +631,22 @@ const handleDelete = async (requirement: any) => {
   }
 };
 
+// 处理项目类型切换
+const handleProjectTypeTabChange = async () => {
+  saveParamsToCache();
+  currentPage.value = 1;
+  searchRequirementId.value = "";
+  selectedProjectId.value = "";
+  await loadProjects();
+  await loadRequirementOptions();
+  if (projectId.value) {
+    loadRequirements();
+  } else {
+    requirements.value = [];
+    totalRequirements.value = 0;
+  }
+};
+
 // 监听分页变化
 watch([() => currentPage.value, () => pageSize.value], () => {
   saveParamsToCache(); // 保存到缓存
@@ -717,28 +750,28 @@ const handleResize = () => {
 };
 
 onMounted(async () => {
-  // 先加载项目列表
-  await loadProjects();
-
-  // 优先使用路由参数，如果没有则从缓存恢复
+  const routeProjectType = route.query.project_type as string | undefined;
   const routeProjectId = route.query.project_id as string | undefined;
   const routeRequirementId = route.query.requirement_id as string | undefined;
 
+  if (routeProjectType) {
+    projectTypeTab.value = routeProjectType;
+  } else {
+    restoreParamsFromCache();
+  }
+
+  await loadProjects();
+
   if (routeProjectId) {
-    // 如果有路由参数，使用路由参数
     if (projects.value.some(p => p.id === routeProjectId)) {
       selectedProjectId.value = routeProjectId;
     }
-  } else {
-    // 如果没有路由参数，从缓存恢复
-    restoreParamsFromCache();
   }
 
   if (routeRequirementId) {
     searchRequirementId.value = routeRequirementId;
   }
 
-  // 保存当前参数到缓存（包括路由参数）
   saveParamsToCache();
 
   await loadRequirementOptions();
@@ -801,6 +834,30 @@ onUnmounted(() => {
         flex-direction: column;
         gap: 8px;
       }
+    }
+  }
+
+  .project-type-tabs {
+    margin-bottom: 0;
+
+    :deep(.el-tabs__header) {
+      margin-bottom: 0;
+    }
+  }
+
+  .mobile-project-type-tabs {
+    margin-bottom: 12px;
+    background: #fff;
+    border-radius: 12px;
+    padding: 0 12px;
+    box-shadow:
+      0 2px 8px rgba(0, 0, 0, 0.04),
+      0 1px 3px rgba(0, 0, 0, 0.08);
+  }
+
+  .requirements-table-card {
+    .project-type-tabs {
+      padding: 0 16px;
     }
   }
 

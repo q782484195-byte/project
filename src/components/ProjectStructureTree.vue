@@ -36,7 +36,6 @@
           <el-descriptions :column="1" border>
             <el-descriptions-item label="需求ID">{{ selectedNode.rawData._id }}</el-descriptions-item>
             <el-descriptions-item label="需求名">{{ selectedNode.rawData.需求名 }}</el-descriptions-item>
-            <el-descriptions-item label="状态">{{ selectedNode.rawData.状态 }}</el-descriptions-item>
             <el-descriptions-item label="优先级">{{ selectedNode.rawData.优先级 }}</el-descriptions-item>
             <el-descriptions-item label="项目名称">{{ selectedNode.rawData.project_name }}</el-descriptions-item>
             <el-descriptions-item label="项目ID">{{ selectedNode.rawData.project_id }}</el-descriptions-item>
@@ -69,7 +68,6 @@
         <template v-else-if="selectedNode.type === 'task' && selectedNode.rawData">
           <el-descriptions :column="1" border>
             <el-descriptions-item label="任务名">{{ selectedNode.rawData.任务名 }}</el-descriptions-item>
-            <el-descriptions-item label="状态">{{ selectedNode.rawData.状态 }}</el-descriptions-item>
             <el-descriptions-item label="优先级">{{ selectedNode.rawData.优先级 }}</el-descriptions-item>
             <el-descriptions-item label="层级名称">{{ selectedNode.rawData.requirement_name }}</el-descriptions-item>
             <el-descriptions-item label="需求ID">{{ selectedNode.rawData.requirement_id }}</el-descriptions-item>
@@ -116,7 +114,6 @@
         <template v-else>
           <p><strong>名称：</strong>{{ selectedNode.name }}</p>
           <p><strong>类型：</strong>{{ getTypeText(selectedNode.type) }}</p>
-          <p v-if="selectedNode.type !== 'project'"><strong>状态：</strong>{{ getStatusText(selectedNode.status) }}</p>
           <p v-if="selectedNode.assignee"><strong>负责人：</strong>{{ selectedNode.assignee }}</p>
           <p v-if="selectedNode.estimate"><strong>预计时间：</strong>{{ selectedNode.estimate }}</p>
         </template>
@@ -128,6 +125,11 @@
 <script setup lang="ts">
 import { computed, defineComponent, h, ref, watch, type Ref } from "vue";
 import TablePanel from "@/components/TablePanel/index.vue";
+import {
+  downloadAttachment,
+  getAttachmentUrl,
+  getFileNameFromPath
+} from "@/utils/attachment";
 
 export type StructureTreeNode = {
   id: string | number;
@@ -171,7 +173,6 @@ const typeTextMap: Record<StructureTreeNode["type"], string> = {
 };
 
 const getTypeText = (type: StructureTreeNode["type"]) => typeTextMap[type] || type;
-const getStatusText = (status: string) => status || "未知";
 
 const DONE_STATUSES = new Set(["已完成", "完成", "审阅完毕", "测试完毕", "completed", "COMPLETED"]);
 const CANCELLED_STATUSES = new Set(["已取消", "cancelled", "CANCELLED"]);
@@ -183,6 +184,46 @@ const getCompletionClass = (node: StructureTreeNode) => {
   if (node.type !== "requirement" && node.type !== "task") return "";
   if (isCancelledStatus(node.status)) return "node-card--cancelled";
   return isCompletedStatus(node.status) ? "node-card--done" : "node-card--pending";
+};
+
+type TaskAttachmentFile = {
+  name: string;
+  url: string;
+  originalPath: string;
+};
+
+/** 从 task_list 任务项的 attachment 中提取可点击的文件列表 */
+const getTaskAttachmentFiles = (task: any): TaskAttachmentFile[] => {
+  if (!task?.attachment || !Array.isArray(task.attachment)) return [];
+
+  return task.attachment
+    .map((item: any, index: number) => {
+      let filePath = "";
+      let fileName = `文件${index + 1}`;
+
+      if (typeof item === "string") {
+        filePath = item;
+        fileName = getFileNameFromPath(item);
+      } else if (item && typeof item === "object" && item.url) {
+        filePath = item.url;
+        fileName = item.name || getFileNameFromPath(item.url);
+      } else {
+        return null;
+      }
+
+      return {
+        name: fileName,
+        url: getAttachmentUrl(filePath),
+        originalPath: filePath
+      };
+    })
+    .filter((item: TaskAttachmentFile | null): item is TaskAttachmentFile => item !== null);
+};
+
+const openTaskAttachment = (event: MouseEvent, file: TaskAttachmentFile) => {
+  event.stopPropagation();
+  event.preventDefault();
+  downloadAttachment(file.originalPath);
 };
 
 const getDialogTitle = () => {
@@ -383,18 +424,32 @@ const TreeNode = defineComponent({
                 )
                 : null
             ]),
-            nodeProps.node.type !== "project" && nodeProps.node.type !== "category"
-              ? h("div", { class: "node-card__meta" }, [
-                nodeProps.node.status
-                  ? h("span", {
-                    class: "node-card__status",
-                    "data-status": nodeProps.node.status
-                  }, getStatusText(nodeProps.node.status))
-                  : null
-              ])
-              : null,
             nodeProps.node.assignee && nodeProps.node.type === "task"
               ? h("div", { class: "node-card__assignee" }, nodeProps.node.assignee)
+              : null,
+            nodeProps.node.type === "task"
+              ? (() => {
+                const files = getTaskAttachmentFiles(nodeProps.node.rawData);
+                return files.length
+                  ? h(
+                    "div",
+                    { class: "node-card__files" },
+                    files.map((file, index) =>
+                      h(
+                        "a",
+                        {
+                          key: `${file.originalPath}_${index}`,
+                          class: "node-card__file-link",
+                          href: file.url,
+                          title: file.name,
+                          onClick: (event: MouseEvent) => openTaskAttachment(event, file)
+                        },
+                        file.name
+                      )
+                    )
+                  )
+                  : null;
+              })()
               : null
           ]
         ),
@@ -620,31 +675,31 @@ const TreeNode = defineComponent({
       }
     }
 
-    &__meta {
-      margin-top: 6px;
-    }
-
-    &__status {
-      font-size: 11px;
-      white-space: nowrap;
-    }
-
-    &--done .node-card__status {
-      color: #67c23a;
-    }
-
-    &--pending .node-card__status {
-      color: #e6a23c;
-    }
-
-    &--cancelled .node-card__status {
-      color: #909399;
-    }
-
     &__assignee {
       margin-top: 4px;
       font-size: 11px;
       color: var(--el-text-color-placeholder);
+    }
+
+    &__files {
+      margin-top: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    &__file-link {
+      display: block;
+      font-size: 11px;
+      color: var(--el-color-primary);
+      text-decoration: none;
+      line-height: 1.4;
+      word-break: break-all;
+      cursor: pointer;
+
+      &:hover {
+        text-decoration: underline;
+      }
     }
   }
 

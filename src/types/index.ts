@@ -157,6 +157,7 @@ export interface Project {
   template?: ProjectTemplate;
   attachment?: string[]; // 项目附件链接数组
   project_proposal?: string[]; // 立项文件链接数组
+  project_type?: string; // 项目类型：定制项目 | 公模项目
   customer_name?: string; // 客户名称
   product_type?: string; // 产品类型
   platform_name?: string; // 平台名称

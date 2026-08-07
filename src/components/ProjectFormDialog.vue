@@ -2,6 +2,13 @@
   <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑项目' : '新建项目'" width="900px" class="project-form-dialog"
     @close="handleClose">
     <el-form ref="formRef" :model="projectForm" :rules="rules" label-width="100px">
+      <el-form-item label="项目类型" prop="project_type">
+        <el-radio-group v-model="projectForm.project_type">
+          <el-radio label="定制项目">定制项目</el-radio>
+          <el-radio label="公模项目">公模项目</el-radio>
+        </el-radio-group>
+      </el-form-item>
+
       <el-form-item label="项目名称" prop="name">
         <el-input v-model="projectForm.name" placeholder="请输入项目名称" />
       </el-form-item>
@@ -292,6 +299,7 @@ const projectManagersLoading = ref(false); // 项目负责人列表加载状态
 const projectManagers = ref<Array<{ label: string; value: string }>>([]); // 项目负责人列表
 
 const projectForm = reactive({
+  project_type: "",
   name: "",
   customer_name: "",
   product_type: "",
@@ -312,6 +320,9 @@ const projectForm = reactive({
 });
 
 const rules: FormRules = {
+  project_type: [
+    { required: true, message: "请选择项目类型", trigger: "change" }
+  ],
   name: [{ required: true, message: "请输入项目名称", trigger: "blur" }],
   describe: [{ required: true, message: "请输入项目描述", trigger: "change" }],
   project_proposal: [
@@ -654,6 +665,7 @@ watch(
         }
       }
       Object.assign(projectForm, {
+        project_type: (project as any).project_type || "",
         name: project.name,
         customer_name: (project as any).customer_name || "",
         product_type: (project as any).product_type || "",
@@ -731,6 +743,7 @@ const handleClose = () => {
   }
   // 重置表单
   Object.assign(projectForm, {
+    project_type: "",
     name: "",
     customer_name: "",
     product_type: "",
@@ -910,6 +923,7 @@ const handleSubmit = async () => {
       // 编辑模式 - 使用新的参数格式
       const submitData: UpdateProjectParams = {
         project_id: props.project.id,
+        project_type: projectForm.project_type,
         project_name: projectForm.name,
         customer_name: projectForm.customer_name,
         product_type: projectForm.product_type,
@@ -978,6 +992,7 @@ const handleSubmit = async () => {
     } else {
       // 新建模式 - 使用新的参数格式
       const submitData: CreateProjectParams = {
+        project_type: projectForm.project_type,
         project_name: projectForm.name,
         customer_name: projectForm.customer_name,
         product_type: projectForm.product_type,

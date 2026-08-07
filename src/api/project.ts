@@ -32,6 +32,7 @@ export const uploadFile = (params: UploadFileParams) => {
 
 /** 创建项目参数 */
 export interface CreateProjectParams {
+  project_type: string; // 项目类型：定制项目 | 公模项目
   project_name: string;
   customer_name: string; // 客户名称
   product_type: string; // 产品类型
@@ -66,6 +67,7 @@ export interface ApiResponse<T> {
 export interface SelectProjectParams {
   project_id?: string;
   project_name?: string;
+  project_type?: string; // 项目类型：定制项目 | 公模项目
   creator?: string;
   state?: string; // "未开始,进行中,已完成"
   page?: number;
@@ -93,6 +95,7 @@ export const createProject = (params: CreateProjectParams) => {
   // 使用 JSON 格式发送数据
   return http.request<ApiResponse<any>>("post", "/project/add", {
     data: {
+      project_type: params.project_type || "",
       project_name: params.project_name,
       customer_name: params.customer_name || "",
       product_type: params.product_type || "",
@@ -117,6 +120,7 @@ export const updateProject = (params: UpdateProjectParams) => {
   return http.request<ApiResponse<any>>("post", "/project/update", {
     data: {
       project_id: params.project_id,
+      project_type: params.project_type || "",
       project_name: params.project_name,
       customer_name: params.customer_name || "",
       product_type: params.product_type || "",
@@ -142,7 +146,15 @@ export const selectProjects = (params: SelectProjectParams) => {
     "post",
     "/project/select",
     {
-      data: params
+      data: {
+        project_id: params.project_id || "",
+        project_name: params.project_name || "",
+        project_type: params.project_type || "",
+        creator: params.creator || "",
+        state: params.state || "",
+        page: params.page,
+        page_size: params.page_size
+      }
     }
   );
 };
@@ -152,6 +164,7 @@ export const selectProjects = (params: SelectProjectParams) => {
 /** 查询项目下所有需求和任务参数 */
 export interface SelectAllRequirementsAndTasksParams {
   project_id: string;
+  project_type?: string;
 }
 
 /** 需求项（包含任务列表） */
@@ -247,6 +260,7 @@ export const uploadAttachment = (params: UploadAttachmentParams) => {
 /** 更新项目状态参数 */
 export interface UpdateStateParams {
   project_id: string;
+  project_type?: string;
 }
 
 /** 更新项目状态 */
@@ -271,6 +285,7 @@ export const deleteProject = (params: DeleteProjectParams) => {
 /** 查询需求参数 */
 export interface SelectRequirementParams {
   project_id?: string; // 可选，支持查询所有需求
+  project_type?: string;
   page?: number;
   page_size?: number;
 }
@@ -447,6 +462,7 @@ export interface LoadRequirementFromExcelParams {
   file: File;
   project_id: string;
   project_name: string;
+  project_type?: string;
 }
 
 /** 导入Excel生成需求 */
@@ -457,6 +473,9 @@ export const loadRequirementFromExcel = (
   formData.append("file", params.file);
   formData.append("project_id", params.project_id);
   formData.append("project_name", params.project_name);
+  if (params.project_type) {
+    formData.append("project_type", params.project_type);
+  }
 
   return http.request<ApiResponse<any>>("post", "/requirement/load_excel", {
     data: formData,
@@ -479,6 +498,7 @@ export interface ProjectStatisticsResponse {
 /** 获取项目统计数据参数 */
 export interface GetProjectStatisticsParams {
   project_id: string;
+  project_type?: string;
 }
 
 /** 获取项目统计数据 */
@@ -488,7 +508,8 @@ export const getProjectStatistics = (params: GetProjectStatisticsParams) => {
     "/project/statistics",
     {
       data: {
-        project_id: params.project_id
+        project_id: params.project_id,
+        ...(params.project_type ? { project_type: params.project_type } : {})
       }
     }
   );
@@ -913,26 +934,33 @@ export const selectRequirementType = (params: any) => {
 
 
 /** 查询项目概览数据 */
-export const selectProjectOverview = () => {
-  return http.request<ApiResponse<any[]>>("get", "/project/overview");
+export const selectProjectOverview = (params?: { project_type?: string }) => {
+  return http.request<ApiResponse<any[]>>("get", "/project/overview", {
+    params: params?.project_type ? { project_type: params.project_type } : undefined
+  });
 };
 
 
 
 /** 查询项目记录数据 */
-export const selectProjectRecord = (params: any) => {
+export const selectProjectRecord = (params: { day: string; project_type?: string }) => {
   return http.request<ApiResponse<any[]>>("post", "/project/record/select", {
     data: {
-      day: params.day
+      day: params.day,
+      ...(params.project_type ? { project_type: params.project_type } : {})
     }
   });
 };
 
 /** 暂停项目 */
-export const updateProjectPause = (params: any) => {
+export const updateProjectPause = (params: {
+  project_id: string;
+  project_type?: string;
+}) => {
   return http.request<ApiResponse<any[]>>("post", "/project/pause", {
     data: {
-      project_id: params.project_id
+      project_id: params.project_id,
+      ...(params.project_type ? { project_type: params.project_type } : {})
     }
   });
 };

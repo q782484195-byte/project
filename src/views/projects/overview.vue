@@ -7,6 +7,11 @@
         </div>
       </template>
 
+      <el-tabs v-model="projectTypeTab" class="project-type-tabs">
+        <el-tab-pane label="定制项目" name="定制项目" />
+        <el-tab-pane label="公模项目" name="公模项目" />
+      </el-tabs>
+
       <!-- 查询表单 -->
       <el-form :inline="!isMobile" :model="queryForm" class="query-form" :class="{ 'query-form--mobile': isMobile }">
         <el-form-item label="" :class="{ 'is-full-width': isMobile }">
@@ -163,8 +168,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { ArrowDown } from '@element-plus/icons-vue';
 import TablePanel from '@/components/TablePanel/index.vue';
@@ -172,6 +177,11 @@ import { deviceDetection } from '@pureadmin/utils';
 import { selectProjectOverview, selectProjectRecord } from '@/api/project';
 
 const router = useRouter();
+const route = useRoute();
+
+const projectTypeTab = ref(
+  (route.query.project_type as string) || "定制项目"
+);
 
 const MOBILE_BREAKPOINT = 768;
 const isNarrowScreen = ref(window.innerWidth <= MOBILE_BREAKPOINT);
@@ -318,9 +328,14 @@ const loadData = async () => {
     // 根据模式选择不同接口
     let response;
     if (queryMode.value === "date" && queryForm.value.date) {
-      response = await selectProjectRecord({ day: queryForm.value.date });
+      response = await selectProjectRecord({
+        day: queryForm.value.date,
+        project_type: projectTypeTab.value
+      });
     } else {
-      response = await selectProjectOverview();
+      response = await selectProjectOverview({
+        project_type: projectTypeTab.value
+      });
     }
 
     if (response.code === 200 && response.result) {
@@ -390,6 +405,11 @@ onMounted(() => {
   window.addEventListener('resize', updateNarrowScreen);
   loadData();
 });
+
+watch(projectTypeTab, () => {
+  loadData();
+});
+
 onBeforeUnmount(() => {
   window.removeEventListener('resize', updateNarrowScreen);
 });
@@ -405,6 +425,14 @@ onBeforeUnmount(() => {
     .font-medium {
       font-weight: 500;
       font-size: 16px;
+    }
+  }
+
+  .project-type-tabs {
+    margin-bottom: 16px;
+
+    :deep(.el-tabs__header) {
+      margin-bottom: 0;
     }
   }
 
