@@ -19,7 +19,8 @@
         <div v-if="hasTaskList(child) && currentActiveTab === key" class="table-wrapper">
           <template v-if="!hideTable">
             <TablePanel :loading="loading" @refresh="$emit('refresh')" @fullscreen-change="$emit('fullscreen-change', $event)">
-              <el-table :data="getProcessedTasks(child.task_list, key)" :height="tableHeight" row-key="rowKey"
+              <el-table :data="getProcessedTasks(child.task_list, key)" :style="{ width: '100%' }"
+                :height="tableHeight" row-key="rowKey"
                 v-loading="loading" element-loading-text="加载任务数据..." empty-text="暂无任务数据"
                 @selection-change="$emit('selection-change', $event)" class="nested-table">
                 <slot></slot>

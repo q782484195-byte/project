@@ -24,122 +24,147 @@
                 <el-option v-for="opt in userOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
               </el-select>
             </div>
+            <div class="filter-field">
+              <label class="filter-label">
+                项目类型
+              </label>
+              <el-select v-model="selectedProjectType" class="filter-control" placeholder="请选择项目类型" clearable
+                size="default">
+                <el-option label="定制项目" value="定制项目" />
+                <el-option label="公模项目" value="公模项目" />
+              </el-select>
+            </div>
+            <div class="filter-field">
+              <label class="filter-label">
+                项目名称
+              </label>
+              <el-input v-model="projectName" class="filter-control" placeholder="请输入项目名称" clearable size="default" />
+            </div>
           </div>
         </div>
 
         <div class="statistics-table-wrap" ref="containerRef">
           <TablePanel :loading="tasksLoading" @refresh="handleTableRefresh" @fullscreen-change="calculateTableHeight">
-          <el-table v-if="!isMobile && showTaskPanel" class="data-table" :data="currentTableTasks"
-            :style="{ width: '100%' }" :height="tableHeight" row-key="rowKey" stripe border
-            :cell-style="getTaskCellStyle">
-            <el-table-column prop="project_name" label="项目名称" min-width="80" show-overflow-tooltip>
-              <template #default="{ row }">
-                <el-link v-if="getProjectId(row)" type="primary" :underline="false" class="cell-link"
-                  @click.stop="goProjectDetail(row)">
-                  {{ row.project_name || "-" }}
-                </el-link>
-                <span v-else>{{ row.project_name || "-" }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="任务名" label="任务名称" min-width="140" show-overflow-tooltip>
-              <template #default="{ row }">
-                <el-link v-if="getTaskId(row)" type="primary" :underline="false" class="cell-link"
-                  @click.stop="goTaskDetail(row)">
-                  {{ row.任务名 || row.task_name || row.title || "-" }}
-                </el-link>
-                <span v-else>{{ row.任务名 || row.task_name || row.title || "-" }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="当前处理人" label="责任人" min-width="120">
-              <template #default="{ row }">
-                <DailyTaskAssigneeTags v-if="shouldUseAssignerTags(row)" :task="row" />
-                <span v-else>{{ getTaskAssigneeDisplay(row) }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="状态" label="状态" width="150" align="center">
-              <template #default="{ row }">
-                <el-tag :type="getStatusType(row.状态 || row.status, row) || undefined" size="small" effect="light">
-                  {{ getDisplayStatus(row) }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="优先级" label="优先级" width="96" align="center">
-              <template #default="{ row }">
-                <el-tag :type="getPriorityType(row.优先级 || row.priority) || undefined" size="small">
-                  {{ row.优先级 || row.priority || "-" }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <!-- <el-table-column prop="进度" label="进度" min-width="140">
+            <el-table v-if="!isMobile && showTaskPanel" class="data-table" :data="currentTableTasks"
+              :style="{ width: '100%' }" :height="tableHeight" row-key="rowKey" stripe border
+              :cell-style="getTaskCellStyle">
+              <el-table-column prop="project_name" label="项目名称" min-width="80" show-overflow-tooltip>
+                <template #default="{ row }">
+                  <el-link v-if="getProjectId(row)" type="primary" :underline="false" class="cell-link"
+                    @click.stop="goProjectDetail(row)">
+                    {{ row.project_name || "-" }}
+                  </el-link>
+                  <span v-else>{{ row.project_name || "-" }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="任务名" label="任务名称" min-width="140" show-overflow-tooltip>
+                <template #default="{ row }">
+                  <el-link v-if="getTaskId(row)" type="primary" :underline="false" class="cell-link"
+                    @click.stop="goTaskDetail(row)">
+                    {{ row.任务名 || row.task_name || row.title || "-" }}
+                  </el-link>
+                  <span v-else>{{ row.任务名 || row.task_name || row.title || "-" }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="user_department" label="部门" min-width="100" show-overflow-tooltip>
+                <template #default="{ row }">
+                  {{ row.user_department || row.部门 || "-" }}
+                </template>
+              </el-table-column>
+              <el-table-column prop="当前处理人" label="责任人" min-width="120">
+                <template #default="{ row }">
+                  <DailyTaskAssigneeTags v-if="shouldUseAssignerTags(row)" :task="row" />
+                  <span v-else>{{ getTaskAssigneeDisplay(row) }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="状态" label="状态" width="150" align="center">
+                <template #default="{ row }">
+                  <el-tag :type="getStatusType(row.状态 || row.status, row) || undefined" size="small" effect="light">
+                    {{ getDisplayStatus(row) }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="优先级" label="优先级" width="96" align="center">
+                <template #default="{ row }">
+                  <el-tag :type="getPriorityType(row.优先级 || row.priority) || undefined" size="small">
+                    {{ row.优先级 || row.priority || "-" }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <!-- <el-table-column prop="进度" label="进度" min-width="140">
               <template #default="{ row }">
                 <el-progress :percentage="row.进度 || 0" :stroke-width="10"
                   :status="row.进度 === 100 ? 'success' : undefined" />
               </template>
             </el-table-column> -->
-            <el-table-column prop="task_deadline" label="任务完成期限" min-width="120" show-overflow-tooltip />
-            <el-table-column prop="create_time" label="任务分配时间" min-width="160" show-overflow-tooltip />
-          </el-table>
-          <div v-else-if="isMobile && showTaskPanel" class="mobile-task-list">
-            <template v-if="currentTableTasks.length > 0">
-              <div v-for="row in currentTableTasks" :key="row.rowKey" class="mobile-task-card"
-                :style="getTaskCardStyle(row)">
-                <div class="mobile-task-card__row mobile-task-card__row--project">
-                  <span class="mobile-task-card__label">项目</span>
-                  <span class="mobile-task-card__value">
-                    <el-link v-if="getProjectId(row)" type="primary" :underline="false" class="cell-link"
-                      @click.stop="goProjectDetail(row)">
-                      {{ row.project_name || "-" }}
-                    </el-link>
-                    <span v-else>{{ row.project_name || "-" }}</span>
-                  </span>
+              <el-table-column prop="task_deadline" label="任务完成期限" min-width="120" show-overflow-tooltip />
+              <el-table-column prop="create_time" label="任务分配时间" min-width="160" show-overflow-tooltip />
+            </el-table>
+            <div v-else-if="isMobile && showTaskPanel" class="mobile-task-list">
+              <template v-if="currentTableTasks.length > 0">
+                <div v-for="row in currentTableTasks" :key="row.rowKey" class="mobile-task-card"
+                  :style="getTaskCardStyle(row)">
+                  <div class="mobile-task-card__row mobile-task-card__row--project">
+                    <span class="mobile-task-card__label">项目</span>
+                    <span class="mobile-task-card__value">
+                      <el-link v-if="getProjectId(row)" type="primary" :underline="false" class="cell-link"
+                        @click.stop="goProjectDetail(row)">
+                        {{ row.project_name || "-" }}
+                      </el-link>
+                      <span v-else>{{ row.project_name || "-" }}</span>
+                    </span>
+                  </div>
+                  <div class="mobile-task-card__title">
+                    <span class="mobile-task-card__label">任务名称</span>
+                    <span class="mobile-task-card__value" style="margin-left: 20px;">
+                      <el-link v-if="getTaskId(row)" type="primary" :underline="false" class="cell-link"
+                        @click.stop="goTaskDetail(row)">
+                        {{ row.任务名 || row.task_name || row.title || "-" }}
+                      </el-link>
+                      <span v-else>{{ row.任务名 || row.task_name || row.title || "-" }}</span>
+                    </span>
+                  </div>
+                  <div class="mobile-task-card__meta">
+                    <el-tag :type="getStatusType(row.状态 || row.status, row) || undefined" size="small" effect="light">
+                      {{ getDisplayStatus(row) }}
+                    </el-tag>
+                    <el-tag :type="getPriorityType(row.优先级 || row.priority) || undefined" size="small">
+                      {{ row.优先级 || row.priority || "-" }}
+                    </el-tag>
+                  </div>
+                  <div class="mobile-task-card__row">
+                    <span class="mobile-task-card__label">部门</span>
+                    <span class="mobile-task-card__value">{{ row.user_department || row.部门 || "-" }}</span>
+                  </div>
+                  <div class="mobile-task-card__row">
+                    <span class="mobile-task-card__label">责任人</span>
+                    <span class="mobile-task-card__value">
+                      <DailyTaskAssigneeTags v-if="shouldUseAssignerTags(row)" :task="row" />
+                      <span v-else>{{ getTaskAssigneeDisplay(row) }}</span>
+                    </span>
+                  </div>
+                  <div class="mobile-task-card__row">
+                    <span class="mobile-task-card__label">进度</span>
+                    <span class="mobile-task-card__value mobile-task-card__progress-wrap">
+                      <el-progress :percentage="row.进度 || 0" :stroke-width="8"
+                        :status="row.进度 === 100 ? 'success' : undefined" class="mobile-task-card__progress" />
+                    </span>
+                  </div>
+                  <div class="mobile-task-card__row">
+                    <span class="mobile-task-card__label">完成期限</span>
+                    <span class="mobile-task-card__value">{{ row.task_deadline || "-" }}</span>
+                  </div>
+                  <div class="mobile-task-card__row">
+                    <span class="mobile-task-card__label">创建时间</span>
+                    <span class="mobile-task-card__value">{{ row.create_time || "-" }}</span>
+                  </div>
                 </div>
-                <div class="mobile-task-card__title">
-                  <span class="mobile-task-card__label">任务名称</span>
-                  <span class="mobile-task-card__value" style="margin-left: 20px;">
-                    <el-link v-if="getTaskId(row)" type="primary" :underline="false" class="cell-link"
-                      @click.stop="goTaskDetail(row)">
-                      {{ row.任务名 || row.task_name || row.title || "-" }}
-                    </el-link>
-                    <span v-else>{{ row.任务名 || row.task_name || row.title || "-" }}</span>
-                  </span>
-                </div>
-                <div class="mobile-task-card__meta">
-                  <el-tag :type="getStatusType(row.状态 || row.status, row) || undefined" size="small" effect="light">
-                    {{ getDisplayStatus(row) }}
-                  </el-tag>
-                  <el-tag :type="getPriorityType(row.优先级 || row.priority) || undefined" size="small">
-                    {{ row.优先级 || row.priority || "-" }}
-                  </el-tag>
-                </div>
-                <div class="mobile-task-card__row">
-                  <span class="mobile-task-card__label">责任人</span>
-                  <span class="mobile-task-card__value">
-                    <DailyTaskAssigneeTags v-if="shouldUseAssignerTags(row)" :task="row" />
-                    <span v-else>{{ getTaskAssigneeDisplay(row) }}</span>
-                  </span>
-                </div>
-                <div class="mobile-task-card__row">
-                  <span class="mobile-task-card__label">进度</span>
-                  <span class="mobile-task-card__value mobile-task-card__progress-wrap">
-                    <el-progress :percentage="row.进度 || 0" :stroke-width="8"
-                      :status="row.进度 === 100 ? 'success' : undefined" class="mobile-task-card__progress" />
-                  </span>
-                </div>
-                <div class="mobile-task-card__row">
-                  <span class="mobile-task-card__label">完成期限</span>
-                  <span class="mobile-task-card__value">{{ row.task_deadline || "-" }}</span>
-                </div>
-                <div class="mobile-task-card__row">
-                  <span class="mobile-task-card__label">创建时间</span>
-                  <span class="mobile-task-card__value">{{ row.create_time || "-" }}</span>
-                </div>
-              </div>
-            </template>
-            <el-empty v-else description="当前范围暂无任务" :image-size="72" class="mobile-task-list__empty" />
-          </div>
-          <div v-else class="table-placeholder">
-            <el-empty description="请在上方选择部门与人员" :image-size="120" />
-          </div>
+              </template>
+              <el-empty v-else description="当前范围暂无任务" :image-size="72" class="mobile-task-list__empty" />
+            </div>
+            <div v-else class="table-placeholder">
+              <el-empty description="请在上方选择部门与人员" :image-size="120" />
+            </div>
           </TablePanel>
         </div>
       </template>
@@ -183,6 +208,8 @@ const deptMembersMap = ref<Record<string, DeptMember[]>>({});
 const currentTaskList = ref<any[]>([]);
 const selectedDepartment = ref<string>("");
 const selectedUser = ref<string>("");
+const selectedProjectType = ref<string>("定制项目");
+const projectName = ref<string>("");
 const containerRef = ref<HTMLElement>();
 const tableHeight = ref<number>(800);
 
@@ -403,7 +430,12 @@ const handleResize = () => {
 };
 
 const handleTableRefresh = () => {
-  void fetchTaskStatistics(selectedDepartment.value || "", selectedUser.value || "");
+  void fetchTaskStatistics(
+    selectedDepartment.value || "",
+    selectedUser.value || "",
+    selectedProjectType.value,
+    projectName.value
+  );
 };
 
 /** 将 select_all_users 解析为 部门 -> 成员列表（兼容分组结构） */
@@ -472,13 +504,20 @@ const loadDepartmentMembers = async () => {
 };
 
 /** 请求任务统计：允许部门、人员均为空（页面初始化与清空筛选时传空参） */
-const fetchTaskStatistics = async (department: string, user: string) => {
+const fetchTaskStatistics = async (
+  department: string,
+  user: string,
+  projectType: string,
+  projectNameValue: string
+) => {
   tasksLoading.value = true;
   try {
     const userNameParam = user === USER_ALL ? "" : user;
     const res = await selectTaskStatistics({
       department: (department || "").trim(),
-      user_name: (userNameParam || "").trim()
+      user_name: (userNameParam || "").trim(),
+      project_type: (projectType || "").trim(),
+      project_name: (projectNameValue || "").trim()
     });
     const raw = (res.result ?? res.data) as unknown;
     if (res.code === 200 && raw != null) {
@@ -498,9 +537,15 @@ const fetchTaskStatistics = async (department: string, user: string) => {
 };
 
 watch(
-  () => [selectedDepartment.value, selectedUser.value] as const,
-  ([dept, user]) => {
-    void fetchTaskStatistics(dept || "", user || "");
+  () =>
+    [
+      selectedDepartment.value,
+      selectedUser.value,
+      selectedProjectType.value,
+      projectName.value
+    ] as const,
+  ([dept, user, projectType, projectNameValue]) => {
+    void fetchTaskStatistics(dept || "", user || "", projectType, projectNameValue);
   },
   { immediate: true }
 );

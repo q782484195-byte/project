@@ -608,16 +608,9 @@ const openProjectDetail = (project: Project) => {
   });
 };
 
-// 打开项目节点（跳转到详情页并定位到总览标签）
+// 打开项目节点（与点击行一致，跳转任务列表）
 const openProjectOverview = (project: Project) => {
-  router.push({
-    name: "ProjectDetail",
-    params: { id: project.id, state: project.status },
-    query: {
-      tab: "overview",
-      project_type: getProjectTypeParam(project)
-    }
-  });
+  goToTaskList(project);
 };
 
 const handleTableRowClick = (row: Project) => {

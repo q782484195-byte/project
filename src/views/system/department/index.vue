@@ -421,14 +421,15 @@ onUnmounted(() => {
       </template>
 
       <TablePanel :loading="loading" @refresh="handleRefresh" @fullscreen-change="calculateTableHeight">
-      <pure-table ref="tableRef" :data="tableData" :columns="columns" :loading="loading" :pagination="pagination"
-        :paginationSmall="false" :paginationBackground="true" :height="tableHeight" :tree-props="{
-          children: 'children',
-          hasChildren: 'hasChildren',
-          checkStrictly: false
-        }" row-key="id" preserve-expanded-content @page-size-change="handleSizeChange" @page-current-change="handlePageChange">
-        <template #operation />
-      </pure-table>
+        <pure-table ref="tableRef" :data="tableData" :columns="columns" :loading="loading" :pagination="pagination"
+          :paginationSmall="false" :paginationBackground="true" :height="tableHeight" :tree-props="{
+            children: 'children',
+            hasChildren: 'hasChildren',
+            checkStrictly: false
+          }" row-key="id" preserve-expanded-content @page-size-change="handleSizeChange"
+          @page-current-change="handlePageChange">
+          <template #operation />
+        </pure-table>
       </TablePanel>
     </el-card>
 

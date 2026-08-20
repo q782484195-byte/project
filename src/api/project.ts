@@ -196,6 +196,7 @@ export interface TaskWithDetailItem {
   creator: string;
   create_time: string;
   当前处理人?: string;
+  user_department?: string;
   指派人?: string;
   指派给?: string;
   审阅人?: string;
@@ -987,11 +988,18 @@ export const updateTaskDelayMessage = (params: any) => {
 };
 
 /** 查询任务统计 */
-export const selectTaskStatistics = (params: any) => {
+export const selectTaskStatistics = (params: {
+  department?: string;
+  user_name?: string;
+  project_type?: string;
+  project_name?: string;
+}) => {
   return http.request<ApiResponse<any[]>>("post", "department/task_select", {
     data: {
       department: params.department || "",
-      user_name: params.user_name || ""
+      user_name: params.user_name || "",
+      project_type: params.project_type || "",
+      project_name: params.project_name || ""
     }
   });
 };

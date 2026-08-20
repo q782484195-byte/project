@@ -1,7 +1,7 @@
 <template>
   <div class="tasks-page" :class="{ 'is-mobile': isMobile }" ref="pageRef">
     <!-- 搜索表单 -->
-    <el-card class="search-card mb-5">
+    <!-- <el-card class="search-card mb-5">
       <el-form :model="searchForm" :inline="!isMobile" class="search-form" :class="{ 'search-form--mobile': isMobile }">
         <el-form-item label="选择项目" :class="{ 'is-full-width': isMobile }">
           <div class="project-tags">
@@ -12,13 +12,13 @@
               <span class="project-tag-text">
                 <span class="project-name-part">{{ project.project_name || project.name }}</span>
                 <span v-if="project.motherboard_name" class="project-motherboard-part">-{{ project.motherboard_name
-                  }}</span>
+                }}</span>
               </span>
             </el-tag>
           </div>
         </el-form-item>
       </el-form>
-    </el-card>
+    </el-card> -->
 
     <!-- 任务列表 -->
     <el-card v-loading="loading" ref="tasksCardRef" class="tasks-card">
@@ -31,168 +31,87 @@
             </el-icon>
             分配选中任务 ({{ selectedTasks.length }})
           </el-button> -->
-          <div style="flex: 1;"></div>
-          <el-button type="primary" @click="handleProjectReport" v-perms="['task:add']">
-            <el-icon>
-              <Share />
-            </el-icon>
-            项目汇报
-          </el-button>
-          <el-button type="primary" @click="handleCreate" v-perms="['task:add']">
-            <el-icon>
-              <Plus />
-            </el-icon>
-            新建任务
-          </el-button>
+          <div class="table-header-project-name">项目名：{{ currentProjectDisplayName }}</div>
+          <div class="table-header-actions__btns">
+            <el-button type="primary" @click="handleProjectReport" v-perms="['task:add']">
+              <el-icon>
+                <Share />
+              </el-icon>
+              项目汇报
+            </el-button>
+            <el-button type="success" :loading="exportLoading" @click="handleExportExcel">
+              <el-icon>
+                <Download />
+              </el-icon>
+              导出 Excel
+            </el-button>
+            <el-button type="primary" @click="handleCreate" v-perms="['task:add']">
+              <el-icon>
+                <Plus />
+              </el-icon>
+              新建任务
+            </el-button>
+          </div>
         </div>
-        <!-- 多层 tab 结构（递归组件）；PC 端显示表格，移动端隐藏表格改用卡片 -->
-        <NestedTabs v-if="!isMobile && Object.keys(tasks).length > 0" :data="tasks" :level="0" :active-tabs="activeTabs"
-          :table-height="tableHeight" :loading="tabLoading" :processed-cache="processedTasksCache"
-          :hide-table="isMobile" @update:active-tabs="activeTabs = $event" @selection-change="handleSelectionChange"
-          @refresh="handleTaskRefresh" @fullscreen-change="calculateTableHeight">
-          <!-- <el-table-column type="selection" :selectable="isRowSelectable" /> -->
-          <el-table-column prop="任务名" label="任务名称">
-            <template #default="{ row }">
-              {{ row.任务名 || row.task_name || row.title || "-" }}
-            </template>
-          </el-table-column>
-          <!-- <el-table-column prop="requirement_name" label="关联层级" width="140" /> -->
-          <el-table-column prop="当前处理人" label="责任人">
-            <template #default="{ row }">
-              <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                <el-tag type="primary" size="small">
-                  <span class="assignee-text">{{ row.当前处理人 || row.assignee || "-" }}</span>
-                </el-tag>
-              </div>
-            </template>
-          </el-table-column>
-          <el-table-column prop="状态" label="状态">
-            <template #default="{ row }">
-              <el-tag :type="getStatusType(row.状态 || row.status) || undefined" size="small" effect="light">
-                {{ row.状态 || row.status || "-" }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="优先级" label="优先级">
-            <template #default="{ row }">
-              <el-tag :type="getPriorityType(row.优先级 || row.priority) || undefined" size="small">
-                {{ row.优先级 || row.priority || "-" }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="create_time" label="任务分配时间" />
-          <el-table-column prop="task_deadline" label="任务完成期限" />
-
-          <el-table-column label="操作" :width="operationColWidth(3)" fixed="right">
-            <template #default="{ row }">
-              <div class="table-action-btns">
-                <el-button type="primary" link size="small" @click="handleDropdownCommand('view', row)">查看</el-button>
-                <el-button type="primary" link size="small" @click="handleDropdownCommand('edit', row)"
-                  v-if="((userStore.username === (row.当前处理人 || row.current_handler)) || isAdmin || isProjectManager) && row.状态 !== '已完成' && hasPerms(['task:update'])">
-                  编辑
-                </el-button>
-                <el-button type="primary" link size="small" @click="handleDropdownCommand('changeAssignee', row)"
-                  v-if="isPendingAssignStatus(row.状态 || row.status) && hasPerms(['task:update_current_assignee'])">
-                  更改负责人
-                </el-button>
-                <el-button type="primary" link size="small" @click="handleDropdownCommand('assign', row)"
-                  v-if="row.next_state && Array.isArray(row.next_state) && row.next_state.length > 0 && hasPerms(['task:update']) && userStore.username === row.当前处理人">
-                  分配
-                </el-button>
-                <el-button type="primary" link size="small" @click="handleDropdownCommand('close', row)"
-                  v-if="hasPerms(['task:close'])" class="action-danger">
-                  关闭
-                </el-button>
-                <el-button type="primary" link size="small" @click="handleDropdownCommand('complete', row)"
-                  v-if="row.状态 !== '已完成' && hasPerms(['task:finish'])" class="action-success">
-                  完成
-                </el-button>
-                <el-button type="primary" link size="small" @click="handleDropdownCommand('report', row)"
-                  v-if="(row.当前处理人 || row.current_handler) === userStore.username && canRecordBug(row.状态 || row.status) && hasPerms(['task:report'])"
-                  class="action-success">
-                  进度汇报
-                </el-button>
-              </div>
-            </template>
-          </el-table-column>
-        </NestedTabs>
+        <!-- PC 端：折叠表格展示各层级任务 -->
+        <div v-if="!isMobile && collapseTree.length > 0" class="tasks-collapse-wrap" v-loading="tabLoading">
+          <TablePanel :loading="tabLoading" @refresh="handleTaskRefresh">
+            <div v-for="root in collapseTree" :key="root.key" class="tasks-unified-table">
+              <el-collapse :model-value="expandedCollapseKeys" class="tasks-unified-table__outer"
+                expand-icon-position="left" @update:model-value="handleCollapseKeysUpdate">
+                <el-collapse-item :name="root.key">
+                  <template #title>
+                    <div class="tasks-unified-table__outer-title">
+                      <span class="tasks-unified-table__outer-name">{{ root.title }}</span>
+                      <span class="tasks-unified-table__outer-count">{{ root.taskCount }}</span>
+                    </div>
+                  </template>
+                  <div class="tasks-unified-table__content">
+                    <el-table :data="[]" class="tasks-unified-table__header">
+                      <el-table-column prop="一级分类" label="一级分类" :min-width="TASK_TABLE_COLUMN_WIDTHS.primary" />
+                      <el-table-column prop="二级分类" label="二级分类" :min-width="TASK_TABLE_COLUMN_WIDTHS.secondary" />
+                      <el-table-column prop="user_department" label="部门" :min-width="TASK_TABLE_COLUMN_WIDTHS.department" />
+                      <el-table-column prop="当前处理人" label="责任人" :min-width="TASK_TABLE_COLUMN_WIDTHS.assignee" />
+                      <el-table-column prop="状态" label="状态" :min-width="TASK_TABLE_COLUMN_WIDTHS.status" />
+                      <el-table-column prop="优先级" label="优先级" :min-width="TASK_TABLE_COLUMN_WIDTHS.priority" />
+                      <el-table-column prop="create_time" label="任务分配时间" :min-width="TASK_TABLE_COLUMN_WIDTHS.assignTime" />
+                      <el-table-column prop="task_deadline" label="任务完成期限" :min-width="TASK_TABLE_COLUMN_WIDTHS.deadline" />
+                      <el-table-column label="操作" :width="operationColWidth(3)" />
+                    </el-table>
+                    <TaskCollapseTree v-if="root.children.length > 0" :nodes="root.children"
+                      :expanded-keys="expandedCollapseKeys" is-nested
+                      @update:expanded-keys="expandedCollapseKeys = $event" />
+                    <TaskCollapseNodeTasks v-if="root.hasTasks && root.children.length === 0" :node="root" />
+                  </div>
+                </el-collapse-item>
+              </el-collapse>
+            </div>
+          </TablePanel>
+        </div>
         <!-- PC 端：无任何任务数据时的占位提示 -->
         <el-empty v-if="!isMobile && !loading && Object.keys(tasks).length === 0" description="暂无任务数据"
           :image-size="100" />
 
-        <!-- 移动端：任务卡片列表（与当前 Tab 的 filteredTasks 一致） -->
+        <!-- 移动端：折叠卡片列表 -->
         <div v-if="isMobile">
-          <div v-if="Object.keys(tasks).length > 0" v-loading="tabLoading" class="mobile-task-cards">
-            <template v-if="filteredTasks.length">
-              <div v-for="row in filteredTasks" :key="row.rowKey" class="mobile-task-card">
-                <div class="mobile-task-card__main">
-                  <div class="mobile-task-card__title">{{ row.任务名 || row.task_name || row.title || "-" }}</div>
-                  <div class="mobile-task-card__meta">
-                    <el-tag :type="getStatusType(row.状态 || row.status) || undefined" size="small" effect="light">
-                      {{ row.状态 || row.status || "-" }}
-                    </el-tag>
-                    <el-tag :type="getPriorityType(row.优先级 || row.priority) || undefined" size="small">
-                      {{ row.优先级 || row.priority || "-" }}
-                    </el-tag>
+          <div v-if="collapseTree.length > 0" v-loading="tabLoading" class="mobile-task-cards">
+            <el-collapse v-for="root in collapseTree" :key="root.key" :model-value="expandedCollapseKeys"
+              class="tasks-unified-table__outer tasks-unified-table__outer--mobile" expand-icon-position="left"
+              @update:model-value="handleCollapseKeysUpdate">
+              <el-collapse-item :name="root.key">
+                <template #title>
+                  <div class="tasks-unified-table__outer-title">
+                    <span class="tasks-unified-table__outer-name">{{ root.title }}</span>
+                    <span class="tasks-unified-table__outer-count">{{ root.taskCount }}</span>
                   </div>
-                  <div class="mobile-task-card__row">
-                    <span class="mobile-task-card__label">当前处理人/部门</span>
-                    <span class="mobile-task-card__value">
-                      <el-tag type="success" size="small">{{ row.部门 || "-" }}</el-tag>
-                      <el-tag type="primary" size="small">{{ row.当前处理人 || row.assignee || "-" }}</el-tag>
-                    </span>
-                  </div>
-                  <!-- <div class="mobile-task-card__row">
-                    <span class="mobile-task-card__label">进度</span>
-                    <span class="mobile-task-card__value mobile-task-card__progress-wrap">
-                      <el-progress :percentage="row.进度 || 0" :status="row.进度 === 100 ? 'success' : undefined"
-                        :stroke-width="8" class="mobile-task-card__progress" />
-                    </span>
-                  </div> -->
-                  <div class="mobile-task-card__row">
-                    <span class="mobile-task-card__label">截止日期</span>
-                    <span class="mobile-task-card__value">{{ row.task_deadline || "-" }}</span>
-                  </div>
-                  <!-- <div class="mobile-task-card__row" v-if="row.delay?.task_is_delay">
-                    <span class="mobile-task-card__label">是否延期</span>
-                    <span class="mobile-task-card__value">
-                      <el-tag type="danger" size="small">延期</el-tag>
-                    </span>
-                  </div> -->
-                  <div class="mobile-task-card__row">
-                    <span class="mobile-task-card__label">创建时间</span>
-                    <span class="mobile-task-card__value">{{ row.create_time || "-" }}</span>
-                  </div>
-                  <div class="mobile-task-card__actions">
-                    <el-button type="primary" link size="small"
-                      @click.stop="handleDropdownCommand('view', row)">查看</el-button>
-                    <el-button type="primary" link size="small" @click.stop="handleDropdownCommand('edit', row)"
-                      v-if="((userStore.username === (row.当前处理人 || row.current_handler)) || isAdmin || isProjectManager) && row.状态 !== '已完成' && hasPerms(['task:update'])">
-                      编辑
-                    </el-button>
-                    <el-button type="primary" link size="small"
-                      @click.stop="handleDropdownCommand('changeAssignee', row)"
-                      v-if="isPendingAssignStatus(row.状态 || row.status) && hasPerms(['task:update_current_assignee'])">
-                      更改负责人
-                    </el-button>
-                    <el-button type="primary" link size="small" @click.stop="handleDropdownCommand('assign', row)"
-                      v-if="row.next_state && Array.isArray(row.next_state) && row.next_state.length > 0 && hasPerms(['task:update']) && userStore.username === row.当前处理人">
-                      分配
-                    </el-button>
-                    <el-button type="primary" link size="small" @click.stop="handleDropdownCommand('close', row)"
-                      v-if="hasPerms(['task:close'])" class="action-danger">关闭</el-button>
-                    <el-button type="primary" link size="small" @click.stop="handleDropdownCommand('complete', row)"
-                      v-if="row.状态 !== '已完成' && hasPerms(['task:finish'])" class="action-success">完成</el-button>
-                    <el-button type="primary" link size="small" @click.stop="handleDropdownCommand('report', row)"
-                      v-if="(row.当前处理人 || row.current_handler) === userStore.username && canRecordBug(row.状态 || row.status) && hasPerms(['task:report'])"
-                      class="action-success">进度汇报</el-button>
-                  </div>
-                </div>
-              </div>
-            </template>
-            <el-empty v-else-if="!tabLoading" description="暂无任务数据" :image-size="80" class="mobile-task-cards-empty" />
+                </template>
+                <TaskCollapseTree v-if="root.children.length > 0" :nodes="root.children"
+                  :expanded-keys="expandedCollapseKeys" is-nested
+                  @update:expanded-keys="expandedCollapseKeys = $event" />
+                <TaskCollapseNodeTasks v-if="root.hasTasks && root.children.length === 0" :node="root" />
+              </el-collapse-item>
+            </el-collapse>
           </div>
-          <!-- 移动端且没有任何任务数据时显示 -->
           <el-empty v-else-if="!tabLoading" description="暂无任务数据" :image-size="100" />
         </div>
       </div>
@@ -321,11 +240,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch, reactive, nextTick, toRaw } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch, reactive, nextTick, toRaw, provide } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { ElMessage, ElMessageBox, ElLoading } from "element-plus";
 import type { FormInstance, FormRules } from "element-plus";
-import { Plus, Search, Share } from "@element-plus/icons-vue";
+import { Plus, Search, Share, Download } from "@element-plus/icons-vue";
+import dayjs from "dayjs";
+import { exportTaskTableToExcel } from "@/utils/taskTableExport";
 import { deviceDetection } from "@pureadmin/utils";
 import { hasPerms } from "@/utils/auth";
 import {
@@ -345,8 +266,15 @@ import type { Project } from "@/types";
 import { TaskStatus } from "@/types";
 import TaskStatusFlowDialog from "@/components/TaskStatusFlowDialog.vue";
 import TaskDrawer from "@/components/TaskDrawer.vue";
-import NestedTabs from "@/components/NestedTabs.vue";
-import { TABLE_PANEL_TOOLBAR_HEIGHT } from "@/components/TablePanel/constants";
+import TablePanel from "@/components/TablePanel/index.vue";
+import TaskCollapseTree from "@/components/TaskCollapseTree.vue";
+import TaskCollapseNodeTasks from "@/components/TaskCollapseNodeTasks.vue";
+import {
+  TASK_COLLAPSE_CTX_KEY,
+  shouldShowCollapseItem,
+  TASK_TABLE_COLUMN_WIDTHS,
+  type TaskCollapseNode
+} from "@/components/taskCollapseContext";
 import { useUserStoreHook } from "@/store/modules/user";
 
 const router = useRouter();
@@ -376,9 +304,17 @@ const projectReportFormRef = ref<FormInstance>();
 // 保持嵌套结构：可能是2层或3层，动态检测
 const tasks = ref<Record<string, any>>({});
 const totalTasks = ref(0);
-// 动态管理多层 tab 的选中状态
-const activeTabs = ref<string[]>([]); // 数组，每个元素代表一层选中的 tab
-const activeTab = ref<string>(""); // 兼容旧代码，格式：任务类型/需求名称/...
+
+const collapseTree = ref<TaskCollapseNode[]>([]);
+const expandedCollapseKeys = ref<string[]>([]);
+
+const handleCollapseKeysUpdate = (value: string | string[]) => {
+  expandedCollapseKeys.value = Array.isArray(value) ? value : [value];
+};
+
+watch(expandedCollapseKeys, () => {
+  syncTaskTableColumnWidths();
+});
 const projects = ref<Project[]>([]);
 const projectsLoading = ref(false);
 const showTaskDrawer = ref(false);
@@ -389,20 +325,19 @@ const currentRequirementId = ref<string | undefined>(undefined);
 const currentRequirementName = ref<string | undefined>(undefined);
 const batchAssignLoading = ref(false);
 const selectedTasks = ref<any[]>([]); // 选中的任务列表
-const tabLoading = ref(false); // tab 切换时的加载状态
-const currentTabData = ref<any[]>([]); // 当前 tab 的数据（用于延迟加载）
+const tabLoading = ref(false); // 折叠分组加载状态
+const exportLoading = ref(false);
 
 // 表格高度相关
 const pageRef = ref<HTMLElement>();
 const tasksCardRef = ref<HTMLElement>();
-const containerRef = ref<HTMLElement>();
-const tableHeight = ref<number>(600);
+const containerRef = ref<HTMLDivElement>();
 
 // 缓存键名
 const CACHE_KEY = "tasks-list-params";
 
-// 刷新前保存的 tab 路径，刷新后恢复
-const savedActiveTabsBeforeRefresh = ref<string[] | null>(null);
+// 刷新前保存的折叠展开状态，刷新后恢复
+const savedExpandedKeysBeforeRefresh = ref<string[] | null>(null);
 
 // 保存参数到缓存
 // const saveParamsToCache = () => {
@@ -467,27 +402,198 @@ const processTasksAsync = async (taskList: any[]): Promise<any[]> => {
   });
 };
 
-// 注意：getProcessedTasks 已废弃，现在使用 loadTabDataForNested
-// 保留此注释以避免类型错误
-
-// 任务列表（使用 ref 存储，避免 computed 阻塞）
+// 任务列表（移动端扁平列表，由折叠分组汇总）
 const filteredTasks = ref<any[]>([]);
 
-// 判断节点是否有 task_list（是否为最后一层）
-const hasTaskList = (node: any): boolean => {
-  return node && typeof node === 'object' && Array.isArray(node.task_list);
+const TASK_NODE_META_KEYS = new Set([
+  "_id", "需求名", "describe", "状态", "优先级", "project_id", "project_name",
+  "creator", "attachment", "create_time", "进度", "task_list"
+]);
+
+/** 构建树形折叠节点（保留中间层如「整机项目流程」） */
+const buildCollapseNode = (
+  node: Record<string, any>,
+  path: string[]
+): TaskCollapseNode | null => {
+  if (!node || typeof node !== "object") return null;
+
+  const key = path.join("/");
+  const title = node.需求名 || node.requirement_name || path[path.length - 1] || key;
+
+  if (Array.isArray(node.task_list)) {
+    return {
+      key,
+      title,
+      path: [...path],
+      depth: path.length,
+      node,
+      children: [],
+      taskList: node.task_list,
+      processedTasks: [],
+      taskCount: node.task_list.length,
+      hasTasks: true
+    };
+  }
+
+  const children: TaskCollapseNode[] = [];
+  Object.entries(node).forEach(([childKey, child]) => {
+    if (TASK_NODE_META_KEYS.has(childKey)) return;
+    if (child && typeof child === "object" && !Array.isArray(child)) {
+      const childNode = buildCollapseNode(child as Record<string, any>, [...path, childKey]);
+      if (childNode) children.push(childNode);
+    }
+  });
+
+  if (children.length === 0) return null;
+
+  const taskCount = children.reduce((sum, child) => sum + child.taskCount, 0);
+  return {
+    key,
+    title,
+    path: [...path],
+    depth: path.length,
+    node,
+    children,
+    taskList: [],
+    processedTasks: [],
+    taskCount,
+    hasTasks: false
+  };
 };
 
-// 判断节点是否是中间层（有子节点但不是 task_list）
-const isIntermediateNode = (node: any): boolean => {
-  if (!node || typeof node !== 'object' || Array.isArray(node.task_list)) {
-    return false;
-  }
-  // 检查是否有子节点（排除 task_list 和其他非节点属性）
-  const excludeKeys = ['_id', '需求名', 'describe', '状态', '优先级', 'project_id', 'project_name', 'creator', 'attachment', 'create_time', '进度'];
-  const keys = Object.keys(node).filter(key => !excludeKeys.includes(key));
-  return keys.length > 0;
+const collectCollapseTreeRoots = (data: Record<string, any>): TaskCollapseNode[] => {
+  const roots: TaskCollapseNode[] = [];
+  Object.entries(data).forEach(([key, node]) => {
+    if (node && typeof node === "object") {
+      const built = buildCollapseNode(node as Record<string, any>, [key]);
+      if (built) roots.push(built);
+    }
+  });
+  return roots;
 };
+
+const collectAllCollapseKeys = (nodes: TaskCollapseNode[]): string[] => {
+  const keys: string[] = [];
+  const walk = (list: TaskCollapseNode[], isRoot = false) => {
+    list.forEach(node => {
+      if (isRoot || shouldShowCollapseItem(node)) {
+        keys.push(node.key);
+      }
+      if (node.children.length) walk(node.children);
+    });
+  };
+  walk(nodes, true);
+  return keys;
+};
+
+const collectAllProcessedTasks = (nodes: TaskCollapseNode[]): any[] => {
+  const rows: any[] = [];
+  const walk = (list: TaskCollapseNode[]) => {
+    list.forEach(node => {
+      if (node.hasTasks) rows.push(...node.processedTasks);
+      if (node.children.length) walk(node.children);
+    });
+  };
+  walk(nodes);
+  return rows;
+};
+
+const processCollapseTreeTasks = async (nodes: TaskCollapseNode[]) => {
+  for (const node of nodes) {
+    if (node.hasTasks && node.taskList.length > 0) {
+      const cacheKey = node.key;
+      let processed = processedTasksCache.value[cacheKey];
+      if (!processed) {
+        processed = await processTasksAsync(node.taskList);
+        processedTasksCache.value[cacheKey] = processed;
+      }
+      node.processedTasks = processed;
+    }
+    if (node.children.length > 0) {
+      await processCollapseTreeTasks(node.children);
+    }
+  }
+};
+
+const buildCollapseTree = async () => {
+  const roots = collectCollapseTreeRoots(tasks.value);
+  if (roots.length === 0) {
+    collapseTree.value = [];
+    expandedCollapseKeys.value = [];
+    filteredTasks.value = [];
+    return;
+  }
+
+  tabLoading.value = true;
+  await nextTick();
+
+  try {
+    await processCollapseTreeTasks(roots);
+    collapseTree.value = roots;
+    filteredTasks.value = collectAllProcessedTasks(roots);
+
+    const allKeys = collectAllCollapseKeys(roots);
+    const saved = savedExpandedKeysBeforeRefresh.value;
+    if (saved && saved.length > 0) {
+      const restored = allKeys.filter(key => saved.includes(key));
+      expandedCollapseKeys.value = restored.length > 0 ? restored : allKeys;
+    } else {
+      expandedCollapseKeys.value = allKeys;
+    }
+    savedExpandedKeysBeforeRefresh.value = null;
+  } catch (error) {
+    console.error("构建折叠任务树失败:", error);
+    collapseTree.value = [];
+    expandedCollapseKeys.value = [];
+    filteredTasks.value = [];
+  } finally {
+    await nextTick();
+    tabLoading.value = false;
+    syncTaskTableColumnWidths();
+  }
+};
+
+const syncTaskTableColumnWidths = () => {
+  if (isMobile.value) return;
+
+  nextTick(() => {
+    requestAnimationFrame(() => {
+      document.querySelectorAll(".tasks-unified-table").forEach(tableRoot => {
+        const headerCells = tableRoot.querySelectorAll(
+          ".tasks-unified-table__header .el-table__header th.el-table__cell"
+        );
+        if (!headerCells.length) return;
+
+        const widths = Array.from(headerCells).map(cell => (cell as HTMLElement).offsetWidth);
+
+        tableRoot.querySelectorAll(".tasks-collapse-table").forEach(tableEl => {
+          tableEl.querySelectorAll("colgroup col").forEach((col, index) => {
+            const width = widths[index];
+            if (width > 0) {
+              col.setAttribute("width", String(width));
+              (col as HTMLElement).style.width = `${width}px`;
+            }
+          });
+
+          tableEl.querySelectorAll(".el-table__body td.el-table__cell").forEach(cell => {
+            const index = (cell as HTMLTableCellElement).cellIndex;
+            const width = widths[index];
+            if (width > 0) {
+              (cell as HTMLElement).style.width = `${width}px`;
+            }
+          });
+        });
+      });
+    });
+  });
+};
+
+const GROUP_INDENT_BASE = 0;
+const GROUP_INDENT_STEP = 28;
+
+const getGroupIndentPx = (depth: number) => GROUP_INDENT_BASE + Math.max(0, depth - 1) * GROUP_INDENT_STEP;
+
+const getTaskIndentPx = (depth: number) => 8 + depth * GROUP_INDENT_STEP;
 
 // 计算某个节点的总任务数（递归）
 const getTotalTaskCount = (node: any): number => {
@@ -512,92 +618,6 @@ const getTotalTaskCount = (node: any): number => {
     return sum;
   }, 0);
 };
-
-// 根据路径获取最终的任务列表
-const getTaskListByPath = (path: string[]): any[] => {
-  let current: any = tasks.value;
-  for (const key of path) {
-    if (!current || typeof current !== 'object' || !current[key]) {
-      return [];
-    }
-    current = current[key];
-  }
-
-  // 如果当前节点有 task_list，返回它
-  if (Array.isArray(current?.task_list)) {
-    return current.task_list;
-  }
-
-  return [];
-};
-
-// 处理 tab 切换（动态层级）
-const handleTabChange = async (level: number, value: string) => {
-  // 更新对应层级的选中状态
-  activeTabs.value[level] = value;
-  // 清空后续层级
-  activeTabs.value = activeTabs.value.slice(0, level + 1);
-
-  // 构建路径
-  const path = activeTabs.value.filter(Boolean);
-  activeTab.value = path.join('/');
-
-  // 获取任务列表
-  const taskList = getTaskListByPath(path);
-
-  if (taskList.length > 0) {
-    // 有任务列表，加载数据
-    await loadTaskListData(path, taskList);
-  } else {
-    // 没有任务列表，清空表格
-    filteredTasks.value = [];
-  }
-};
-
-// 加载任务列表数据
-const loadTaskListData = async (path: string[], taskList: any[]) => {
-  if (!Array.isArray(taskList) || taskList.length === 0) {
-    filteredTasks.value = [];
-    return;
-  }
-
-  // 构建缓存 key
-  const cacheKey = path.join('/');
-  const cached = processedTasksCache.value[cacheKey];
-
-  // 检查缓存
-  if (cached && cached.length === taskList.length && taskList.length > 0) {
-    const firstTask = taskList[0];
-    const firstCached = cached[0];
-    if (firstTask && firstCached &&
-      (firstTask._id || firstTask.id) === (firstCached._id || firstCached.id)) {
-      filteredTasks.value = cached;
-      return;
-    }
-  }
-
-  // 没有缓存，异步加载数据
-  tabLoading.value = true;
-
-  // 使用 nextTick 确保 tab 先切换，UI 先响应
-  await nextTick();
-
-  try {
-    // 异步处理数据
-    const processed = await processTasksAsync(taskList);
-    processedTasksCache.value[cacheKey] = processed;
-    filteredTasks.value = processed;
-  } catch (error) {
-    console.error("加载任务数据失败:", error);
-    filteredTasks.value = [];
-  } finally {
-    // 延迟隐藏 loading，确保用户能看到加载状态
-    await nextTick();
-    tabLoading.value = false;
-  }
-};
-
-// 注意：loadTabData 已废弃，现在使用 loadTabDataForNested
 
 // 获取状态类型
 const getStatusType = (
@@ -752,8 +772,9 @@ const handleProjectTagClick = (projectId: string) => {
     currentProjectId.value = "";
     tasks.value = {};
     totalTasks.value = 0;
-    activeTabs.value = [];
-    activeTab.value = "";
+    collapseTree.value = [];
+    expandedCollapseKeys.value = [];
+    filteredTasks.value = [];
   } else {
     // 选择新项目并查询
     searchForm.value.projectId = projectId;
@@ -771,7 +792,9 @@ const handleProjectChange = () => {
     // 如果没有选择项目，清空任务列表
     tasks.value = {};
     totalTasks.value = 0;
-    activeTab.value = "";
+    collapseTree.value = [];
+    expandedCollapseKeys.value = [];
+    filteredTasks.value = [];
   }
 };
 
@@ -818,24 +841,7 @@ const handleSearchAllTasks = async () => {
 
       // 清除缓存，因为数据已更新
       processedTasksCache.value = {};
-
-      // 优先恢复刷新前选中的 tab，否则使用第一层第一个
-      const taskTypes = Object.keys(tasks.value);
-      if (taskTypes.length > 0) {
-        const saved = savedActiveTabsBeforeRefresh.value;
-        if (saved && saved.length > 0 && isPathValidInTasks(saved, tasks.value)) {
-          activeTabs.value = [...saved];
-          activeTab.value = saved.join("/");
-        } else {
-          activeTabs.value = [taskTypes[0]];
-          activeTab.value = taskTypes[0];
-        }
-        savedActiveTabsBeforeRefresh.value = null;
-      } else {
-        activeTabs.value = [];
-        activeTab.value = "";
-        savedActiveTabsBeforeRefresh.value = null;
-      }
+      await buildCollapseTree();
 
       // 计算总任务数
       totalTasks.value = totalCount;
@@ -843,8 +849,8 @@ const handleSearchAllTasks = async () => {
       ElMessage.error(response.message || "查询任务列表失败");
       tasks.value = {};
       totalTasks.value = 0;
-      activeTabs.value = [];
-      activeTab.value = "";
+      collapseTree.value = [];
+      expandedCollapseKeys.value = [];
       selectedTasks.value = [];
       // 清除缓存
       processedTasksCache.value = {};
@@ -856,7 +862,9 @@ const handleSearchAllTasks = async () => {
     );
     tasks.value = {};
     totalTasks.value = 0;
-    activeTab.value = "";
+    collapseTree.value = [];
+    expandedCollapseKeys.value = [];
+    filteredTasks.value = [];
     selectedTasks.value = [];
     // 清除缓存
     processedTasksCache.value = {};
@@ -873,89 +881,56 @@ const projectOptions = computed(() => {
   }));
 });
 
-// 在刷新前记录当前选中的 tab，供 handleSearchAllTasks 恢复
-const saveCurrentTabForRestore = () => {
-  if (activeTabs.value && activeTabs.value.length > 0) {
-    savedActiveTabsBeforeRefresh.value = [...activeTabs.value];
+// 在刷新前记录当前折叠展开状态，供 handleSearchAllTasks 恢复
+const saveExpandedStateForRestore = () => {
+  if (expandedCollapseKeys.value.length > 0) {
+    savedExpandedKeysBeforeRefresh.value = [...expandedCollapseKeys.value];
   } else {
-    savedActiveTabsBeforeRefresh.value = null;
+    savedExpandedKeysBeforeRefresh.value = null;
   }
 };
 
-// 校验 path 在新 tasks 树中是否仍存在
-const isPathValidInTasks = (path: string[], data: Record<string, any>): boolean => {
-  let current: any = data;
-  for (const key of path) {
-    if (!current || typeof current !== "object" || !current[key]) return false;
-    current = current[key];
-  }
-  return true;
-};
-
-// 处理任务刷新（会先保存当前 tab，刷新后恢复）
+// 处理任务刷新（会先保存当前折叠状态，刷新后恢复）
 const handleTaskRefresh = () => {
-  saveCurrentTabForRestore();
+  saveExpandedStateForRestore();
   return handleSearchAllTasks();
 };
 
-// 根据 activeTabs 获取当前选中层级的 requirement_id 和 requirement_name
+const getRequirementInfoFromNode = (group: TaskCollapseNode) => {
+  const node = group.node;
+  const firstTask = group.processedTasks[0] || group.taskList[0];
+  let requirementId: string | undefined;
+  let requirementName: string | undefined;
+
+  if (node._id && String(node._id).trim() !== "") {
+    requirementId = node._id || node.id;
+  }
+  requirementName = node.需求名 || node.requirement_name || requirementName;
+
+  if (firstTask) {
+    requirementId = firstTask.requirement_id || firstTask.requirementId || requirementId;
+    requirementName = firstTask.requirement_name || requirementName;
+  }
+
+  return { requirementId, requirementName };
+};
+
+const findFirstTaskLeaf = (nodes: TaskCollapseNode[]): TaskCollapseNode | undefined => {
+  for (const node of nodes) {
+    if (node.hasTasks && node.processedTasks.length > 0) return node;
+    const found = findFirstTaskLeaf(node.children);
+    if (found) return found;
+  }
+  return undefined;
+};
+
+// 获取新建任务时默认关联的层级（取第一个有任务数据的叶子节点）
 const getCurrentRequirementInfo = () => {
-  if (!activeTabs.value || activeTabs.value.length === 0 || !tasks.value) {
-
+  const leaf = findFirstTaskLeaf(collapseTree.value);
+  if (!leaf) {
     return { requirementId: undefined, requirementName: undefined };
   }
-
-  try {
-    // 根据 activeTabs 路径遍历 tasks 数据
-    let currentData = tasks.value;
-    let requirementId = undefined;
-    let requirementName = undefined;
-    let lastNodeWithId = null; // 记录最后一个有 _id 的节点
-
-
-    // 遍历 activeTabs，找到当前选中的层级节点
-    for (let i = 0; i < activeTabs.value.length; i++) {
-      const tabKey = activeTabs.value[i];
-
-      if (!tabKey || !currentData || typeof currentData !== 'object' || !currentData[tabKey]) {
-        break;
-      }
-      const currentNode = currentData[tabKey];
-
-
-      // 如果当前节点有 task_list，说明这是最后一层，从任务列表中获取 requirement_id
-      if (Array.isArray(currentNode.task_list) && currentNode.task_list.length > 0) {
-        // 从第一个任务中获取 requirement_id
-        const firstTask = currentNode.task_list[0];
-        if (firstTask && (firstTask.requirement_id || firstTask.requirementId)) {
-          requirementId = firstTask.requirement_id || firstTask.requirementId;
-          requirementName = currentNode.需求名 || currentNode.requirement_name || firstTask.requirement_name || requirementName;
-        } else if (currentNode.需求名) {
-          // 如果任务中没有 requirement_id，至少保存需求名
-          requirementName = currentNode.需求名 || currentNode.requirement_name || requirementName;
-        }
-        break;
-      }
-      // 如果当前节点有 _id（且不为空）或 需求名，说明这是一个层级节点
-      if (currentNode._id && currentNode._id.trim() !== "") {
-        requirementId = currentNode._id || currentNode.id || requirementId;
-        requirementName = currentNode.需求名 || currentNode.requirement_name || requirementName;
-        lastNodeWithId = currentNode;
-      } else if (currentNode.需求名) {
-        // 即使 _id 为空，也保存需求名
-        requirementName = currentNode.需求名 || currentNode.requirement_name || requirementName;
-      }
-
-      // 继续下一层
-      currentData = currentNode;
-    }
-
-    console.log("最终返回的层级信息:", { requirementId, requirementName });
-    return { requirementId, requirementName };
-  } catch (error) {
-    console.error("获取当前层级信息失败:", error);
-    return { requirementId: undefined, requirementName: undefined };
-  }
+  return getRequirementInfoFromNode(leaf);
 };
 
 // 新建任务
@@ -964,9 +939,6 @@ const handleCreate = () => {
 
   // 获取当前选中的层级信息
   const { requirementId, requirementName } = getCurrentRequirementInfo();
-
-  // 调试信息
-  console.log("当前选中的层级信息:", { requirementId, requirementName, activeTabs: activeTabs.value });
 
   // 将层级信息保存到临时变量，用于传递给 TaskDrawer
   currentRequirementId.value = requirementId;
@@ -995,6 +967,52 @@ const projectReportRules: FormRules = {
 
 const getSelectedProject = () => {
   return projects.value.find((project: Project) => project.id === searchForm.value.projectId);
+};
+
+const currentProjectDisplayName = computed(() => {
+  const project = getSelectedProject();
+  if (!project) return "-";
+  const name = (project as Project & { project_name?: string }).project_name || project.name || "-";
+  const motherboard = (project as Project & { motherboard_name?: string }).motherboard_name;
+  return motherboard ? `${name}-${motherboard}` : name;
+});
+
+const sanitizeFilename = (name: string) =>
+  name.replace(/[\\/:*?"<>|]/g, "_").replace(/\s+/g, "_").slice(0, 80);
+
+const handleExportExcel = async () => {
+  if (!searchForm.value.projectId) {
+    ElMessage.warning("请先选择项目");
+    return;
+  }
+  if (Object.keys(tasks.value).length === 0) {
+    ElMessage.warning("暂无任务数据可导出");
+    return;
+  }
+
+  exportLoading.value = true;
+  try {
+    if (collapseTree.value.length === 0 || tabLoading.value) {
+      await buildCollapseTree();
+    }
+
+    const projectName = currentProjectDisplayName.value;
+    const timestamp = dayjs().format("YYYYMMDD_HHmmss");
+    const filename = `${sanitizeFilename(projectName)}_${timestamp}.xlsx`;
+    const taskCount = exportTaskTableToExcel(collapseTree.value, filename, projectName);
+
+    if (taskCount === 0) {
+      ElMessage.warning("暂无任务数据可导出");
+      return;
+    }
+
+    ElMessage.success(`成功导出 ${taskCount} 条任务`);
+  } catch (error: any) {
+    console.error("导出 Excel 失败:", error);
+    ElMessage.error(error?.message || "导出 Excel 失败");
+  } finally {
+    exportLoading.value = false;
+  }
 };
 
 const handleProjectReport = () => {
@@ -1893,28 +1911,6 @@ watch(
   }
 );
 
-// 监听 activeTabs 变化，加载对应的任务数据
-watch(
-  () => activeTabs.value,
-  async (newTabs, oldTabs) => {
-    // 立即清空选中状态
-    selectedTasks.value = [];
-
-    if (newTabs.length > 0) {
-      // 根据路径获取任务列表
-      const taskList = getTaskListByPath(newTabs);
-      if (taskList.length > 0) {
-        await loadTaskListData(newTabs, taskList);
-      } else {
-        filteredTasks.value = [];
-      }
-    } else {
-      filteredTasks.value = [];
-    }
-  },
-  { immediate: false }
-);
-
 // 监听 create 参数，自动打开新建任务抽屉
 watch(
   () => route.query.create,
@@ -1966,68 +1962,540 @@ const restoreSearchFromQuery = async () => {
   }
 };
 
-// 计算表格高度
-const calculateTableHeight = () => {
-  nextTick(() => {
-    if (!containerRef.value) return;
+provide(TASK_COLLAPSE_CTX_KEY, {
+  expandedKeys: expandedCollapseKeys,
+  isMobile,
+  get username() {
+    return userStore.username;
+  },
+  get isAdmin() {
+    return isAdmin.value;
+  },
+  get isProjectManager() {
+    return isProjectManager.value;
+  },
+  getGroupIndentPx,
+  getTaskIndentPx,
+  getStatusType,
+  getPriorityType,
+  operationColWidth,
+  hasPerms,
+  isPendingAssignStatus,
+  canRecordBug,
+  onCommand: handleDropdownCommand
+});
 
-    const viewportHeight = window.innerHeight;
-    const containerRect = containerRef.value.getBoundingClientRect();
-    const containerTopToViewportBottom = viewportHeight - containerRect.top;
-    const tabsHeaderHeight = 40;
-    const cardPadding = 90;
-    const bottomPadding = 20;
-    const availableHeight = containerTopToViewportBottom - tabsHeaderHeight - cardPadding - bottomPadding - TABLE_PANEL_TOOLBAR_HEIGHT;
-
-    tableHeight.value = availableHeight
-  });
-};
-
-// 窗口大小改变时重新计算
 const handleResize = () => {
   isNarrowScreen.value = window.innerWidth <= MOBILE_BREAKPOINT;
-  calculateTableHeight();
+  syncTaskTableColumnWidths();
 };
 
 onMounted(async () => {
-  // 打印权限列表（调试用）
-  // 先加载项目列表
   await loadProjects();
-  // 从路由参数中恢复搜索条件（内部会处理 create 参数）
   await restoreSearchFromQuery();
-  // 如果需求还未选择，watch 会在需求选择后自动处理
-
-  // 计算表格高度
-  calculateTableHeight();
-  window.addEventListener('resize', handleResize);
+  window.addEventListener("resize", handleResize);
 });
 
 onUnmounted(() => {
-  window.removeEventListener('resize', handleResize);
+  window.removeEventListener("resize", handleResize);
 });
 </script>
 
 <style scoped lang="scss">
 .tasks-page {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+
   .tasks-card {
+    width: 100%;
+    min-width: 0;
+
     :deep(.el-card__body) {
       padding: 16px;
+      width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
     }
   }
 
   .tasks-table-container {
-    /* PC 端不强制过高的最小高度，避免页面出现多余纵向滚动条 */
-    min-height: 750px;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
     display: flex;
     flex-direction: column;
+    box-sizing: border-box;
+  }
+
+  .tasks-collapse-wrap {
+    flex: 1;
+    min-height: 0;
+    min-width: 0;
+    width: 100%;
+
+    :deep(.table-panel) {
+      width: 100%;
+      min-width: 0;
+    }
+
+    :deep(.table-panel__body) {
+      width: 100%;
+      min-width: 0;
+    }
+  }
+
+  .tasks-unified-table {
+    width: 100%;
+    border: 1px solid var(--el-border-color);
+    border-radius: 8px;
+    overflow: hidden;
+    background: #f3f5f8;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+
+    &:not(:last-child) {
+      margin-bottom: 12px;
+    }
+
+    &__outer {
+      border: none;
+      background: transparent;
+
+      :deep(.el-collapse-item) {
+        border: none;
+      }
+
+      :deep(.el-collapse-item__header) {
+        height: auto;
+        min-height: 42px;
+        line-height: 1.45;
+        padding: 8px 12px 8px 8px;
+        font-weight: 600;
+        background: #d4dae4 !important;
+        border-bottom: 1px solid #9aaabe;
+        transition: background-color 0.15s ease;
+
+        &:hover {
+          background: #a8b8cc !important;
+        }
+      }
+
+      :deep(.el-collapse-item__arrow) {
+        margin: 0 6px 0 2px;
+        font-size: 12px;
+        color: var(--el-text-color-secondary);
+      }
+
+      :deep(.el-collapse-item__wrap) {
+        border-bottom: none;
+      }
+
+      :deep(.el-collapse-item__content) {
+        padding: 0;
+        background: #f3f5f8;
+      }
+
+      &--mobile {
+        margin-bottom: 12px;
+        border: 1px solid #9aaabe;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #ffffff;
+
+        :deep(.el-collapse-item__header) {
+          background: #b8c5d6 !important;
+          border-bottom: 1px solid #9aaabe;
+
+          &:hover {
+            background: #a8b8cc !important;
+          }
+        }
+
+        :deep(.el-collapse-item__content) {
+          padding: 8px;
+          background: #fafbfc;
+        }
+      }
+    }
+
+    &__outer-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    &__outer-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--el-text-color-primary);
+      word-break: break-all;
+      line-height: 1.45;
+    }
+
+    &__outer-count {
+      flex-shrink: 0;
+      min-width: 20px;
+      height: 20px;
+      padding: 0 6px;
+      font-size: 12px;
+      line-height: 20px;
+      text-align: center;
+      font-weight: 400;
+      color: var(--el-text-color-regular);
+      background: #dfe4ec;
+      border-radius: 10px;
+    }
+
+    &__content {
+      width: 100%;
+      background: #f3f5f8;
+      overflow-x: auto;
+    }
+
+    &__header {
+      width: 100%;
+
+      :deep(.el-table__header) table {
+        width: 100% !important;
+        table-layout: fixed;
+      }
+
+      :deep(.el-table__body-wrapper) {
+        display: none;
+      }
+
+      :deep(.el-table__empty-block) {
+        display: none;
+      }
+
+      :deep(.el-table__inner-wrapper::before) {
+        display: none;
+      }
+
+      :deep(.el-table__border-left-patch),
+      :deep(.el-table__border-right-patch) {
+        display: none;
+      }
+
+      :deep(th.el-table__cell) {
+        background: #e4e8ee;
+        font-weight: 600;
+        font-size: 13px;
+        color: var(--el-text-color-primary);
+        padding: 9px 12px;
+        border-bottom: 1px solid var(--el-border-color);
+        border-right: 1px solid #d8dde6;
+
+        &:last-child {
+          border-right: none;
+        }
+      }
+    }
+  }
+
+  :deep(.tasks-collapse) {
+    width: 100%;
+    border: none;
+    background: #f3f5f8;
+
+    &.tasks-collapse--nested {
+      background: #fafbfc;
+    }
+
+    .el-collapse-item {
+      margin-bottom: 0;
+      border: none;
+      border-radius: 0;
+      overflow: hidden;
+    }
+
+    .el-collapse-item__header {
+      height: auto;
+      min-height: 38px;
+      line-height: 1.45;
+      padding: 6px 12px 6px 8px;
+      font-weight: 500;
+      background: #eef1f6 !important;
+      border-bottom: 1px solid #d8dde6;
+      transition: background-color 0.15s ease;
+
+      &:hover {
+        background: #e8ecf2;
+      }
+    }
+
+    .el-collapse-item__arrow {
+      margin: 0 6px 0 2px;
+      font-size: 12px;
+      color: var(--el-text-color-secondary);
+    }
+
+    .el-collapse-item__wrap {
+      border-bottom: none;
+    }
+
+    .el-collapse-item__content {
+      padding: 0;
+      background: #fafbfc;
+    }
+
+    &:not(.tasks-collapse--nested)>.el-collapse-item>.el-collapse-item__header {
+      background: #e8ecf2;
+      border-bottom: 1px solid #d0d6e0;
+    }
+  }
+
+  :deep(.tasks-collapse--nested) {
+    .el-collapse-item__header {
+      background: #f0f3f7;
+      border-bottom: 1px solid #d8dde6;
+    }
+
+    .el-collapse-item__content {
+      background: #f7f8fa;
+    }
+  }
+
+  :deep(.tasks-collapse--mobile) {
+    background: #f3f5f8;
+
+    .el-collapse-item {
+      margin-bottom: 8px;
+      border-radius: 8px;
+      border: 1px solid #d0d6e0;
+      overflow: hidden;
+      background: #ffffff;
+    }
+
+    .el-collapse-item__header {
+      padding: 10px 12px 10px 6px;
+      background: #eef1f6;
+      border-bottom: 1px solid #d8dde6;
+    }
+
+    .el-collapse-item__content {
+      padding: 6px 8px 10px;
+      background: #fafbfc;
+    }
+  }
+
+  :deep(.tasks-collapse-single) {
+    background: #ffffff;
+    border-bottom: 1px solid #d8dde6;
+
+    &[data-depth="1"] {
+      background: #f7f9fc;
+    }
+  }
+
+  :deep(.tasks-collapse__title) {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    flex: 1;
+    box-sizing: border-box;
+    position: relative;
+
+    &[data-depth="2"],
+    &[data-depth="3"],
+    &[data-depth="4"] {
+      &::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 4px;
+        bottom: 4px;
+        width: 2px;
+        border-radius: 1px;
+        background: var(--el-color-primary-light-7);
+      }
+    }
+
+    &[data-depth="3"]::before,
+    &[data-depth="4"]::before {
+      background: var(--el-color-primary-light-8);
+    }
+  }
+
+  :deep(.tasks-collapse__name) {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--el-text-color-primary);
+    word-break: break-all;
+    line-height: 1.45;
+  }
+
+  :deep(.tasks-collapse__title[data-depth="1"] .tasks-collapse__name) {
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  :deep(.tasks-collapse__count) {
+    flex-shrink: 0;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    font-size: 12px;
+    line-height: 20px;
+    text-align: center;
+    color: var(--el-text-color-regular);
+    background: #dfe4ec;
+    border-radius: 10px;
+  }
+
+  :deep(.tasks-collapse-node-tasks) {
+    background: #ffffff;
+    border-top: 1px solid #e2e6ed;
+  }
+
+  :deep(.tasks-collapse-table) {
+    width: 100%;
+    background: #ffffff;
+
+    .el-table__header table,
+    .el-table__body table {
+      width: 100% !important;
+      table-layout: fixed;
+    }
+
+    .el-table__body-wrapper {
+      overflow: hidden;
+    }
+
+    .el-table__inner-wrapper::before {
+      display: none;
+    }
+
+    .el-table__border-left-patch,
+    .el-table__border-right-patch {
+      display: none;
+    }
+
+    .el-table__cell {
+      padding: 9px 12px;
+      font-size: 13px;
+      border-right: 1px solid #e2e6ed !important;
+      background: #ffffff;
+
+      &:last-child {
+        border-right: none !important;
+      }
+    }
+
+    .el-table__body tr {
+      td {
+        border-bottom: 1px solid #d8dde6;
+      }
+
+      &:nth-child(even):not(.tasks-collapse-table__group-row) td {
+        background: #f6f8fb;
+      }
+
+      &:hover:not(.tasks-collapse-table__group-row)>td {
+        background-color: #eef3f9 !important;
+      }
+
+      &.tasks-collapse-table__group-row td {
+        background: #eef1f6 !important;
+        font-weight: 500;
+      }
+    }
+  }
+
+  :deep(.tasks-collapse-table__group-title) {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    color: var(--el-text-color-primary);
+  }
+
+  :deep(.tasks-collapse-table__count) {
+    flex-shrink: 0;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    font-size: 12px;
+    line-height: 20px;
+    text-align: center;
+    font-weight: 400;
+    color: var(--el-text-color-regular);
+    background: #dfe4ec;
+    border-radius: 10px;
+  }
+
+  :deep(.tasks-collapse-table__task-name) {
+    display: inline-block;
+    box-sizing: border-box;
+    max-width: 100%;
+    word-break: break-all;
+    font-weight: 500;
+    color: var(--el-text-color-primary);
+    position: relative;
+
+    &[data-depth="2"]::before,
+    &[data-depth="3"]::before,
+    &[data-depth="4"]::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0.35em;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--el-color-primary-light-5);
+      transform: translateX(-10px);
+    }
+  }
+
+  :deep(.tasks-collapse-table__text) {
+    font-size: 13px;
+    color: var(--el-text-color-primary);
+  }
+
+  :deep(.tasks-collapse-table__muted) {
+    color: var(--el-text-color-secondary);
+    font-size: 12px;
+  }
+
+  :deep(.tasks-collapse-table .el-tag) {
+    border: none;
   }
 
   .table-header-actions {
+    position: relative;
     display: flex;
+    align-items: center;
+    justify-content: flex-end;
     gap: 12px;
     margin-bottom: 16px;
+    min-height: 32px;
+  }
+
+  .table-header-project-name {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--el-text-color-primary);
+    line-height: 1.4;
+    text-align: center;
+    max-width: calc(100% - 280px);
+    word-break: break-all;
+    pointer-events: none;
+  }
+
+  .table-header-actions__btns {
+    display: flex;
+    gap: 12px;
     align-items: center;
-    justify-content: space-between;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
 
   .page-header {
@@ -2211,6 +2679,32 @@ onUnmounted(() => {
     padding: 32px 0;
   }
 
+  :deep(.mobile-task-group-header) {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    background: #eef1f6;
+    border: 1px solid #d8dde6;
+    border-radius: 8px;
+    font-weight: 600;
+    color: var(--el-text-color-primary);
+  }
+
+  :deep(.mobile-task-group-header__count) {
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    font-size: 12px;
+    line-height: 20px;
+    text-align: center;
+    font-weight: 400;
+    color: var(--el-text-color-regular);
+    background: #dfe4ec;
+    border-radius: 10px;
+  }
+
   .mobile-task-card {
     background: var(--el-bg-color);
     border: 1px solid var(--el-border-color-lighter);
@@ -2358,36 +2852,29 @@ onUnmounted(() => {
     }
 
     .table-header-actions {
-      flex-direction: column;
-      gap: 10px;
+      gap: 8px;
       margin-bottom: 12px;
+      min-height: 32px;
 
-      .el-button {
-        width: 100%;
-        margin: 0;
-        justify-content: center;
+      .table-header-project-name {
+        max-width: calc(100% - 200px);
+        font-size: 14px;
+      }
+
+      .table-header-actions__btns {
+        gap: 8px;
+      }
+
+      .table-header-actions__btns .el-button {
+        padding: 8px 12px;
       }
     }
 
     .tasks-table-container {
-      min-height: 380px;
+      min-height: 0;
 
-      :deep(.nested-tabs-container) {
-        .el-tabs__item {
-          padding: 0 14px;
-          font-size: 13px;
-          height: 40px;
-          line-height: 40px;
-          max-width: 160px;
-        }
-
-        .tab-name {
-          max-width: 120px;
-        }
-
-        .tab-count {
-          font-size: 12px;
-        }
+      .tasks-collapse__name {
+        font-size: 13px;
       }
 
       :deep(.el-table) {
@@ -2459,22 +2946,10 @@ onUnmounted(() => {
     }
 
     .tasks-table-container {
-      min-height: 360px;
+      min-height: 0;
 
-      :deep(.nested-tabs-container) .el-tabs__item {
-        padding: 0 12px;
+      .tasks-collapse__name {
         font-size: 12px;
-        height: 38px;
-        line-height: 38px;
-        max-width: 140px;
-      }
-
-      :deep(.nested-tabs-container) .tab-name {
-        font-size: 11px;
-      }
-
-      :deep(.nested-tabs-container) .tab-count {
-        font-size: 11px;
       }
 
       :deep(.el-table) .el-table__cell {

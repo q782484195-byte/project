@@ -77,10 +77,10 @@ const isLegacyDepartmentListItem = (
 ): item is DepartmentListItem => {
   return Boolean(
     item &&
-      typeof item === "object" &&
-      "部门名" in item &&
-      typeof (item as DepartmentListItem).部门名 === "string" &&
-      !("username" in item)
+    typeof item === "object" &&
+    "部门名" in item &&
+    typeof (item as DepartmentListItem).部门名 === "string" &&
+    !("username" in item)
   );
 };
 
@@ -121,8 +121,8 @@ const isDepartmentUserArray = (
     (value.length === 0 ||
       Boolean(
         value[0] &&
-          typeof value[0] === "object" &&
-          "username" in (value[0] as DepartmentSelectUser)
+        typeof value[0] === "object" &&
+        "username" in (value[0] as DepartmentSelectUser)
       ))
   );
 };
