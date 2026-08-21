@@ -11,7 +11,6 @@
         <h2>{{ project?.name || "项目详情" }}</h2>
       </div>
     </div>
-
     <div v-loading="loading" class="detail-content">
       <!-- 项目统计信息 - Tab 形式 -->
       <el-card v-if="project" class="statistics-card">
@@ -69,7 +68,7 @@
               </el-row> -->
 
               <!-- 需求任务管理模块 -->
-              <div v-if="requirementsTasksData" class="requirements-tasks-manager" style="margin-top: 20px">
+              <div v-if="hasRequirementsTasksData" class="requirements-tasks-manager" style="margin-top: 20px">
                 <el-tabs v-model="activeCategoryTab" type="border-card">
                   <el-tab-pane v-for="(categoryData, categoryName) in requirementsTasksData" :key="categoryName"
                     :label="categoryName" :name="categoryName">
@@ -79,6 +78,12 @@
                       @delete="handleDeleteRequirementOrTask" @refresh="handleRequirementTaskRefresh" />
                   </el-tab-pane>
                 </el-tabs>
+              </div>
+              <div v-else-if="structureTreeLoading" class="statistics-loading">
+                <el-skeleton :rows="4" animated />
+              </div>
+              <div v-else class="statistics-empty">
+                <el-empty description="暂无需求任务数据" :image-size="100" />
               </div>
             </div>
             <div v-else class="statistics-loading">
@@ -470,6 +475,22 @@ const structureTreeLoading = ref(false);
 // 需求任务嵌套数据（原始格式）
 const requirementsTasksData = ref<Record<string, any> | null>(null);
 const activeCategoryTab = ref<string>("");
+
+const hasMeaningfulTreeContent = (value: unknown): boolean => {
+  if (value == null) return false;
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value !== "object") return true;
+
+  const node = value as Record<string, unknown>;
+  const keys = Object.keys(node);
+  if (keys.length === 0) return false;
+  if ("_id" in node || "需求名" in node || "任务名" in node) return true;
+  return keys.some(key => hasMeaningfulTreeContent(node[key]));
+};
+
+const hasRequirementsTasksData = computed(() =>
+  hasMeaningfulTreeContent(requirementsTasksData.value)
+);
 const importingRequirement = ref(false);
 const bugList = ref<Array<{
   _id?: string;
@@ -1564,6 +1585,14 @@ const getPriorityText = (priority: "low" | "medium" | "high"): string => {
 
 .statistics-loading {
   padding: 8px 0;
+}
+
+.statistics-empty {
+  padding: 40px 0;
+  margin-top: 12px;
+  border: 1px dashed #dcdfe6;
+  border-radius: 8px;
+  background: #fafafa;
 }
 
 .statistics-content {

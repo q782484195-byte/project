@@ -196,7 +196,7 @@ export interface TaskWithDetailItem {
   creator: string;
   create_time: string;
   当前处理人?: string;
-  user_department?: string;
+  department?: string;
   指派人?: string;
   指派给?: string;
   审阅人?: string;
@@ -613,6 +613,7 @@ export interface CreateTaskParams {
   requirement_name: string;
   priority: string;
   default_person?: string;
+  department?: string;
   attachment?: string[];
   task_deadline: string;
 }
@@ -628,6 +629,7 @@ export const createTask = (params: CreateTaskParams) => {
       priority: params.priority,
       task_deadline: params.task_deadline,
       default_person: params.default_person,
+      department: params.department,
       attachment: params.attachment || []
     }
   });
@@ -641,6 +643,7 @@ export interface UpdateTaskParams {
   priority: string;
   task_deadline?: string;
   default_person?: string;
+  department?: string;
   attachment?: string[];
   estimated_time?: number;
   development_start_time?: string;
@@ -657,6 +660,7 @@ export const updateTask = (params: UpdateTaskParams) => {
       priority: params.priority,
       task_deadline: params.task_deadline,
       default_person: params.default_person,
+      department: params.department,
       attachment: params.attachment || [],
       estimated_time: params.estimated_time,
       development_start_time: params.development_start_time,

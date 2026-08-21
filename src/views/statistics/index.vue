@@ -66,9 +66,9 @@
                   <span v-else>{{ row.任务名 || row.task_name || row.title || "-" }}</span>
                 </template>
               </el-table-column>
-              <el-table-column prop="user_department" label="部门" min-width="100" show-overflow-tooltip>
+              <el-table-column prop="department" label="部门" min-width="100" show-overflow-tooltip>
                 <template #default="{ row }">
-                  {{ row.user_department || row.部门 || "-" }}
+                  {{ row.department || "" }}
                 </template>
               </el-table-column>
               <el-table-column prop="当前处理人" label="责任人" min-width="120">
@@ -134,7 +134,7 @@
                   </div>
                   <div class="mobile-task-card__row">
                     <span class="mobile-task-card__label">部门</span>
-                    <span class="mobile-task-card__value">{{ row.user_department || row.部门 || "-" }}</span>
+                    <span class="mobile-task-card__value">{{ row.department || "" }}</span>
                   </div>
                   <div class="mobile-task-card__row">
                     <span class="mobile-task-card__label">责任人</span>

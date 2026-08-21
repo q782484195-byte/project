@@ -74,9 +74,9 @@ export const getTaskSecondaryCategory = (node: TaskCollapseNode, row?: any): str
   return taskName || "-";
 };
 
-/** 任务行部门 */
+/** 任务行部门（仅取 department 字段，无值留空） */
 export const getTaskDepartment = (row?: any): string => {
   if (!row || row._isGroupHeader) return "";
-  const dept = row.user_department || row.部门 || row.department;
-  return dept ? String(dept) : "-";
+  const dept = row.department;
+  return dept ? String(dept) : "";
 };

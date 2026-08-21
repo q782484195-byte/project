@@ -28,7 +28,7 @@
           </span>
         </template>
       </el-table-column>
-      <el-table-column prop="user_department" :min-width="TASK_TABLE_COLUMN_WIDTHS.department">
+      <el-table-column prop="department" :min-width="TASK_TABLE_COLUMN_WIDTHS.department">
         <template #default="{ row }">
           <span v-if="!row._isGroupHeader" class="tasks-collapse-table__text assignee-text-dept">
             {{ getTaskDepartment(row) }}
@@ -119,7 +119,7 @@
           <div class="mobile-task-card__row">
             <span class="mobile-task-card__label">部门</span>
             <span class="mobile-task-card__value">
-              <el-tag type="success" size="small">{{ getTaskDepartment(row) }}</el-tag>
+              <el-tag v-if="getTaskDepartment(row)" type="success" size="small">{{ getTaskDepartment(row) }}</el-tag>
             </span>
           </div>
           <div class="mobile-task-card__row">

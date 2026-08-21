@@ -15,6 +15,19 @@
               :value="requirement.id" />
           </el-select>
         </el-form-item>
+        <el-form-item label="部门" prop="department" required>
+          <el-select
+            v-model="taskForm.department"
+            placeholder="请选择部门"
+            clearable
+            filterable
+            style="width: 100%"
+            :loading="departmentsLoading"
+            :disabled="isEdit && !canEditAllFields"
+          >
+            <el-option v-for="dept in departmentOptions" :key="dept" :label="dept" :value="dept" />
+          </el-select>
+        </el-form-item>
         <el-form-item v-if="showDefaultPersonField" label="默认部门负责人" prop="default_person">
           <el-tree-select v-model="taskForm.default_person" placeholder="请选择默认部门负责人" :loading="departmentLeadersLoading"
             filterable check-strictly default-expand-all :data="departmentLeadersTree" :props="treeSelectProps"
@@ -139,6 +152,8 @@ const projects = ref<Array<{ id: string; name: string }>>([]);
 const projectsLoading = ref(false);
 const departmentLeadersTree = ref<any[]>([]);
 const departmentLeadersLoading = ref(false);
+const departmentOptions = ref<string[]>([]);
+const departmentsLoading = ref(false);
 const treeSelectProps = {
   label: "label",
   children: "children",
@@ -259,6 +274,7 @@ const taskForm = reactive<{
   requirement_name: string;
   priority: string;
   task_deadline: string;
+  department?: string;
   default_person?: string;
   file_name?: string;
   files?: string[];
@@ -270,6 +286,7 @@ const taskForm = reactive<{
   requirement_name: "",
   priority: "正常",
   task_deadline: "",
+  department: "",
   default_person: ""
 });
 
@@ -301,6 +318,9 @@ const rules: FormRules = {
   ],
   requirement_id: [
     { required: true, message: "请选择所属层级", trigger: "change" }
+  ],
+  department: [
+    { required: true, message: "请选择部门", trigger: "change" }
   ],
 
   priority: [{ required: true, message: "请选择优先级", trigger: "change" }],
@@ -461,6 +481,26 @@ const buildDepartmentLeadersTree = (data: DepartmentListItem[]): any[] => {
   });
 };
 
+// 加载部门列表（新建任务选部门）
+const loadDepartmentOptions = async () => {
+  departmentsLoading.value = true;
+  try {
+    const response = await getDepartmentNameList();
+    if (response.code === 200 && response.result != null) {
+      departmentOptions.value = flattenDepartmentList(response.result)
+        .map(item => String(item.部门名 || "").trim())
+        .filter(Boolean);
+    } else {
+      departmentOptions.value = [];
+    }
+  } catch (error: any) {
+    console.error("加载部门列表失败:", error);
+    departmentOptions.value = [];
+  } finally {
+    departmentsLoading.value = false;
+  }
+};
+
 // 加载部门负责人列表
 const loadDepartmentLeaders = async () => {
   if (!canEditAllFields.value) {
@@ -526,6 +566,7 @@ const resetForm = () => {
     requirement_name: props.requirementName || "",
     priority: "正常",
     task_deadline: "",
+    department: "",
     estimated_time: 1,
     default_person: ""
   });
@@ -534,20 +575,22 @@ const resetForm = () => {
   fileList.value = [];
 };
 
-// 监听 props 变化，填充表单
+// 监听抽屉打开与任务数据，填充表单
 watch(
-  () => props.visible,
-  visible => {
-    if (visible) {
-      // 加载项目列表
-      if (projects.value.length === 0) {
-        loadProjects();
-      }
-      // 加载部门负责人列表
-      if (departmentLeadersTree.value.length === 0) {
-        loadDepartmentLeaders();
-      }
-      if (props.task) {
+  () => [props.visible, props.task?._id || props.task?.id] as const,
+  ([visible]) => {
+    if (!visible) return;
+
+    if (projects.value.length === 0) {
+      loadProjects();
+    }
+    if (departmentOptions.value.length === 0) {
+      loadDepartmentOptions();
+    }
+    if (departmentLeadersTree.value.length === 0) {
+      loadDepartmentLeaders();
+    }
+    if (props.task) {
         // 编辑模式：填充表单
         // 处理 describe：可能是字符串数组或 DescribeContent[]
         let describeContent: DescribeContent[] = [];
@@ -686,6 +729,7 @@ watch(
           project_id:
             props.task.project_id ||
             props.task.projectId ||
+            (props.task as any).project?._id ||
             props.projectId ||
             "",
           requirement_id:
@@ -702,8 +746,14 @@ watch(
             props.task.estimatedHours ||
             (props.task as any).预计工时 ||
             0,
-          default_person: props.task.default_person || (props.task as any).默认部门负责人 || ""
+          default_person: props.task.default_person || (props.task as any).默认部门负责人 || "",
+          department: props.task.department ? String(props.task.department) : ""
         });
+
+        const currentDepartment = taskForm.department;
+        if (currentDepartment && !departmentOptions.value.includes(currentDepartment)) {
+          departmentOptions.value = [...departmentOptions.value, currentDepartment];
+        }
 
         // 填充附件列表
         const files = props.task.files || props.task.attachment || [];
@@ -746,9 +796,6 @@ watch(
           taskForm.requirement_name = props.requirementName || "";
         }
       }
-    } else {
-      resetForm();
-    }
   },
   { immediate: true }
 );
@@ -974,6 +1021,7 @@ const handleSubmit = async () => {
             describe: describeContents,
             priority: taskForm.priority,
             default_person: taskForm.default_person,
+            department: taskForm.department,
             attachment: allFiles.length > 0 ? allFiles : undefined
           });
 
@@ -999,6 +1047,7 @@ const handleSubmit = async () => {
             requirement_name: taskForm.requirement_name,
             priority: taskForm.priority,
             task_deadline: taskForm.task_deadline,
+            department: taskForm.department || undefined,
             default_person: taskForm.default_person,
             attachment: allFiles.length > 0 ? allFiles : undefined
           });

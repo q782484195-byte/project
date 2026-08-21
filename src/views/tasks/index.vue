@@ -70,7 +70,7 @@
                     <el-table :data="[]" class="tasks-unified-table__header">
                       <el-table-column prop="一级分类" label="一级分类" :min-width="TASK_TABLE_COLUMN_WIDTHS.primary" />
                       <el-table-column prop="二级分类" label="二级分类" :min-width="TASK_TABLE_COLUMN_WIDTHS.secondary" />
-                      <el-table-column prop="user_department" label="部门" :min-width="TASK_TABLE_COLUMN_WIDTHS.department" />
+                      <el-table-column prop="department" label="部门" :min-width="TASK_TABLE_COLUMN_WIDTHS.department" />
                       <el-table-column prop="当前处理人" label="责任人" :min-width="TASK_TABLE_COLUMN_WIDTHS.assignee" />
                       <el-table-column prop="状态" label="状态" :min-width="TASK_TABLE_COLUMN_WIDTHS.status" />
                       <el-table-column prop="优先级" label="优先级" :min-width="TASK_TABLE_COLUMN_WIDTHS.priority" />
@@ -1482,12 +1482,13 @@ const mapTaskInfoToDrawerTask = (raw: any) => ({
   id: raw._id || raw.id,
   task_name: raw.task_name || raw.title || raw.任务名 || "",
   describe: raw.describe || [],
-  project_id: raw.project_id || raw.projectId || "",
+  project_id: raw.project_id || raw.projectId || raw.project?._id || "",
   requirement_id: raw.requirement_id || raw.requirementId || "",
   requirement_name: raw.requirement_name || "",
   priority: raw.priority || raw.优先级 || "",
   task_deadline: raw.task_deadline || raw.task_dead_line || "",
   default_person: raw.default_person || raw.默认部门负责人 || "",
+  department: raw.department ? String(raw.department) : "",
   attachment: raw.attachment || raw.files || [],
   current_handler: raw.current_handler || raw.当前处理人 || raw.assignee || ""
 });
@@ -1530,6 +1531,12 @@ const handleEdit = async (task: any) => {
     }
     if (!taskData.requirement_name) {
       taskData.requirement_name = task.requirement_name || "";
+    }
+    if (!taskData.department && task.department) {
+      taskData.department = task.department;
+    }
+    if (!taskData.project_id && taskData.project?._id) {
+      taskData.project_id = taskData.project._id;
     }
     // 完成期限优先使用列表中的「任务完成期限」
     const listDeadline =

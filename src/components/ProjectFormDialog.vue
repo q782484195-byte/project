@@ -16,12 +16,12 @@
       <el-row :gutter="20">
         <el-col :span="12">
           <el-form-item label="客户名称" prop="customer_name">
-            <el-input v-model="projectForm.customer_name" placeholder="请输入客户名称" :disabled="isEdit" />
+            <el-input v-model="projectForm.customer_name" placeholder="请输入客户名称" />
           </el-form-item>
         </el-col>
         <el-col :span="12">
           <el-form-item label="产品类型" prop="product_type">
-            <el-input v-model="projectForm.product_type" placeholder="请输入产品类型" :disabled="isEdit" />
+            <el-input v-model="projectForm.product_type" placeholder="请输入产品类型" />
           </el-form-item>
         </el-col>
       </el-row>
@@ -29,12 +29,12 @@
       <el-row :gutter="20">
         <el-col :span="12">
           <el-form-item label="平台名称" prop="platform_name">
-            <el-input v-model="projectForm.platform_name" placeholder="请输入平台名称" :disabled="isEdit" />
+            <el-input v-model="projectForm.platform_name" placeholder="请输入平台名称" />
           </el-form-item>
         </el-col>
         <el-col :span="12">
           <el-form-item label="主板名称" prop="motherboard_name">
-            <el-input v-model="projectForm.motherboard_name" placeholder="请输入主板名称" :disabled="isEdit" />
+            <el-input v-model="projectForm.motherboard_name" placeholder="请输入主板名称" />
           </el-form-item>
         </el-col>
       </el-row>
@@ -42,7 +42,7 @@
       <el-row :gutter="20">
         <el-col :span="12">
           <el-form-item label="分辨率" prop="resolution">
-            <el-input v-model="projectForm.resolution" placeholder="请输入分辨率" :disabled="isEdit" />
+            <el-input v-model="projectForm.resolution" placeholder="请输入分辨率" />
           </el-form-item>
         </el-col>
         <el-col :span="12">
