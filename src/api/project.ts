@@ -732,6 +732,16 @@ export const updateTaskDeadline = (params: any) => {
   });
 };
 
+/** 更新任务备注 */
+export const updateTaskRemark = (params: { task_id: string; remark?: string }) => {
+  return http.request<ApiResponse<any>>("post", "/task/update_remark", {
+    data: {
+      task_id: params.task_id,
+      remark: params.remark ?? ""
+    }
+  });
+};
+
 /** 更新任务当前负责人参数 */
 export interface UpdateCurrentAssigneeParams {
   task_id: string;
@@ -998,12 +1008,16 @@ export const selectTaskStatistics = (params: {
   project_type?: string;
   project_name?: string;
 }) => {
-  return http.request<ApiResponse<any[]>>("post", "department/task_select", {
-    data: {
-      department: params.department || "",
-      user_name: params.user_name || "",
-      project_type: params.project_type || "",
-      project_name: params.project_name || ""
+  return http.request<ApiResponse<Record<string, any[]> | any[]>>(
+    "post",
+    "department/task_select",
+    {
+      data: {
+        department: params.department || "",
+        user_name: params.user_name || "",
+        project_type: params.project_type || "",
+        project_name: params.project_name || ""
+      }
     }
-  });
+  );
 };

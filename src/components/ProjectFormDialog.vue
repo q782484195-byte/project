@@ -3,7 +3,7 @@
     @close="handleClose">
     <el-form ref="formRef" :model="projectForm" :rules="rules" label-width="100px">
       <el-form-item label="项目类型" prop="project_type">
-        <el-radio-group v-model="projectForm.project_type">
+        <el-radio-group v-model="projectForm.project_type" :disabled="isEdit">
           <el-radio label="定制项目">定制项目</el-radio>
           <el-radio label="公模项目">公模项目</el-radio>
         </el-radio-group>
@@ -253,7 +253,7 @@
 </style>
 
 <script setup lang="ts">
-import { ref, computed, reactive, watch, onMounted } from "vue";
+import { ref, computed, reactive, watch, onMounted, nextTick } from "vue";
 import { ElMessage } from "element-plus";
 import { Upload } from "@element-plus/icons-vue";
 import type {
@@ -601,168 +601,145 @@ const convertStringArrayToDescribe = (
   });
 };
 
-// 监听项目变化，填充表单
+const getEmptyProjectForm = () => ({
+  project_type: "",
+  name: "",
+  customer_name: "",
+  product_type: "",
+  platform_name: "",
+  motherboard_name: "",
+  resolution: "",
+  business_owner: "",
+  creator: "",
+  describe: [] as DescribeContent[],
+  typeId: "",
+  templateId: "",
+  startDate: "",
+  endDate: "",
+  state_description: "",
+  memberIds: [] as string[],
+  project_proposal: [] as string[],
+  project_initiation_date: ""
+});
+
+const resetProjectForm = () => {
+  Object.assign(projectForm, getEmptyProjectForm());
+  fileList.value = [];
+  proposalFileList.value = [];
+};
+
+const normalizeDate = (value?: string) => {
+  if (!value || value.trim() === "") return "";
+  const dateParts = value.split("-");
+  if (dateParts.length === 3) {
+    return `${dateParts[0]}-${dateParts[1].padStart(2, "0")}-${dateParts[2].padStart(2, "0")}`;
+  }
+  return value;
+};
+
+const fillFormFromProject = (project: Project) => {
+  let describeContent: DescribeContent[] = [];
+  if (project.describe && project.describe.length > 0) {
+    describeContent = convertStringArrayToDescribe(project.describe);
+  } else if (project.description) {
+    describeContent = [{ type: "text" as const, content: project.description }];
+  }
+
+  const startDate = normalizeDate((project as any).plant_start_time || "");
+  const endDate = normalizeDate(
+    project.endDate ||
+    (project as any).plant_end_time ||
+    (project as any).completion_time ||
+    (project as any).end_date ||
+    ""
+  );
+  const initiationDateNorm = normalizeDate(
+    (project as any).project_initiation_date || ""
+  );
+
+  Object.assign(projectForm, {
+    project_type: (project as any).project_type || "",
+    name: project.name,
+    customer_name: (project as any).customer_name || "",
+    product_type: (project as any).product_type || "",
+    platform_name: (project as any).platform_name || "",
+    motherboard_name: (project as any).motherboard_name || "",
+    resolution: (project as any).resolution || "",
+    business_owner: (project as any).business_owner || "",
+    creator: project.creator || "",
+    describe: describeContent,
+    typeId: project.typeId || "",
+    templateId: project.templateId || "",
+    startDate,
+    endDate,
+    state_description: (project as any).state_description || "",
+    memberIds: project.members?.map(member => member.id) || [],
+    project_initiation_date: initiationDateNorm
+  });
+
+  const attachmentList = project.attachment || (project as any).attachment || [];
+  if (attachmentList && attachmentList.length > 0) {
+    fileList.value = attachmentList.map((attachmentPath: string, index: number) => {
+      const fileName = getFileNameFromPath(attachmentPath);
+      const fileUrl = getAttachmentUrl(attachmentPath);
+      return {
+        name: fileName,
+        url: fileUrl,
+        status: "success" as const,
+        uid: Date.now() + index,
+        response: attachmentPath
+      } as UploadFile;
+    });
+  } else {
+    fileList.value = [];
+  }
+
+  const proposalList =
+    project.project_proposal || (project as any).project_proposal || [];
+  if (proposalList && proposalList.length > 0) {
+    proposalFileList.value = proposalList.map(
+      (proposalPath: string, index: number) => {
+        const fileName = getFileNameFromPath(proposalPath);
+        const fileUrl = getAttachmentUrl(proposalPath);
+        return {
+          name: fileName,
+          url: fileUrl,
+          status: "success" as const,
+          uid: Date.now() + 10000 + index,
+          response: proposalPath
+        } as UploadFile;
+      }
+    );
+    projectForm.project_proposal = proposalList.map(
+      (path: string) => getFileNameFromPath(path) || path
+    );
+  } else {
+    proposalFileList.value = [];
+    projectForm.project_proposal = [];
+  }
+};
+
+// 弹窗每次打开都重新回填；取消后再次编辑同一项目时 project 引用不变，不能只监听 project
 watch(
-  () => props.project,
-  project => {
+  [() => props.visible, () => props.project],
+  ([visible, project]) => {
+    if (!visible) return;
     if (project) {
-      // 处理 describe：可能是字符串数组或 DescribeContent[]
-      let describeContent: DescribeContent[] = [];
-      if (project.describe && project.describe.length > 0) {
-        describeContent = convertStringArrayToDescribe(project.describe);
-      } else if (project.description) {
-        describeContent = [
-          { type: "text" as const, content: project.description }
-        ];
-      }
-
-      // 获取计划开始时间（只使用 plant_start_time）
-      // 注意：日期格式需要标准化为 YYYY-MM-DD
-      // 如果没有值，保持为空字符串，不自动填入
-      let startDate = (project as any).plant_start_time || "";
-
-      // 标准化日期格式：将 "2025-11-6" 转换为 "2025-11-06"
-      // 只有当 startDate 有值且不为空时才进行格式化
-      if (startDate && startDate.trim() !== "") {
-        const dateParts = startDate.split("-");
-        if (dateParts.length === 3) {
-          const year = dateParts[0];
-          const month = dateParts[1].padStart(2, "0");
-          const day = dateParts[2].padStart(2, "0");
-          startDate = `${year}-${month}-${day}`;
-        }
-      } else {
-        // 如果没有值，保持为空字符串
-        startDate = "";
-      }
-
-      // 获取计划结束时间（支持多种字段名）
-      // 注意：日期格式需要标准化为 YYYY-MM-DD
-      let endDate =
-        project.endDate ||
-        (project as any).plant_end_time ||
-        (project as any).completion_time ||
-        (project as any).end_date ||
-        "";
-
-      // 标准化日期格式：将 "2025-12-6" 转换为 "2025-12-06"
-      if (endDate) {
-        const dateParts = endDate.split("-");
-        if (dateParts.length === 3) {
-          const year = dateParts[0];
-          const month = dateParts[1].padStart(2, "0");
-          const day = dateParts[2].padStart(2, "0");
-          endDate = `${year}-${month}-${day}`;
-        }
-      }
-
-      const initiationDate = (project as any).project_initiation_date || "";
-      let initiationDateNorm = initiationDate;
-      if (initiationDateNorm && initiationDateNorm.includes("-")) {
-        const parts = initiationDateNorm.split("-");
-        if (parts.length >= 3) {
-          initiationDateNorm = `${parts[0]}-${parts[1].padStart(2, "0")}-${parts[2].padStart(2, "0")}`;
-        }
-      }
-      Object.assign(projectForm, {
-        project_type: (project as any).project_type || "",
-        name: project.name,
-        customer_name: (project as any).customer_name || "",
-        product_type: (project as any).product_type || "",
-        platform_name: (project as any).platform_name || "",
-        motherboard_name: (project as any).motherboard_name || "",
-        resolution: (project as any).resolution || "",
-        business_owner: (project as any).business_owner || "",
-        creator: project.creator || "", // 项目负责人
-        describe: describeContent,
-        typeId: project.typeId || "",
-        templateId: project.templateId || "",
-        startDate: startDate,
-        endDate: endDate,
-        memberIds: project.members?.map(member => member.id) || [],
-        project_initiation_date: initiationDateNorm
-      });
-
-      // 填充附件列表（编辑模式下）
-      // 支持多种字段名：attachment
-      const attachmentList =
-        project.attachment ||
-        (project as any).attachment ||
-        [];
-
-      if (attachmentList && attachmentList.length > 0) {
-        fileList.value = attachmentList.map((attachmentPath: string, index: number) => {
-          const fileName = getFileNameFromPath(attachmentPath);
-          const fileUrl = getAttachmentUrl(attachmentPath);
-          return {
-            name: fileName,
-            url: fileUrl,
-            status: "success" as const,
-            uid: Date.now() + index, // 生成唯一ID
-            response: attachmentPath // 保存原始路径，用于后续处理
-          } as UploadFile;
-        });
-      } else {
-        fileList.value = [];
-      }
-
-      // 填充立项文件列表（编辑模式下）
-      // 支持多种字段名：project_proposal
-      const proposalList =
-        project.project_proposal ||
-        (project as any).project_proposal ||
-        [];
-
-      if (proposalList && proposalList.length > 0) {
-        proposalFileList.value = proposalList.map((proposalPath: string, index: number) => {
-          const fileName = getFileNameFromPath(proposalPath);
-          const fileUrl = getAttachmentUrl(proposalPath);
-          return {
-            name: fileName,
-            url: fileUrl,
-            status: "success" as const,
-            uid: Date.now() + 10000 + index, // 生成唯一ID（与附件文件区分）
-            response: proposalPath // 保存原始路径，用于后续处理
-          } as UploadFile;
-        });
-      } else {
-        proposalFileList.value = [];
-      }
+      fillFormFromProject(project);
     } else {
-      // 清空附件列表和立项文件列表
-      fileList.value = [];
-      proposalFileList.value = [];
+      resetProjectForm();
     }
-  },
-  { immediate: true }
+    nextTick(() => {
+      formRef.value?.clearValidate();
+    });
+  }
 );
 
 const handleClose = () => {
   if (formRef.value) {
     formRef.value.resetFields();
   }
-  // 重置表单
-  Object.assign(projectForm, {
-    project_type: "",
-    name: "",
-    customer_name: "",
-    product_type: "",
-    platform_name: "",
-    motherboard_name: "",
-    resolution: "",
-    business_owner: "",
-    creator: "",
-    describe: [],
-    typeId: "",
-    templateId: "",
-    startDate: "",
-    endDate: "",
-    memberIds: [],
-    project_proposal: [],
-    project_initiation_date: ""
-  });
-  fileList.value = [];
-  proposalFileList.value = [];
+  resetProjectForm();
   dialogVisible.value = false;
 };
 

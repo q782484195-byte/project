@@ -41,6 +41,7 @@ export const TASK_TABLE_COLUMN_WIDTHS = {
   status: 100,
   priority: 90,
   assignTime: 140,
+  remark: 180,
   deadline: 140
 } as const;
 
@@ -79,4 +80,11 @@ export const getTaskDepartment = (row?: any): string => {
   if (!row || row._isGroupHeader) return "";
   const dept = row.department;
   return dept ? String(dept) : "";
+};
+
+/** 任务备注（兼容 remark / 备注） */
+export const getTaskRemark = (row?: any): string => {
+  if (!row || row._isGroupHeader) return "";
+  const value = row.remark ?? row.备注;
+  return value == null ? "" : String(value);
 };

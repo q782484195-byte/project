@@ -7,7 +7,7 @@
           <el-input v-model="taskForm.task_name" placeholder="请输入任务名称" maxlength="100" show-word-limit
             :disabled="isEdit && !canEditAllFields" />
         </el-form-item>
-        <el-form-item label="所属层级" prop="requirement_id">
+        <el-form-item label="一级节点" prop="requirement_id">
           <el-select v-model="taskForm.requirement_id" placeholder="选择层级" clearable style="width: 100%"
             :disabled="isEdit || !taskForm.project_id || requirementsLoading" :loading="requirementsLoading"
             @change="handleRequirementChange">
@@ -16,15 +16,8 @@
           </el-select>
         </el-form-item>
         <el-form-item label="部门" prop="department" required>
-          <el-select
-            v-model="taskForm.department"
-            placeholder="请选择部门"
-            clearable
-            filterable
-            style="width: 100%"
-            :loading="departmentsLoading"
-            :disabled="isEdit && !canEditAllFields"
-          >
+          <el-select v-model="taskForm.department" placeholder="请选择部门" clearable filterable style="width: 100%"
+            :loading="departmentsLoading" :disabled="isEdit && !canEditAllFields">
             <el-option v-for="dept in departmentOptions" :key="dept" :label="dept" :value="dept" />
           </el-select>
         </el-form-item>
@@ -591,88 +584,35 @@ watch(
       loadDepartmentLeaders();
     }
     if (props.task) {
-        // 编辑模式：填充表单
-        // 处理 describe：可能是字符串数组或 DescribeContent[]
-        let describeContent: DescribeContent[] = [];
-        if (props.task.describe) {
-          if (Array.isArray(props.task.describe)) {
-            // 检查是否是 DescribeContent[] 格式
-            if (
-              props.task.describe.length > 0 &&
-              typeof props.task.describe[0] === "object" &&
-              "type" in props.task.describe[0]
-            ) {
-              // 已经是 DescribeContent[] 格式，但需要确保图片 URL 是完整的
-              describeContent = (props.task.describe as DescribeContent[]).map(
-                item => {
-                  if (item.type === "url" && item.content) {
-                    // 如果是图片 URL，确保是完整 URL（用于显示）
-                    return {
-                      ...item,
-                      content: getImageUrl(item.content)
-                    };
-                  }
-                  return item;
-                }
-              );
-            } else {
-              // 字符串数组，转换为 DescribeContent[]，需要判断是文本还是图片URL
-              describeContent = (props.task.describe as string[]).map(
-                (item: string) => {
-                  // 判断是文本还是图片URL
-                  const isImage =
-                    (item.startsWith("http://") ||
-                      item.startsWith("https://") ||
-                      item.startsWith("/")) &&
-                    /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?|$)/i.test(item);
-
-                  if (isImage) {
-                    // 图片 URL，转换为完整 URL（用于显示）
-                    return {
-                      type: "url" as const,
-                      content: getImageUrl(item)
-                    };
-                  } else {
-                    return {
-                      type: "text" as const,
-                      content: item
-                    };
-                  }
-                }
-              );
-            }
-          } else if (typeof props.task.describe === "string") {
-            // 单个字符串，按空格分割
-            if (props.task.describe.trim()) {
-              const parts = props.task.describe
-                .split(" ")
-                .filter(p => p.trim());
-              describeContent = parts.map((item: string) => {
-                const isImage =
-                  (item.startsWith("http://") ||
-                    item.startsWith("https://") ||
-                    item.startsWith("/")) &&
-                  /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?|$)/i.test(item);
-
-                if (isImage) {
+      // 编辑模式：填充表单
+      // 处理 describe：可能是字符串数组或 DescribeContent[]
+      let describeContent: DescribeContent[] = [];
+      if (props.task.describe) {
+        if (Array.isArray(props.task.describe)) {
+          // 检查是否是 DescribeContent[] 格式
+          if (
+            props.task.describe.length > 0 &&
+            typeof props.task.describe[0] === "object" &&
+            "type" in props.task.describe[0]
+          ) {
+            // 已经是 DescribeContent[] 格式，但需要确保图片 URL 是完整的
+            describeContent = (props.task.describe as DescribeContent[]).map(
+              item => {
+                if (item.type === "url" && item.content) {
+                  // 如果是图片 URL，确保是完整 URL（用于显示）
                   return {
-                    type: "url" as const,
-                    content: getImageUrl(item)
-                  };
-                } else {
-                  return {
-                    type: "text" as const,
-                    content: item
+                    ...item,
+                    content: getImageUrl(item.content)
                   };
                 }
-              });
-            }
-          }
-        } else if (props.task.description) {
-          // 兼容 description 字段
-          if (Array.isArray(props.task.description)) {
-            describeContent = (props.task.description as string[]).map(
+                return item;
+              }
+            );
+          } else {
+            // 字符串数组，转换为 DescribeContent[]，需要判断是文本还是图片URL
+            describeContent = (props.task.describe as string[]).map(
               (item: string) => {
+                // 判断是文本还是图片URL
                 const isImage =
                   (item.startsWith("http://") ||
                     item.startsWith("https://") ||
@@ -680,6 +620,7 @@ watch(
                   /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?|$)/i.test(item);
 
                 if (isImage) {
+                  // 图片 URL，转换为完整 URL（用于显示）
                   return {
                     type: "url" as const,
                     content: getImageUrl(item)
@@ -692,110 +633,162 @@ watch(
                 }
               }
             );
-          } else if (typeof props.task.description === "string") {
-            if (props.task.description.trim()) {
-              const parts = props.task.description
-                .split(" ")
-                .filter(p => p.trim());
-              describeContent = parts.map((item: string) => {
-                const isImage =
-                  (item.startsWith("http://") ||
-                    item.startsWith("https://") ||
-                    item.startsWith("/")) &&
-                  /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?|$)/i.test(item);
+          }
+        } else if (typeof props.task.describe === "string") {
+          // 单个字符串，按空格分割
+          if (props.task.describe.trim()) {
+            const parts = props.task.describe
+              .split(" ")
+              .filter(p => p.trim());
+            describeContent = parts.map((item: string) => {
+              const isImage =
+                (item.startsWith("http://") ||
+                  item.startsWith("https://") ||
+                  item.startsWith("/")) &&
+                /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?|$)/i.test(item);
 
-                if (isImage) {
-                  return {
-                    type: "url" as const,
-                    content: getImageUrl(item)
-                  };
-                } else {
-                  return {
-                    type: "text" as const,
-                    content: item
-                  };
-                }
-              });
-            }
+              if (isImage) {
+                return {
+                  type: "url" as const,
+                  content: getImageUrl(item)
+                };
+              } else {
+                return {
+                  type: "text" as const,
+                  content: item
+                };
+              }
+            });
           }
         }
+      } else if (props.task.description) {
+        // 兼容 description 字段
+        if (Array.isArray(props.task.description)) {
+          describeContent = (props.task.description as string[]).map(
+            (item: string) => {
+              const isImage =
+                (item.startsWith("http://") ||
+                  item.startsWith("https://") ||
+                  item.startsWith("/")) &&
+                /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?|$)/i.test(item);
 
-        const deadlineFromList = getTaskDeadlineFromTask(props.task);
-        originalTaskDeadline.value = deadlineFromList;
+              if (isImage) {
+                return {
+                  type: "url" as const,
+                  content: getImageUrl(item)
+                };
+              } else {
+                return {
+                  type: "text" as const,
+                  content: item
+                };
+              }
+            }
+          );
+        } else if (typeof props.task.description === "string") {
+          if (props.task.description.trim()) {
+            const parts = props.task.description
+              .split(" ")
+              .filter(p => p.trim());
+            describeContent = parts.map((item: string) => {
+              const isImage =
+                (item.startsWith("http://") ||
+                  item.startsWith("https://") ||
+                  item.startsWith("/")) &&
+                /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?|$)/i.test(item);
 
-        Object.assign(taskForm, {
-          task_name: props.task.task_name || props.task.title || (props.task as any).任务名 || "",
-          describe: describeContent,
-          project_id:
-            props.task.project_id ||
-            props.task.projectId ||
-            (props.task as any).project?._id ||
-            props.projectId ||
-            "",
-          requirement_id:
-            props.task.requirement_id ||
-            props.task.requirementId ||
-            props.requirementId ||
-            "",
-          requirement_name:
-            props.task.requirement_name || props.requirementName || "",
-          priority: props.task.priority || (props.task as any).优先级 || "正常",
-          task_deadline: deadlineFromList,
-          estimated_time:
-            props.task.estimated_time ||
-            props.task.estimatedHours ||
-            (props.task as any).预计工时 ||
-            0,
-          default_person: props.task.default_person || (props.task as any).默认部门负责人 || "",
-          department: props.task.department ? String(props.task.department) : ""
-        });
-
-        const currentDepartment = taskForm.department;
-        if (currentDepartment && !departmentOptions.value.includes(currentDepartment)) {
-          departmentOptions.value = [...departmentOptions.value, currentDepartment];
-        }
-
-        // 填充附件列表
-        const files = props.task.files || props.task.attachment || [];
-        if (Array.isArray(files) && files.length > 0) {
-          fileList.value = files.map((filePath: string, index: number) => {
-            const fileName = getFileNameFromPath(filePath);
-            const fileUrl = getAttachmentUrl(filePath);
-            return {
-              name: fileName,
-              url: fileUrl,
-              status: "success" as const,
-              uid: Date.now() + index,
-              response: filePath
-            } as UploadFile;
-          });
-        } else {
-          fileList.value = [];
-        }
-
-        // 编辑模式：如果任务有项目ID，加载该项目的层级列表
-        if (taskForm.project_id) {
-          loadRequirements(taskForm.project_id);
-        }
-      } else {
-        // 新建模式：如果传入了项目ID和需求ID，自动填充
-        resetForm();
-        console.log("新建模式，props:", {
-          projectId: props.projectId,
-          requirementId: props.requirementId,
-          requirementName: props.requirementName
-        });
-
-        if (props.projectId) {
-          taskForm.project_id = props.projectId;
-          // 加载该项目的层级列表（loadRequirements 内部会处理 requirementId 的设置）
-          loadRequirements(props.projectId);
-        } else if (props.requirementId) {
-          // 如果没有项目ID但有需求ID，先设置需求信息（后续选择项目时会加载层级列表）
-          taskForm.requirement_id = props.requirementId;
-          taskForm.requirement_name = props.requirementName || "";
+              if (isImage) {
+                return {
+                  type: "url" as const,
+                  content: getImageUrl(item)
+                };
+              } else {
+                return {
+                  type: "text" as const,
+                  content: item
+                };
+              }
+            });
+          }
         }
       }
+
+      const deadlineFromList = getTaskDeadlineFromTask(props.task);
+      originalTaskDeadline.value = deadlineFromList;
+
+      Object.assign(taskForm, {
+        task_name: props.task.task_name || props.task.title || (props.task as any).任务名 || "",
+        describe: describeContent,
+        project_id:
+          props.task.project_id ||
+          props.task.projectId ||
+          (props.task as any).project?._id ||
+          props.projectId ||
+          "",
+        requirement_id:
+          props.task.requirement_id ||
+          props.task.requirementId ||
+          props.requirementId ||
+          "",
+        requirement_name:
+          props.task.requirement_name || props.requirementName || "",
+        priority: props.task.priority || (props.task as any).优先级 || "正常",
+        task_deadline: deadlineFromList,
+        estimated_time:
+          props.task.estimated_time ||
+          props.task.estimatedHours ||
+          (props.task as any).预计工时 ||
+          0,
+        default_person: props.task.default_person || (props.task as any).默认部门负责人 || "",
+        department: props.task.department ? String(props.task.department) : ""
+      });
+
+      const currentDepartment = taskForm.department;
+      if (currentDepartment && !departmentOptions.value.includes(currentDepartment)) {
+        departmentOptions.value = [...departmentOptions.value, currentDepartment];
+      }
+
+      // 填充附件列表
+      const files = props.task.files || props.task.attachment || [];
+      if (Array.isArray(files) && files.length > 0) {
+        fileList.value = files.map((filePath: string, index: number) => {
+          const fileName = getFileNameFromPath(filePath);
+          const fileUrl = getAttachmentUrl(filePath);
+          return {
+            name: fileName,
+            url: fileUrl,
+            status: "success" as const,
+            uid: Date.now() + index,
+            response: filePath
+          } as UploadFile;
+        });
+      } else {
+        fileList.value = [];
+      }
+
+      // 编辑模式：如果任务有项目ID，加载该项目的层级列表
+      if (taskForm.project_id) {
+        loadRequirements(taskForm.project_id);
+      }
+    } else {
+      // 新建模式：如果传入了项目ID和需求ID，自动填充
+      resetForm();
+      console.log("新建模式，props:", {
+        projectId: props.projectId,
+        requirementId: props.requirementId,
+        requirementName: props.requirementName
+      });
+
+      if (props.projectId) {
+        taskForm.project_id = props.projectId;
+        // 加载该项目的层级列表（loadRequirements 内部会处理 requirementId 的设置）
+        loadRequirements(props.projectId);
+      } else if (props.requirementId) {
+        // 如果没有项目ID但有需求ID，先设置需求信息（后续选择项目时会加载层级列表）
+        taskForm.requirement_id = props.requirementId;
+        taskForm.requirement_name = props.requirementName || "";
+      }
+    }
   },
   { immediate: true }
 );

@@ -45,6 +45,12 @@
               </el-icon>
               导出 Excel
             </el-button>
+            <el-button type="primary" @click="handleCreateType" v-perms="['task:add']">
+              <el-icon>
+                <Plus />
+              </el-icon>
+              新建一级分类
+            </el-button>
             <el-button type="primary" @click="handleCreate" v-perms="['task:add']">
               <el-icon>
                 <Plus />
@@ -74,14 +80,18 @@
                       <el-table-column prop="当前处理人" label="责任人" :min-width="TASK_TABLE_COLUMN_WIDTHS.assignee" />
                       <el-table-column prop="状态" label="状态" :min-width="TASK_TABLE_COLUMN_WIDTHS.status" />
                       <el-table-column prop="优先级" label="优先级" :min-width="TASK_TABLE_COLUMN_WIDTHS.priority" />
-                      <el-table-column prop="create_time" label="任务分配时间" :min-width="TASK_TABLE_COLUMN_WIDTHS.assignTime" />
-                      <el-table-column prop="task_deadline" label="任务完成期限" :min-width="TASK_TABLE_COLUMN_WIDTHS.deadline" />
-                      <el-table-column label="操作" :width="operationColWidth(3)" />
+                      <el-table-column prop="create_time" label="任务分配时间"
+                        :min-width="TASK_TABLE_COLUMN_WIDTHS.assignTime" />
+                      <el-table-column prop="task_deadline" label="任务完成期限"
+                        :min-width="TASK_TABLE_COLUMN_WIDTHS.deadline" />
+                      <el-table-column prop="remark" label="备注" :min-width="TASK_TABLE_COLUMN_WIDTHS.remark" />
+                      <el-table-column label="操作" :width="operationColWidth(4)" />
                     </el-table>
                     <TaskCollapseTree v-if="root.children.length > 0" :nodes="root.children"
                       :expanded-keys="expandedCollapseKeys" is-nested
                       @update:expanded-keys="expandedCollapseKeys = $event" />
-                    <TaskCollapseNodeTasks v-if="root.hasTasks && root.children.length === 0" :node="root" />
+                    <TaskCollapseNodeTasks v-if="root.hasTasks && root.taskCount > 0 && root.children.length === 0"
+                      :node="root" />
                   </div>
                 </el-collapse-item>
               </el-collapse>
@@ -108,7 +118,8 @@
                 <TaskCollapseTree v-if="root.children.length > 0" :nodes="root.children"
                   :expanded-keys="expandedCollapseKeys" is-nested
                   @update:expanded-keys="expandedCollapseKeys = $event" />
-                <TaskCollapseNodeTasks v-if="root.hasTasks && root.children.length === 0" :node="root" />
+                <TaskCollapseNodeTasks v-if="root.hasTasks && root.taskCount > 0 && root.children.length === 0"
+                  :node="root" />
               </el-collapse-item>
             </el-collapse>
           </div>
@@ -121,6 +132,10 @@
     <TaskDrawer v-model:visible="showTaskDrawer" :project-id="currentProjectId || searchForm.projectId"
       :requirement-id="currentRequirementId" :requirement-name="currentRequirementName" :task="currentTask"
       :projects="projectOptions" @refresh="handleTaskRefresh" />
+
+    <!-- 新建一级分类：复用新建层级抽屉，不传 parent-path -->
+    <RequirementDrawer v-model:visible="showRequirementDrawer" :project-id="currentProjectId || searchForm.projectId"
+      :project-name="currentProjectApiName" :project-creator="currentProjectCreator" @refresh="handleTaskRefresh" />
 
     <TaskStatusFlowDialog v-model:visible="statusFlowDialogVisible" :task="statusFlowTask"
       @success="handleStatusFlowSuccess" @flow-start="handleStatusFlowStart" @flow-end="handleStatusFlowEnd" />
@@ -266,6 +281,7 @@ import type { Project } from "@/types";
 import { TaskStatus } from "@/types";
 import TaskStatusFlowDialog from "@/components/TaskStatusFlowDialog.vue";
 import TaskDrawer from "@/components/TaskDrawer.vue";
+import RequirementDrawer from "@/components/RequirementDrawer.vue";
 import TablePanel from "@/components/TablePanel/index.vue";
 import TaskCollapseTree from "@/components/TaskCollapseTree.vue";
 import TaskCollapseNodeTasks from "@/components/TaskCollapseNodeTasks.vue";
@@ -318,6 +334,7 @@ watch(expandedCollapseKeys, () => {
 const projects = ref<Project[]>([]);
 const projectsLoading = ref(false);
 const showTaskDrawer = ref(false);
+const showRequirementDrawer = ref(false);
 const currentTask = ref<any>(null);
 const currentProjectId = ref<string>("");
 const hasOpenedCreateDrawer = ref(false); // 标志，用于避免重复打开新建抽屉
@@ -357,10 +374,13 @@ const processedTasksCache = ref<Record<string, any[]>>({});
 const processTask = (task: any, index: number) => {
   const taskId = task._id || task.id;
   const rowKey = taskId ? String(taskId) : `task_${index}_${Date.now()}`;
+  const remark = task.remark ?? task.备注 ?? "";
   return {
     ...task,
+    remark,
     原始状态: task.状态 || task.status,
-    rowKey: rowKey
+    rowKey: rowKey,
+    _originRemark: String(remark)
   };
 };
 
@@ -421,6 +441,7 @@ const buildCollapseNode = (
   const title = node.需求名 || node.requirement_name || path[path.length - 1] || key;
 
   if (Array.isArray(node.task_list)) {
+    if (node.task_list.length === 0) return null;
     return {
       key,
       title,
@@ -933,6 +954,16 @@ const getCurrentRequirementInfo = () => {
   return getRequirementInfoFromNode(leaf);
 };
 
+// 新建一级分类（打开新建层级抽屉，不带父路径）
+const handleCreateType = () => {
+  const projectId = currentProjectId.value || searchForm.value.projectId;
+  if (!projectId) {
+    ElMessage.warning("请先选择项目");
+    return;
+  }
+  showRequirementDrawer.value = true;
+};
+
 // 新建任务
 const handleCreate = () => {
   currentTask.value = null;
@@ -973,9 +1004,18 @@ const currentProjectDisplayName = computed(() => {
   const project = getSelectedProject();
   if (!project) return "-";
   const name = (project as Project & { project_name?: string }).project_name || project.name || "-";
-  const motherboard = (project as Project & { motherboard_name?: string }).motherboard_name;
-  return motherboard ? `${name}-${motherboard}` : name;
+  // const motherboard = (project as Project & { motherboard_name?: string }).motherboard_name;
+  // return motherboard ? `${name}-${motherboard}` : name;
+  return name;
 });
+
+const currentProjectApiName = computed(() => {
+  const project = getSelectedProject();
+  if (!project) return "";
+  return (project as Project & { project_name?: string }).project_name || project.name || "";
+});
+
+const currentProjectCreator = computed(() => getSelectedProject()?.creator || "");
 
 const sanitizeFilename = (name: string) =>
   name.replace(/[\\/:*?"<>|]/g, "_").replace(/\s+/g, "_").slice(0, 80);
@@ -1362,9 +1402,9 @@ const handleBatchAssignSubmit = async () => {
   });
 };
 
-// 根据操作按钮数量计算操作列宽度（约 56px 基础 + 每按钮 52px）
+// 根据操作按钮数量计算操作列宽度（单行排下按钮，避免多余空白）
 const operationColWidth = (buttonCount: number): number => {
-  return Math.max(80, 50 + buttonCount * 35);
+  return Math.max(180, 28 + buttonCount * 42);
 };
 
 // 查看任务
@@ -2191,12 +2231,18 @@ onUnmounted(() => {
         font-weight: 600;
         font-size: 13px;
         color: var(--el-text-color-primary);
-        padding: 9px 12px;
+        padding: 4px 10px;
         border-bottom: 1px solid var(--el-border-color);
         border-right: 1px solid #d8dde6;
 
         &:last-child {
           border-right: none;
+        }
+
+        .cell {
+          padding: 0;
+          line-height: 22px;
+          white-space: nowrap;
         }
       }
     }
@@ -2382,13 +2428,19 @@ onUnmounted(() => {
     }
 
     .el-table__cell {
-      padding: 9px 12px;
+      padding: 4px 10px;
       font-size: 13px;
       border-right: 1px solid #e2e6ed !important;
       background: #ffffff;
 
       &:last-child {
         border-right: none !important;
+      }
+
+      .cell {
+        padding: 0;
+        line-height: 22px;
+        white-space: nowrap;
       }
     }
 
@@ -2632,13 +2684,16 @@ onUnmounted(() => {
   // 操作列按钮组
   .table-action-btns {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
-    gap: 4px 8px;
+    white-space: nowrap;
+    gap: 0 6px;
 
     .el-button {
       padding: 0 4px;
       margin: 0;
+      flex-shrink: 0;
+      white-space: nowrap;
     }
 
     .action-danger {

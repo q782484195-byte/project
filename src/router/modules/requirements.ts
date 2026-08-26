@@ -20,7 +20,7 @@ export default {
         title: "层级列表",
         showLink: true,
         showParent: true,
-        roles: ["Admin", "ProjectManager"]
+        roles: ["Admin"]
       }
     },
     {
@@ -31,7 +31,7 @@ export default {
         icon: "ri:file-info-line",
         title: "需求详情",
         showLink: false,
-        roles: ["Admin", "ProjectManager"]
+        roles: ["Admin"]
       }
     }
   ]

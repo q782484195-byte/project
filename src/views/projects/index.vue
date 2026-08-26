@@ -11,7 +11,7 @@
           <el-option label="进行中" value="进行中" />
           <el-option label="已完成" value="已完成" />
         </el-select>
-        <el-button type="primary" @click="showProjectDialog = true" v-perms="['project:add']">
+        <el-button type="primary" @click="openCreateProject" v-perms="['project:add']">
           <el-icon>
             <Plus />
           </el-icon>
@@ -655,6 +655,12 @@ const handleCommand = async (command: string, project: Project) => {
   }
 };
 
+// 新建项目
+const openCreateProject = () => {
+  editingProject.value = null;
+  showProjectDialog.value = true;
+};
+
 // 编辑项目
 const editProject = (project: Project) => {
   editingProject.value = project;
@@ -754,6 +760,13 @@ const formatDateRange = (startDate?: string, endDate?: string) => {
   return `${dayjs(startDate).format("MM-DD")} ~ ${dayjs(endDate).format("MM-DD")}`;
 };
 
+
+// 关闭弹窗后清空编辑对象，避免取消后再点新建仍走编辑态
+watch(showProjectDialog, visible => {
+  if (!visible) {
+    editingProject.value = null;
+  }
+});
 
 // 监听搜索和筛选变化，重新加载数据
 watch(

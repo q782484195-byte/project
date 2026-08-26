@@ -27,10 +27,10 @@
           @update:expanded-keys="emit('update:expandedKeys', $event)"
         />
 
-        <TaskCollapseNodeTasks v-if="node.hasTasks && node.children.length === 0" :node="node" />
+        <TaskCollapseNodeTasks v-if="node.hasTasks && node.taskCount > 0 && node.children.length === 0" :node="node" />
       </el-collapse-item>
 
-      <div v-else-if="node.hasTasks" class="tasks-collapse-single" :data-depth="node.depth">
+      <div v-else-if="node.hasTasks && node.taskCount > 0" class="tasks-collapse-single" :data-depth="node.depth">
         <TaskCollapseNodeTasks :node="node" />
       </div>
     </template>

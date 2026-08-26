@@ -30,7 +30,8 @@ const COLUMN_HEADERS = [
   "状态",
   "优先级",
   "任务分配时间",
-  "任务完成期限"
+  "任务完成期限",
+  "备注"
 ] as const;
 
 function buildTaskCells(node: TaskCollapseNode, task: any): string[] {
@@ -42,7 +43,8 @@ function buildTaskCells(node: TaskCollapseNode, task: any): string[] {
     String(task.状态 || task.status || "-"),
     String(task.优先级 || task.priority || "-"),
     String(task.create_time || "-"),
-    String(task.task_deadline || "-")
+    String(task.task_deadline || "-"),
+    String(task.remark ?? task.备注 ?? "-") || "-"
   ];
 }
 
@@ -51,7 +53,7 @@ function appendNodeTaskRows(rows: ExportRow[], node: TaskCollapseNode) {
     const groupTitle = getTaskPrimaryCategory(node, { _isGroupHeader: true });
     rows.push({
       kind: "groupHeader",
-      cells: [groupTitle, "", "", "", "", "", "", ""]
+      cells: [groupTitle, "", "", "", "", "", "", "", ""]
     });
   }
 
@@ -165,7 +167,8 @@ export function exportTaskTableToExcel(
     { wch: Math.round(TASK_TABLE_COLUMN_WIDTHS.status / 7) },
     { wch: Math.round(TASK_TABLE_COLUMN_WIDTHS.priority / 7) },
     { wch: Math.round(TASK_TABLE_COLUMN_WIDTHS.assignTime / 7) },
-    { wch: Math.round(TASK_TABLE_COLUMN_WIDTHS.deadline / 7) }
+    { wch: Math.round(TASK_TABLE_COLUMN_WIDTHS.deadline / 7) },
+    { wch: Math.round(TASK_TABLE_COLUMN_WIDTHS.remark / 7) }
   ];
   worksheet["!merges"] = merges;
   worksheet["!ref"] = XLSX.utils.encode_range({

@@ -1,25 +1,25 @@
 <template>
-  <el-drawer v-model="drawerVisible" :title="isEdit ? '编辑层级' : '新建层级'" size="600px" direction="rtl"
+  <el-drawer v-model="drawerVisible" :title="isEdit ? '编辑一级分类' : '新建一级分类'" size="600px" direction="rtl"
     @close="handleClose">
     <div class="requirement-drawer">
       <!-- 创建模式选择（仅新建时显示） -->
-      <div v-if="!isEdit && userStore.username === projectCreator" class="create-mode-selector">
+      <!-- <div v-if="!isEdit && userStore.username === projectCreator" class="create-mode-selector">
         <el-radio-group v-model="createMode" size="default">
           <el-radio-button label="manual">手动创建</el-radio-button>
           <el-radio-button label="import">导入JSON</el-radio-button>
         </el-radio-group>
-      </div>
+      </div> -->
 
       <!-- 手动创建表单 -->
       <el-form v-if="isEdit || createMode === 'manual'" ref="formRef" :model="requirementForm" :rules="rules"
         label-width="100px" label-position="left">
-        <el-form-item label="层级类型" prop="requirementType">
-          <el-select v-model="requirementForm.requirementType" placeholder="请选择层级类型" clearable style="width: 100%">
+        <el-form-item label="项目流程" prop="requirementType">
+          <el-select v-model="requirementForm.requirementType" placeholder="请选择项目流程" clearable style="width: 100%">
             <el-option v-for="type in requirementTypes" :key="type" :label="type" :value="type" />
           </el-select>
         </el-form-item>
-        <el-form-item v-if="!isEdit" label="层级标题" prop="title">
-          <el-input v-model="requirementForm.title" placeholder="请输入层级标题" maxlength="200" show-word-limit />
+        <el-form-item v-if="!isEdit" label="分类名称" prop="title">
+          <el-input v-model="requirementForm.title" placeholder="请输入分类名称" maxlength="200" show-word-limit />
         </el-form-item>
 
         <!-- 编辑模式：多个层级标题输入 -->
@@ -33,7 +33,7 @@
 
         </template>
 
-        <el-form-item label="层级描述" prop="describe">
+        <el-form-item label="分类描述" prop="describe">
           <RichTextEditor ref="richTextEditorRef" v-model="requirementForm.describe" />
         </el-form-item>
 
@@ -52,7 +52,7 @@
         </el-form-item>
 
         <!-- 合同附件上传 -->
-        <el-form-item label="层级附件">
+        <el-form-item label="分类附件">
           <el-upload v-model:file-list="fileList" multiple :auto-upload="false" :on-remove="handleFileRemove"
             :on-change="handleFileChange" :before-upload="handleBeforeUpload">
             <el-button type="primary">

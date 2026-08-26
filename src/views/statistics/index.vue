@@ -43,122 +43,123 @@
           </div>
         </div>
 
-        <div class="statistics-table-wrap" ref="containerRef">
+        <div class="statistics-table-wrap" ref="containerRef" :style="wrapStyle">
           <TablePanel :loading="tasksLoading" @refresh="handleTableRefresh" @fullscreen-change="calculateTableHeight">
-            <el-table v-if="!isMobile && showTaskPanel" class="data-table" :data="currentTableTasks"
-              :style="{ width: '100%' }" :height="tableHeight" row-key="rowKey" stripe border
-              :cell-style="getTaskCellStyle">
-              <el-table-column prop="project_name" label="项目名称" min-width="80" show-overflow-tooltip>
-                <template #default="{ row }">
-                  <el-link v-if="getProjectId(row)" type="primary" :underline="false" class="cell-link"
-                    @click.stop="goProjectDetail(row)">
-                    {{ row.project_name || "-" }}
-                  </el-link>
-                  <span v-else>{{ row.project_name || "-" }}</span>
-                </template>
-              </el-table-column>
-              <el-table-column prop="任务名" label="任务名称" min-width="140" show-overflow-tooltip>
-                <template #default="{ row }">
-                  <el-link v-if="getTaskId(row)" type="primary" :underline="false" class="cell-link"
-                    @click.stop="goTaskDetail(row)">
-                    {{ row.任务名 || row.task_name || row.title || "-" }}
-                  </el-link>
-                  <span v-else>{{ row.任务名 || row.task_name || row.title || "-" }}</span>
-                </template>
-              </el-table-column>
-              <el-table-column prop="department" label="部门" min-width="100" show-overflow-tooltip>
-                <template #default="{ row }">
-                  {{ row.department || "" }}
-                </template>
-              </el-table-column>
-              <el-table-column prop="当前处理人" label="责任人" min-width="120">
-                <template #default="{ row }">
-                  <DailyTaskAssigneeTags v-if="shouldUseAssignerTags(row)" :task="row" />
-                  <span v-else>{{ getTaskAssigneeDisplay(row) }}</span>
-                </template>
-              </el-table-column>
-              <el-table-column prop="状态" label="状态" width="150" align="center">
-                <template #default="{ row }">
-                  <el-tag :type="getStatusType(row.状态 || row.status, row) || undefined" size="small" effect="light">
-                    {{ getDisplayStatus(row) }}
-                  </el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column prop="优先级" label="优先级" width="96" align="center">
-                <template #default="{ row }">
-                  <el-tag :type="getPriorityType(row.优先级 || row.priority) || undefined" size="small">
-                    {{ row.优先级 || row.priority || "-" }}
-                  </el-tag>
-                </template>
-              </el-table-column>
-              <!-- <el-table-column prop="进度" label="进度" min-width="140">
-              <template #default="{ row }">
-                <el-progress :percentage="row.进度 || 0" :stroke-width="10"
-                  :status="row.进度 === 100 ? 'success' : undefined" />
-              </template>
-            </el-table-column> -->
-              <el-table-column prop="task_deadline" label="任务完成期限" min-width="120" show-overflow-tooltip />
-              <el-table-column prop="create_time" label="任务分配时间" min-width="160" show-overflow-tooltip />
-            </el-table>
+            <template v-if="!isMobile && showTaskPanel">
+              <div v-if="currentTaskGroups.length" class="project-tables">
+                <section v-for="group in currentTaskGroups" :key="group.groupKey" class="project-table-block">
+                  <div class="project-table-block__header">
+                    <el-link v-if="group.projectId" type="primary" :underline="false" class="project-table-block__title"
+                      @click.stop="goProjectByGroup(group)">
+                      {{ group.projectName }}
+                    </el-link>
+                    <span v-else class="project-table-block__title">{{ group.projectName }}</span>
+                    <span class="project-table-block__count">{{ group.tasks.length }} 项任务</span>
+                  </div>
+                  <el-table class="data-table" :data="group.tasks" :style="{ width: '100%' }"
+                    :max-height="tableMaxHeight" row-key="rowKey" stripe border :cell-style="getTaskCellStyle">
+                    <el-table-column prop="任务名" label="任务名称" min-width="140" show-overflow-tooltip>
+                      <template #default="{ row }">
+                        <el-link v-if="getTaskId(row)" type="primary" :underline="false" class="cell-link"
+                          @click.stop="goTaskDetail(row)">
+                          {{ row.任务名 || row.task_name || row.title || "-" }}
+                        </el-link>
+                        <span v-else>{{ row.任务名 || row.task_name || row.title || "-" }}</span>
+                      </template>
+                    </el-table-column>
+                    <el-table-column prop="department" label="部门" min-width="100" show-overflow-tooltip>
+                      <template #default="{ row }">
+                        {{ row.department || "" }}
+                      </template>
+                    </el-table-column>
+                    <el-table-column prop="当前处理人" label="责任人" min-width="120">
+                      <template #default="{ row }">
+                        <DailyTaskAssigneeTags v-if="shouldUseAssignerTags(row)" :task="row" />
+                        <span v-else>{{ getTaskAssigneeDisplay(row) }}</span>
+                      </template>
+                    </el-table-column>
+                    <el-table-column prop="状态" label="状态" width="150" align="center">
+                      <template #default="{ row }">
+                        <el-tag :type="getStatusType(row.状态 || row.status, row) || undefined" size="small"
+                          effect="light">
+                          {{ getDisplayStatus(row) }}
+                        </el-tag>
+                      </template>
+                    </el-table-column>
+                    <el-table-column prop="优先级" label="优先级" width="96" align="center">
+                      <template #default="{ row }">
+                        <el-tag :type="getPriorityType(row.优先级 || row.priority) || undefined" size="small">
+                          {{ row.优先级 || row.priority || "-" }}
+                        </el-tag>
+                      </template>
+                    </el-table-column>
+                    <el-table-column prop="task_deadline" label="任务完成期限" min-width="120" show-overflow-tooltip />
+                    <el-table-column prop="create_time" label="任务分配时间" min-width="160" show-overflow-tooltip />
+                  </el-table>
+                </section>
+              </div>
+              <el-empty v-else description="当前范围暂无任务" :image-size="120" />
+            </template>
             <div v-else-if="isMobile && showTaskPanel" class="mobile-task-list">
-              <template v-if="currentTableTasks.length > 0">
-                <div v-for="row in currentTableTasks" :key="row.rowKey" class="mobile-task-card"
-                  :style="getTaskCardStyle(row)">
-                  <div class="mobile-task-card__row mobile-task-card__row--project">
-                    <span class="mobile-task-card__label">项目</span>
-                    <span class="mobile-task-card__value">
-                      <el-link v-if="getProjectId(row)" type="primary" :underline="false" class="cell-link"
-                        @click.stop="goProjectDetail(row)">
-                        {{ row.project_name || "-" }}
-                      </el-link>
-                      <span v-else>{{ row.project_name || "-" }}</span>
-                    </span>
+              <template v-if="currentTaskGroups.length > 0">
+                <section v-for="group in currentTaskGroups" :key="group.groupKey" class="mobile-project-block">
+                  <div class="mobile-project-block__header">
+                    <el-link v-if="group.projectId" type="primary" :underline="false"
+                      class="mobile-project-block__title" @click.stop="goProjectByGroup(group)">
+                      {{ group.projectName }}
+                    </el-link>
+                    <span v-else class="mobile-project-block__title">{{ group.projectName }}</span>
+                    <span class="mobile-project-block__count">{{ group.tasks.length }} 项任务</span>
                   </div>
-                  <div class="mobile-task-card__title">
-                    <span class="mobile-task-card__label">任务名称</span>
-                    <span class="mobile-task-card__value" style="margin-left: 20px;">
-                      <el-link v-if="getTaskId(row)" type="primary" :underline="false" class="cell-link"
-                        @click.stop="goTaskDetail(row)">
-                        {{ row.任务名 || row.task_name || row.title || "-" }}
-                      </el-link>
-                      <span v-else>{{ row.任务名 || row.task_name || row.title || "-" }}</span>
-                    </span>
+                  <div v-for="row in group.tasks" :key="row.rowKey" class="mobile-task-card"
+                    :style="getTaskCardStyle(row)">
+                    <div class="mobile-task-card__title">
+                      <span class="mobile-task-card__label">任务名称</span>
+                      <span class="mobile-task-card__value" style="margin-left: 20px;">
+                        <el-link v-if="getTaskId(row)" type="primary" :underline="false" class="cell-link"
+                          @click.stop="goTaskDetail(row)">
+                          {{ row.任务名 || row.task_name || row.title || "-" }}
+                        </el-link>
+                        <span v-else>{{ row.任务名 || row.task_name || row.title || "-" }}</span>
+                      </span>
+                    </div>
+                    <div class="mobile-task-card__meta">
+                      <el-tag :type="getStatusType(row.状态 || row.status, row) || undefined" size="small"
+                        effect="light">
+                        {{ getDisplayStatus(row) }}
+                      </el-tag>
+                      <el-tag :type="getPriorityType(row.优先级 || row.priority) || undefined" size="small">
+                        {{ row.优先级 || row.priority || "-" }}
+                      </el-tag>
+                    </div>
+                    <div class="mobile-task-card__row">
+                      <span class="mobile-task-card__label">部门</span>
+                      <span class="mobile-task-card__value">{{ row.department || "" }}</span>
+                    </div>
+                    <div class="mobile-task-card__row">
+                      <span class="mobile-task-card__label">责任人</span>
+                      <span class="mobile-task-card__value">
+                        <DailyTaskAssigneeTags v-if="shouldUseAssignerTags(row)" :task="row" />
+                        <span v-else>{{ getTaskAssigneeDisplay(row) }}</span>
+                      </span>
+                    </div>
+                    <div class="mobile-task-card__row">
+                      <span class="mobile-task-card__label">进度</span>
+                      <span class="mobile-task-card__value mobile-task-card__progress-wrap">
+                        <el-progress :percentage="row.进度 || 0" :stroke-width="8"
+                          :status="row.进度 === 100 ? 'success' : undefined" class="mobile-task-card__progress" />
+                      </span>
+                    </div>
+                    <div class="mobile-task-card__row">
+                      <span class="mobile-task-card__label">完成期限</span>
+                      <span class="mobile-task-card__value">{{ row.task_deadline || "-" }}</span>
+                    </div>
+                    <div class="mobile-task-card__row">
+                      <span class="mobile-task-card__label">创建时间</span>
+                      <span class="mobile-task-card__value">{{ row.create_time || "-" }}</span>
+                    </div>
                   </div>
-                  <div class="mobile-task-card__meta">
-                    <el-tag :type="getStatusType(row.状态 || row.status, row) || undefined" size="small" effect="light">
-                      {{ getDisplayStatus(row) }}
-                    </el-tag>
-                    <el-tag :type="getPriorityType(row.优先级 || row.priority) || undefined" size="small">
-                      {{ row.优先级 || row.priority || "-" }}
-                    </el-tag>
-                  </div>
-                  <div class="mobile-task-card__row">
-                    <span class="mobile-task-card__label">部门</span>
-                    <span class="mobile-task-card__value">{{ row.department || "" }}</span>
-                  </div>
-                  <div class="mobile-task-card__row">
-                    <span class="mobile-task-card__label">责任人</span>
-                    <span class="mobile-task-card__value">
-                      <DailyTaskAssigneeTags v-if="shouldUseAssignerTags(row)" :task="row" />
-                      <span v-else>{{ getTaskAssigneeDisplay(row) }}</span>
-                    </span>
-                  </div>
-                  <div class="mobile-task-card__row">
-                    <span class="mobile-task-card__label">进度</span>
-                    <span class="mobile-task-card__value mobile-task-card__progress-wrap">
-                      <el-progress :percentage="row.进度 || 0" :stroke-width="8"
-                        :status="row.进度 === 100 ? 'success' : undefined" class="mobile-task-card__progress" />
-                    </span>
-                  </div>
-                  <div class="mobile-task-card__row">
-                    <span class="mobile-task-card__label">完成期限</span>
-                    <span class="mobile-task-card__value">{{ row.task_deadline || "-" }}</span>
-                  </div>
-                  <div class="mobile-task-card__row">
-                    <span class="mobile-task-card__label">创建时间</span>
-                    <span class="mobile-task-card__value">{{ row.create_time || "-" }}</span>
-                  </div>
-                </div>
+                </section>
               </template>
               <el-empty v-else description="当前范围暂无任务" :image-size="72" class="mobile-task-list__empty" />
             </div>
@@ -200,18 +201,26 @@ type DeptMember = {
   _id?: string;
 };
 
+type ProjectTaskGroup = {
+  groupKey: string;
+  projectName: string;
+  projectId: string;
+  tasks: any[];
+};
+
 const orgLoading = ref(false);
 const tasksLoading = ref(false);
 /** 部门名 -> 成员列表（来自 department/select_all_users） */
 const deptMembersMap = ref<Record<string, DeptMember[]>>({});
-/** 当前部门 + 人员筛选下的任务列表（来自 selectTaskStatistics） */
-const currentTaskList = ref<any[]>([]);
+/** 当前筛选下按项目拆分的任务分组（来自 selectTaskStatistics） */
+const currentTaskGroups = ref<ProjectTaskGroup[]>([]);
 const selectedDepartment = ref<string>("");
 const selectedUser = ref<string>("");
 const selectedProjectType = ref<string>("定制项目");
 const projectName = ref<string>("");
 const containerRef = ref<HTMLElement>();
-const tableHeight = ref<number>(800);
+const wrapHeight = ref<number>(800);
+const tableMaxHeight = ref<number>(480);
 
 const MOBILE_BREAKPOINT = 768;
 const isNarrowScreen = ref(typeof window !== "undefined" && window.innerWidth <= MOBILE_BREAKPOINT);
@@ -234,21 +243,15 @@ const userOptions = computed(() => {
   ];
 });
 
-const currentTableTasks = computed(() => {
-  return currentTaskList.value.map((task: any, index: number) => {
-    const taskId = task._id || task.id;
-    const rowKey = taskId ? String(taskId) : `task_${index}`;
-    return {
-      ...task,
-      rowKey
-    };
-  });
+const wrapStyle = computed(() => {
+  if (isMobile.value) return {};
+  return { height: `${wrapHeight.value}px` };
 });
 
 /** 有初始空参任务数据，或已选部门+人员时展示任务区 */
 const showTaskPanel = computed(
   () =>
-    currentTableTasks.value.length > 0 ||
+    currentTaskGroups.value.length > 0 ||
     !!(selectedDepartment.value && selectedUser.value)
 );
 
@@ -306,6 +309,13 @@ const goProjectDetail = (row: Record<string, unknown>) => {
     return;
   }
   router.push({ name: "ProjectDetail", params: { id: pid } }).catch(() => { });
+};
+
+const goProjectByGroup = (group: ProjectTaskGroup) => {
+  goProjectDetail({
+    project_id: group.projectId,
+    project_name: group.projectName
+  });
 };
 
 const goTaskDetail = (row: Record<string, unknown>) => {
@@ -416,11 +426,13 @@ const calculateTableHeight = () => {
     const containerRect = containerRef.value.getBoundingClientRect();
     const containerTopToViewportBottom = viewportHeight - containerRect.top;
     const bottomPadding = 28;
-    const chromeBelowTable = 32;
-    const availableHeight =
-      containerTopToViewportBottom - bottomPadding - chromeBelowTable - TABLE_PANEL_TOOLBAR_HEIGHT;
+    const availableHeight = containerTopToViewportBottom - bottomPadding;
 
-    tableHeight.value = Math.max(400, availableHeight);
+    wrapHeight.value = Math.max(400, availableHeight);
+    tableMaxHeight.value = Math.max(
+      280,
+      Math.min(520, availableHeight - TABLE_PANEL_TOOLBAR_HEIGHT - 56)
+    );
   });
 };
 
@@ -460,17 +472,71 @@ const buildDeptMembersMap = (raw: unknown): Record<string, DeptMember[]> => {
   return out;
 };
 
-/** 将 task_select 返回体规范为任务数组 */
-const normalizeTaskSelectRows = (raw: unknown): any[] => {
+const withTaskRowKeys = (tasks: any[], groupKey: string): any[] => {
+  return (Array.isArray(tasks) ? tasks : []).map((task: any, index: number) => {
+    const taskId = task?._id || task?.id;
+    const rowKey = taskId ? String(taskId) : `${groupKey}_${index}`;
+    return {
+      ...task,
+      rowKey
+    };
+  });
+};
+
+const buildGroupFromTasks = (
+  projectNameValue: string,
+  tasks: any[],
+  fallbackIndex = 0
+): ProjectTaskGroup | null => {
+  const rows = withTaskRowKeys(tasks, `${projectNameValue}_${fallbackIndex}`);
+  if (!rows.length) return null;
+  const first = rows[0] as Record<string, unknown>;
+  const projectId = getProjectId(first);
+  return {
+    groupKey: projectId || `${projectNameValue}_${fallbackIndex}`,
+    projectName: projectNameValue || String(first.project_name || "未分组项目"),
+    projectId,
+    tasks: rows
+  };
+};
+
+const groupTasksByProject = (tasks: any[]): ProjectTaskGroup[] => {
+  const map = new Map<string, any[]>();
+  (Array.isArray(tasks) ? tasks : []).forEach(task => {
+    const name = String(task?.project_name || task?.projectName || "未分组项目");
+    const id = String(task?.project_id || task?.projectId || "");
+    const key = id || name;
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(task);
+  });
+  return Array.from(map.entries())
+    .map(([key, list], index) =>
+      buildGroupFromTasks(list[0]?.project_name || list[0]?.projectName || key, list, index)
+    )
+    .filter((group): group is ProjectTaskGroup => group != null);
+};
+
+const NESTED_TASK_ARRAY_KEYS = ["task_list", "tasks", "list", "data"] as const;
+
+/** 将 task_select 返回体规范为按项目拆分的任务分组 */
+const normalizeTaskSelectGroups = (raw: unknown): ProjectTaskGroup[] => {
   if (raw == null) return [];
-  if (Array.isArray(raw)) return raw;
-  if (typeof raw === "object") {
-    const o = raw as Record<string, unknown>;
-    if (Array.isArray(o.task_list)) return o.task_list as any[];
-    if (Array.isArray(o.tasks)) return o.tasks as any[];
-    if (Array.isArray(o.list)) return o.list as any[];
-    if (Array.isArray(o.data)) return o.data as any[];
+  if (Array.isArray(raw)) return groupTasksByProject(raw);
+  if (typeof raw !== "object") return [];
+
+  const o = raw as Record<string, unknown>;
+  for (const key of NESTED_TASK_ARRAY_KEYS) {
+    if (Array.isArray(o[key])) return groupTasksByProject(o[key] as any[]);
   }
+
+  const entries = Object.entries(o);
+  const looksGrouped = entries.length > 0 && entries.every(([, value]) => Array.isArray(value));
+  if (looksGrouped) {
+    return entries
+      .map(([name, tasks], index) => buildGroupFromTasks(name, tasks as any[], index))
+      .filter((group): group is ProjectTaskGroup => group != null);
+  }
+
   return [];
 };
 
@@ -489,7 +555,7 @@ const loadDepartmentMembers = async () => {
       deptMembersMap.value = {};
       selectedDepartment.value = "";
       selectedUser.value = "";
-      currentTaskList.value = [];
+      currentTaskGroups.value = [];
     }
   } catch (error: any) {
     console.error("加载部门人员失败:", error);
@@ -497,7 +563,7 @@ const loadDepartmentMembers = async () => {
     deptMembersMap.value = {};
     selectedDepartment.value = "";
     selectedUser.value = "";
-    currentTaskList.value = [];
+    currentTaskGroups.value = [];
   } finally {
     orgLoading.value = false;
   }
@@ -521,16 +587,16 @@ const fetchTaskStatistics = async (
     });
     const raw = (res.result ?? res.data) as unknown;
     if (res.code === 200 && raw != null) {
-      currentTaskList.value = normalizeTaskSelectRows(raw);
+      currentTaskGroups.value = normalizeTaskSelectGroups(raw);
       calculateTableHeight();
     } else {
       ElMessage.error("加载任务统计失败");
-      currentTaskList.value = [];
+      currentTaskGroups.value = [];
     }
   } catch (error: any) {
     console.error("加载任务统计失败:", error);
     ElMessage.error(error?.response?.data?.message || error?.message || "加载任务统计失败");
-    currentTaskList.value = [];
+    currentTaskGroups.value = [];
   } finally {
     tasksLoading.value = false;
   }
@@ -629,6 +695,52 @@ onUnmounted(() => {
   overflow: hidden;
   border: 1px solid var(--el-border-color-lighter);
   box-sizing: border-box;
+
+  :deep(.table-panel) {
+    height: 100%;
+    min-height: 0;
+  }
+
+  :deep(.table-panel__body) {
+    overflow: auto;
+  }
+
+  :deep(.table-panel--fullscreen .table-panel__body) {
+    display: block;
+    overflow: auto;
+  }
+}
+
+.project-tables {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-bottom: 8px;
+}
+
+.project-table-block + .project-table-block {
+  padding-top: 4px;
+}
+
+.project-table-block__header {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-bottom: 8px;
+}
+
+.project-table-block__title {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--el-text-color-primary);
+}
+
+.project-table-block__count {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--el-text-color-secondary);
 }
 
 .table-placeholder {
@@ -694,6 +806,38 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 12px;
   padding: 4px 0 8px;
+}
+
+.mobile-project-block {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mobile-project-block + .mobile-project-block {
+  margin-top: 4px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--el-border-color-light);
+}
+
+.mobile-project-block__header {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  padding: 4px 2px 0;
+}
+
+.mobile-project-block__title {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--el-text-color-primary);
+}
+
+.mobile-project-block__count {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
 }
 
 .mobile-task-list__empty {
@@ -798,6 +942,7 @@ onUnmounted(() => {
   }
 
   .dept-task-stat.is-mobile .statistics-table-wrap {
+    height: auto !important;
     min-height: 0;
     overflow: visible;
     border: none;
