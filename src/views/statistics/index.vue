@@ -184,6 +184,7 @@ import { deviceDetection } from "@pureadmin/utils";
 import { selectTaskStatistics } from "@/api/project";
 import { selectAllUsers, flattenDepartmentSelectUsers } from "@/api/system";
 import { getTaskAssigneeText } from "@/api/daily-task";
+import { getProjectDetailRouteName } from "@/utils/projectRoute";
 import DailyTaskAssigneeTags from "@/components/DailyTaskAssigneeTags.vue";
 import TablePanel from "@/components/TablePanel/index.vue";
 import { TABLE_PANEL_TOOLBAR_HEIGHT } from "@/components/TablePanel/constants";
@@ -308,7 +309,15 @@ const goProjectDetail = (row: Record<string, unknown>) => {
     ElMessage.warning("缺少项目信息，无法跳转");
     return;
   }
-  router.push({ name: "ProjectDetail", params: { id: pid } }).catch(() => { });
+  const projectType = String(row.project_type ?? "").trim();
+  const state = String(row.state ?? row.project_state ?? "进行中").trim();
+  router
+    .push({
+      name: getProjectDetailRouteName(projectType || undefined),
+      params: { id: pid, state },
+      ...(projectType ? { query: { project_type: projectType } } : {})
+    })
+    .catch(() => {});
 };
 
 const goProjectByGroup = (group: ProjectTaskGroup) => {

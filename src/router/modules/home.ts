@@ -5,22 +5,22 @@ export default {
   path: "/",
   name: "Home",
   component: Layout,
-  redirect: "/workspace",
+  redirect: "/welcome",
   meta: {
     icon: "ep/home-filled",
-    title: "待办任务",
+    title: "首页",
     rank: 0
   },
   children: [
     {
-      path: "/workspace",
-      name: "Workspace",
-      component: () => import("@/views/workspace/index.vue"),
+      path: "/welcome",
+      name: "Welcome",
+      component: () => import("@/views/welcome/index.vue"),
       meta: {
         icon: "ep/home-filled",
-        title: "待办任务",
+        title: "首页",
         showLink: VITE_HIDE_HOME === "true" ? false : true,
-        roles: ["Admin", "DepartmentManager", "Member"]
+        showParent: false
       }
     }
   ]

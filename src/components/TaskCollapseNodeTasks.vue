@@ -35,10 +35,10 @@
           </span>
         </template>
       </el-table-column>
-      <el-table-column prop="当前处理人" :min-width="TASK_TABLE_COLUMN_WIDTHS.assignee">
+      <el-table-column prop="指派人" :min-width="TASK_TABLE_COLUMN_WIDTHS.assignee">
         <template #default="{ row }">
           <span v-if="!row._isGroupHeader" class="tasks-collapse-table__text assignee-text">
-            {{ row.当前处理人 || row.assignee || "-" }}
+            {{ getTaskAssignee(row) || "-" }}
           </span>
         </template>
       </el-table-column>
@@ -157,7 +157,7 @@
           <div class="mobile-task-card__row">
             <span class="mobile-task-card__label">责任人</span>
             <span class="mobile-task-card__value">
-              <el-tag type="primary" size="small">{{ row.当前处理人 || row.assignee || "-" }}</el-tag>
+              <el-tag type="primary" size="small">{{ getTaskAssignee(row) || "-" }}</el-tag>
             </span>
           </div>
           <div class="mobile-task-card__row">
@@ -215,6 +215,7 @@ import {
   getTaskPrimaryCategory,
   getTaskSecondaryCategory,
   getTaskDepartment,
+  getTaskAssignee,
   getTaskRemark,
   isMultiTaskLeaf,
   isSingleTaskLeaf,

@@ -386,7 +386,12 @@ const projectType = computed(
   () =>
     (route.query.project_type as string) ||
     project.value?.project_type ||
+    (route.meta.defaultProjectType as string) ||
     ""
+);
+
+const projectIndexPath = computed(
+  () => (route.meta.activePath as string) || "/projects/index"
 );
 
 const project = ref<Project | null>(null);
@@ -719,14 +724,14 @@ const loadProject = async () => {
       // await loadBugStatistics(projectId.value);
     } else {
       ElMessage.error("项目不存在");
-      router.push("/projects/index");
+      router.push(projectIndexPath.value);
     }
   } catch (error: any) {
     console.error("加载项目失败:", error);
     ElMessage.error(
       error?.response?.data?.message || error?.message || "加载项目失败"
     );
-    router.push("/projects/index");
+    router.push(projectIndexPath.value);
   } finally {
     loading.value = false;
   }

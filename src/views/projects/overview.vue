@@ -10,6 +10,7 @@
       <el-tabs v-model="projectTypeTab" class="project-type-tabs">
         <el-tab-pane label="定制项目" name="定制项目" />
         <el-tab-pane label="公模项目" name="公模项目" />
+        <el-tab-pane label="功能开发" name="功能开发" />
       </el-tabs>
 
       <!-- 查询表单 -->
@@ -175,12 +176,17 @@ import { ArrowDown } from '@element-plus/icons-vue';
 import TablePanel from '@/components/TablePanel/index.vue';
 import { deviceDetection } from '@pureadmin/utils';
 import { selectProjectOverview, selectProjectRecord } from '@/api/project';
+import { FEATURE_DEVELOPMENT_TYPE } from '@/utils/projectRoute';
+
+const PROJECT_TYPE_TABS = ["定制项目", "公模项目", FEATURE_DEVELOPMENT_TYPE] as const;
 
 const router = useRouter();
 const route = useRoute();
 
 const projectTypeTab = ref(
-  (route.query.project_type as string) || "定制项目"
+  PROJECT_TYPE_TABS.includes(route.query.project_type as typeof PROJECT_TYPE_TABS[number])
+    ? (route.query.project_type as string)
+    : "定制项目"
 );
 
 const MOBILE_BREAKPOINT = 768;

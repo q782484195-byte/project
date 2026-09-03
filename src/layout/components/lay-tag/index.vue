@@ -71,10 +71,12 @@ const isHomeLikeTag = (item: RouteConfigs) => {
   const path = item?.path || "";
   const name = String(item?.name || "");
   return (
+    path === "/welcome" ||
     path === "/workspace" ||
+    path === "/workspace/index" ||
     path === "/dashboard/index" ||
-    name === "Workspace" ||
-    name === "Welcome"
+    name === "Welcome" ||
+    name === "Workspace"
   );
 };
 

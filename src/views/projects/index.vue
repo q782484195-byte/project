@@ -1,7 +1,7 @@
 <template>
   <div class="projects-page">
     <div class="page-header">
-      <h2>项目管理</h2>
+      <h2>{{ pageTitle }}</h2>
       <div class="header-actions">
         <el-input v-model="searchKeyword" placeholder="搜索项目..." prefix-icon="Search" clearable style="width: 200px" />
         <el-select v-model="statusFilter" placeholder="状态筛选" clearable style="width: 120px">
@@ -58,185 +58,190 @@
 
     <!-- 移动端：卡片视图 -->
     <div v-if="isMobile">
-      <el-tabs v-model="projectTypeTab" class="project-type-tabs mobile-project-type-tabs">
+      <el-tabs v-if="!fixedProjectType" v-model="projectTypeTab" class="project-type-tabs mobile-project-type-tabs">
         <el-tab-pane label="定制项目" name="定制项目" />
         <el-tab-pane label="公模项目" name="公模项目" />
       </el-tabs>
       <div v-loading="loading" class="projects-grid">
-      <div v-for="project in filteredProjects" :key="project.id" class="project-card"
-        @click="goToTaskList(project, $event)">
-        <div class="card-header">
-          <div class="project-info">
-            <el-tag :type="getStatusTagType(project.status)">
-              {{ getStatusText(project.status) }}{{ project.state_description ? '（' + project.state_description + '）' :
-                '' }}
-            </el-tag>
-          </div>
-          <div class="more-button-wrapper" v-if="hasPerms(['project:update']) || hasPerms(['project:delete_project'])">
-            <el-dropdown :key="`dropdown-${project.id}-${dropdownTrigger}`" :trigger="dropdownTrigger"
-              placement="bottom-end" @command="handleCommand($event, project)" :teleported="true" :hide-on-click="true">
-              <span class="more-button-trigger" @click.stop>
-                <el-button type="text" class="more-button">
-                  <el-icon>
-                    <MoreFilled />
-                  </el-icon>
-                </el-button>
-              </span>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item v-if="hasPerms(['project:update'])" command="edit">编辑项目</el-dropdown-item>
-                  <el-dropdown-item v-if="hasPerms(['project:delete_project'])" command="delete"
-                    divided>删除项目</el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </div>
-        </div>
-
-        <!-- 第一行：项目名称（单独一行，突出显示） -->
-        <div class="project-row project-row-name">
-          <div class="field-item">
-            <span class="field-label">项目名称:</span>
-            <el-tooltip :content="project.name || '-'" placement="top">
-              <span class="field-value project-name-value">{{ project.name || "-" }}</span>
-            </el-tooltip>
-          </div>
-        </div>
-
-        <!-- 第二行：客户名称，产品类型 -->
-        <div class="project-row project-row-first">
-          <div class="field-item">
-            <span class="field-label">客户名称:</span>
-            <el-tooltip :content="project.customer_name || '-'" placement="top">
-              <span class="field-value">{{ project.customer_name || "-" }}</span>
-            </el-tooltip>
-          </div>
-          <div class="field-item">
-            <span class="field-label">产品类型:</span>
-            <el-tooltip :content="project.product_type || '-'" placement="top">
-              <span class="field-value">{{ project.product_type || "-" }}</span>
-            </el-tooltip>
-          </div>
-        </div>
-
-        <!-- 第三行：平台名称，主板名称 -->
-        <div class="project-row project-row-second">
-          <div class="field-item">
-            <span class="field-label">平台名称:</span>
-            <el-tooltip :content="project.platform_name || '-'" placement="top">
-              <span class="field-value">{{ project.platform_name || "-" }}</span>
-            </el-tooltip>
-          </div>
-          <div class="field-item">
-            <span class="field-label">主板名称:</span>
-            <el-tooltip :content="project.motherboard_name || '-'" placement="top">
-              <span class="field-value">{{ project.motherboard_name || "-" }}</span>
-            </el-tooltip>
-          </div>
-        </div>
-
-        <!-- 第四行：分辨率，业务负责人 -->
-        <div class="project-row project-row-third">
-          <div class="field-item">
-            <span class="field-label">分辨率:</span>
-            <el-tooltip :content="project.resolution || '-'" placement="top">
-              <span class="field-value">{{ project.resolution || "-" }}</span>
-            </el-tooltip>
-          </div>
-          <div class="field-item">
-            <span class="field-label">业务负责人:</span>
-            <el-tooltip :content="project.business_owner || '-'" placement="top">
-              <span class="field-value">{{ project.business_owner || "-" }}</span>
-            </el-tooltip>
-          </div>
-        </div>
-        <!-- -->
-        <div class="project-row project-row-third">
-          <div class="field-item">
-            <span class="field-label">立项时间:</span>
-            <el-tooltip :content="project.project_initiation_date || '-'" placement="top">
-              <span class="field-value">{{ project.project_initiation_date || "-" }}</span>
-            </el-tooltip>
-          </div>
-        </div>
-        <!-- 第五行：左侧进度条，右侧当前节点 -->
-        <div class="project-row project-row-progress">
-          <div class="progress-block">
-            <div class="progress-info">
-              <span>进度</span>
+        <div v-for="project in filteredProjects" :key="project.id" class="project-card"
+          @click="goToTaskList(project, $event)">
+          <div class="card-header">
+            <div class="project-info">
+              <el-tag :type="getStatusTagType(project.status)">
+                {{ getStatusText(project.status) }}{{ project.state_description ? '（' + project.state_description + '）'
+                  :
+                  '' }}
+              </el-tag>
             </div>
-            <el-progress :percentage="getProjectProgress(project)" :stroke-width="6" />
+            <div class="more-button-wrapper"
+              v-if="hasPerms(['project:update']) || hasPerms(['project:delete_project'])">
+              <el-dropdown :key="`dropdown-${project.id}-${dropdownTrigger}`" :trigger="dropdownTrigger"
+                placement="bottom-end" @command="handleCommand($event, project)" :teleported="true"
+                :hide-on-click="true">
+                <span class="more-button-trigger" @click.stop>
+                  <el-button type="text" class="more-button">
+                    <el-icon>
+                      <MoreFilled />
+                    </el-icon>
+                  </el-button>
+                </span>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item v-if="hasPerms(['project:update'])" command="edit">编辑项目</el-dropdown-item>
+                    <el-dropdown-item v-if="hasPerms(['project:delete_project'])" command="delete"
+                      divided>删除项目</el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+            </div>
           </div>
-          <div class="progress-node">
-            <span class="progress-node__label">节点</span>
-            <el-tooltip :content="getProjectNode(project)" placement="top" :disabled="getProjectNode(project) === '-'">
-              <span class="progress-node__value">{{ getProjectNode(project) }}</span>
-            </el-tooltip>
-          </div>
-        </div>
-        <!-- 第三行：项目负责人，业务负责人 -->
-        <div class="project-row project-row-owners">
-          <div class="field-item">
-            <span class="field-label">项目负责人:</span>
-            <el-tooltip :content="project.creator || '-'" placement="top">
-              <span class="field-value">{{ project.creator || "-" }}</span>
-            </el-tooltip>
-          </div>
-        </div>
 
-        <!-- 计划时间 -->
-        <div class="project-row project-row-time">
-          <div class="field-item">
-            <el-icon>
-              <Calendar />
-            </el-icon>
-            <span class="field-label">计划时间:</span>
-            <el-tooltip :content="formatDateRange(project.startDate, project.endDate) || '-'" placement="top">
-              <span class="field-value">{{
-                formatDateRange(project.startDate, project.endDate)
-              }}</span>
-            </el-tooltip>
+          <!-- 第一行：项目名称（单独一行，突出显示） -->
+          <div class="project-row project-row-name">
+            <div class="field-item">
+              <span class="field-label">项目名称:</span>
+              <el-tooltip :content="project.name || '-'" placement="top">
+                <span class="field-value project-name-value">{{ project.name || "-" }}</span>
+              </el-tooltip>
+            </div>
           </div>
-        </div>
 
-        <div class="project-row project-row-actions">
-          <el-button type="primary" size="small" class="go-task-list-btn" @click.stop="openProjectDetail(project)">
-            查看项目详情
-          </el-button>
-        </div>
+          <!-- 第二行：客户名称，产品类型 -->
+          <div class="project-row project-row-first">
+            <div class="field-item">
+              <span class="field-label">客户名称:</span>
+              <el-tooltip :content="project.customer_name || '-'" placement="top">
+                <span class="field-value">{{ project.customer_name || "-" }}</span>
+              </el-tooltip>
+            </div>
+            <div class="field-item">
+              <span class="field-label">产品类型:</span>
+              <el-tooltip :content="project.product_type || '-'" placement="top">
+                <span class="field-value">{{ project.product_type || "-" }}</span>
+              </el-tooltip>
+            </div>
+          </div>
 
-      </div>
+          <!-- 第三行：平台名称，主板名称 -->
+          <div class="project-row project-row-second">
+            <div class="field-item">
+              <span class="field-label">平台名称:</span>
+              <el-tooltip :content="project.platform_name || '-'" placement="top">
+                <span class="field-value">{{ project.platform_name || "-" }}</span>
+              </el-tooltip>
+            </div>
+            <div class="field-item">
+              <span class="field-label">主板名称:</span>
+              <el-tooltip :content="project.motherboard_name || '-'" placement="top">
+                <span class="field-value">{{ project.motherboard_name || "-" }}</span>
+              </el-tooltip>
+            </div>
+          </div>
+
+          <!-- 第四行：分辨率，业务负责人 -->
+          <div class="project-row project-row-third">
+            <div class="field-item">
+              <span class="field-label">分辨率:</span>
+              <el-tooltip :content="project.resolution || '-'" placement="top">
+                <span class="field-value">{{ project.resolution || "-" }}</span>
+              </el-tooltip>
+            </div>
+            <div class="field-item">
+              <span class="field-label">业务负责人:</span>
+              <el-tooltip :content="project.business_owner || '-'" placement="top">
+                <span class="field-value">{{ project.business_owner || "-" }}</span>
+              </el-tooltip>
+            </div>
+          </div>
+          <!-- -->
+          <div class="project-row project-row-third">
+            <div class="field-item">
+              <span class="field-label">立项时间:</span>
+              <el-tooltip :content="project.project_initiation_date || '-'" placement="top">
+                <span class="field-value">{{ project.project_initiation_date || "-" }}</span>
+              </el-tooltip>
+            </div>
+          </div>
+          <!-- 第五行：左侧进度条，右侧当前节点 -->
+          <div class="project-row project-row-progress">
+            <div class="progress-block">
+              <div class="progress-info">
+                <span>进度</span>
+              </div>
+              <el-progress :percentage="getProjectProgress(project)" :stroke-width="6" />
+            </div>
+            <div class="progress-node">
+              <span class="progress-node__label">节点</span>
+              <el-tooltip :content="getProjectNode(project)" placement="top"
+                :disabled="getProjectNode(project) === '-'">
+                <span class="progress-node__value">{{ getProjectNode(project) }}</span>
+              </el-tooltip>
+            </div>
+          </div>
+          <!-- 第三行：项目负责人，业务负责人 -->
+          <div class="project-row project-row-owners">
+            <div class="field-item">
+              <span class="field-label">项目负责人:</span>
+              <el-tooltip :content="project.creator || '-'" placement="top">
+                <span class="field-value">{{ project.creator || "-" }}</span>
+              </el-tooltip>
+            </div>
+          </div>
+
+          <!-- 计划时间 -->
+          <div class="project-row project-row-time">
+            <div class="field-item">
+              <el-icon>
+                <Calendar />
+              </el-icon>
+              <span class="field-label">计划时间:</span>
+              <el-tooltip :content="formatDateRange(project.startDate, project.endDate) || '-'" placement="top">
+                <span class="field-value">{{
+                  formatDateRange(project.startDate, project.endDate)
+                }}</span>
+              </el-tooltip>
+            </div>
+          </div>
+
+          <div class="project-row project-row-actions">
+            <el-button type="primary" size="small" class="go-task-list-btn" @click.stop="openProjectDetail(project)">
+              查看项目详情
+            </el-button>
+          </div>
+
+        </div>
       </div>
     </div>
 
     <!-- PC 端：表格视图 -->
     <el-card v-else v-loading="loading" class="projects-table">
-      <el-tabs v-model="projectTypeTab" class="project-type-tabs">
+      <el-tabs v-if="!fixedProjectType" v-model="projectTypeTab" class="project-type-tabs">
         <el-tab-pane label="定制项目" name="定制项目" />
         <el-tab-pane label="公模项目" name="公模项目" />
       </el-tabs>
       <TablePanel :loading="loading" @refresh="loadProjects">
-        <el-table :data="filteredProjects" style="width: 100%" row-key="id" @row-click="handleTableRowClick">
-          <el-table-column prop="name" label="项目名称" min-width="160" fixed="left" show-overflow-tooltip>
+        <el-table :data="filteredProjects" style="width: 100%" row-key="id" table-layout="fixed"
+          @row-click="handleTableRowClick">
+          <el-table-column prop="name" label="项目名称" show-overflow-tooltip>
             <template #default="{ row }">
               <span class="table-project-name">{{ row.name || "-" }}</span>
             </template>
           </el-table-column>
-          <el-table-column prop="status" label="状态" width="130">
+          <el-table-column prop="status" label="状态">
             <template #default="{ row }">
               <el-tag :type="getStatusTagType(row.status)" size="small">
                 {{ getStatusText(row.status) }}{{ row.state_description ? '（' + row.state_description + '）' : '' }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="customer_name" label="客户名称" min-width="120" show-overflow-tooltip />
-          <el-table-column prop="product_type" label="产品类型" min-width="100" show-overflow-tooltip />
-          <el-table-column prop="platform_name" label="平台名称" min-width="100" show-overflow-tooltip />
-          <el-table-column prop="motherboard_name" label="主板名称" min-width="100" show-overflow-tooltip />
-          <el-table-column prop="resolution" label="分辨率" width="100" show-overflow-tooltip />
-          <el-table-column prop="business_owner" label="业务负责人" width="110" show-overflow-tooltip />
-          <el-table-column prop="project_initiation_date" label="立项时间" width="110" show-overflow-tooltip />
-          <el-table-column label="进度" width="140">
+          <el-table-column prop="customer_name" label="客户名称" show-overflow-tooltip />
+          <el-table-column prop="product_type" label="产品类型" show-overflow-tooltip />
+          <el-table-column prop="platform_name" label="平台名称" show-overflow-tooltip />
+          <el-table-column prop="motherboard_name" label="主板名称" show-overflow-tooltip />
+          <el-table-column prop="resolution" label="分辨率" show-overflow-tooltip />
+          <el-table-column prop="business_owner" label="业务负责人" show-overflow-tooltip />
+          <el-table-column prop="project_initiation_date" label="立项时间" show-overflow-tooltip />
+          <el-table-column label="进度">
             <template #default="{ row }">
               <div class="table-progress-cell">
                 <el-progress :percentage="getProjectProgress(row)" :stroke-width="6" :show-text="false" />
@@ -244,18 +249,18 @@
               </div>
             </template>
           </el-table-column>
-          <el-table-column label="节点" min-width="120" show-overflow-tooltip>
+          <el-table-column label="节点" show-overflow-tooltip>
             <template #default="{ row }">
               {{ getProjectNode(row) }}
             </template>
           </el-table-column>
-          <el-table-column prop="creator" label="项目负责人" width="110" show-overflow-tooltip />
-          <el-table-column label="计划时间" width="130" show-overflow-tooltip>
+          <el-table-column prop="creator" label="项目负责人" show-overflow-tooltip />
+          <el-table-column label="计划时间" show-overflow-tooltip>
             <template #default="{ row }">
               {{ formatDateRange(row.startDate, row.endDate) }}
             </template>
           </el-table-column>
-          <el-table-column label="操作" :width="operationColWidth" fixed="right">
+          <el-table-column label="操作" width="180">
             <template #default="{ row }">
               <div class="table-action-btns" @click.stop>
                 <el-button type="primary" link size="small" @click="openProjectDetail(row)">
@@ -290,7 +295,8 @@
     </el-card>
 
     <!-- 新建/编辑项目对话框 -->
-    <ProjectFormDialog v-model:visible="showProjectDialog" :project="editingProject" @created="handleProjectCreated"
+    <ProjectFormDialog v-model:visible="showProjectDialog" :project="editingProject"
+      :default-project-type="fixedProjectType" @created="handleProjectCreated"
       @updated="handleProjectUpdated" />
 
     <!-- 成员管理对话框 -->
@@ -301,7 +307,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick, onBeforeUnmount } from "vue";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import {
   Plus,
@@ -323,14 +329,24 @@ import {
   type SelectProjectParams,
   deleteProject as deleteProjectApi
 } from "@/api/project";
+import { getProjectDetailRouteName } from "@/utils/projectRoute";
 
 const projectStore = useProjectStoreHook();
 const router = useRouter();
+const route = useRoute();
 const appStore = useAppStoreHook();
+
+const fixedProjectType = computed(
+  () => route.meta.defaultProjectType as string | undefined
+);
+const pageTitle = computed(() => fixedProjectType.value || "项目管理");
+const projectDetailRouteName = computed(() =>
+  getProjectDetailRouteName(fixedProjectType.value)
+);
 
 const searchKeyword = ref("");
 const statusFilter = ref<string>("");
-const projectTypeTab = ref("定制项目");
+const projectTypeTab = ref(fixedProjectType.value || "定制项目");
 const currentPage = ref(1);
 const pageSize = ref(20);
 const loading = ref(false);
@@ -355,12 +371,6 @@ const MOBILE_BREAKPOINT = 640;
 
 const isMobile = computed(() => windowWidth.value <= MOBILE_BREAKPOINT);
 
-const operationColWidth = computed(() => {
-  const hasMore =
-    hasPerms(["project:update"]) || hasPerms(["project:delete_project"]);
-  return hasMore ? 240 : 180;
-});
-
 // 根据设备类型决定下拉菜单的触发方式
 const dropdownTrigger = computed(() => {
   return isMobile.value ? "click" : "hover";
@@ -374,6 +384,28 @@ const showMembersDialog = ref(false);
 // 项目列表
 const projects = ref<Project[]>([]);
 const totalProjects = ref(0);
+
+const defaultProjectStats = () => ({
+  total: 0,
+  active: 0,
+  delayed: 0,
+  completed: 0
+});
+
+const projectStats = ref(defaultProjectStats());
+
+const applyProjectStateCount = (stateCount?: Record<string, unknown>) => {
+  if (!stateCount) {
+    projectStats.value = defaultProjectStats();
+    return;
+  }
+  projectStats.value = {
+    total: Number(stateCount["总项目数"] ?? 0),
+    active: Number(stateCount["进行中"] ?? 0),
+    delayed: Number(stateCount["延期"] ?? 0),
+    completed: Number(stateCount["已完成"] ?? 0)
+  };
+};
 
 // 过滤后的项目列表（现在直接从 API 获取，不需要前端过滤）
 const filteredProjects = computed(() => {
@@ -549,12 +581,14 @@ const loadProjects = async () => {
 
         return convertedProject;
       });
-      totalProjects.value = projectList.length;
+      totalProjects.value = response.total_count ?? projectList.length;
+      applyProjectStateCount(response.state_count as Record<string, unknown>);
     } else {
       ElMessage.error(response.message || "加载项目列表失败");
       // 如果 API 失败，使用 mock 数据作为后备
       projects.value = [...mockProjects];
       totalProjects.value = mockProjects.length;
+      applyProjectStateCount();
     }
   } catch (error: any) {
     console.error("加载项目列表失败:", error);
@@ -564,18 +598,11 @@ const loadProjects = async () => {
     // 如果 API 失败，使用 mock 数据作为后备
     projects.value = [...mockProjects];
     totalProjects.value = mockProjects.length;
+    applyProjectStateCount();
   } finally {
     loading.value = false;
   }
 };
-
-// 项目统计
-const projectStats = computed(() => ({
-  total: projects.value.length,
-  active: projects.value.filter(p => p.status === "进行中").length,
-  completed: projects.value.filter(p => p.status === "已完成").length,
-  delayed: projects.value.filter(p => p.status === "延期").length
-}));
 
 const getProjectProgress = (project: Project & Record<string, unknown>) => {
   const extraProgress = project["总进度"];
@@ -602,7 +629,7 @@ const getProjectTypeParam = (project: Project) =>
 
 const openProjectDetail = (project: Project) => {
   router.push({
-    name: "ProjectDetail",
+    name: projectDetailRouteName.value,
     params: { id: project.id, state: project.status },
     query: { project_type: getProjectTypeParam(project) }
   });
@@ -767,6 +794,29 @@ watch(showProjectDialog, visible => {
     editingProject.value = null;
   }
 });
+
+watch(fixedProjectType, type => {
+  if (type) {
+    projectTypeTab.value = type;
+  } else if (!["定制项目", "公模项目"].includes(projectTypeTab.value)) {
+    projectTypeTab.value = "定制项目";
+  }
+});
+
+watch(
+  () => route.path,
+  (path, oldPath) => {
+    const isListRoute =
+      path === "/projects/index" || path === "/feature-development/index";
+    const wasListRoute =
+      oldPath === "/projects/index" || oldPath === "/feature-development/index";
+    if (isListRoute && wasListRoute && path !== oldPath) {
+      searchKeyword.value = "";
+      statusFilter.value = "";
+      currentPage.value = 1;
+    }
+  }
+);
 
 // 监听搜索和筛选变化，重新加载数据
 watch(
@@ -1141,6 +1191,12 @@ onMounted(() => {
   }
 
   :deep(.el-table) {
+    width: 100%;
+
+    .el-table__body-wrapper {
+      overflow-x: hidden;
+    }
+
     .el-table__row {
       cursor: pointer;
       transition: background-color 0.2s;
@@ -1182,7 +1238,7 @@ onMounted(() => {
     display: flex;
     align-items: center;
     gap: 4px;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
   }
 }
 

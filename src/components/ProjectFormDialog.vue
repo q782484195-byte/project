@@ -2,11 +2,14 @@
   <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑项目' : '新建项目'" width="900px" class="project-form-dialog"
     @close="handleClose">
     <el-form ref="formRef" :model="projectForm" :rules="rules" label-width="100px">
-      <el-form-item label="项目类型" prop="project_type">
+      <el-form-item v-if="!defaultProjectType" label="项目类型" prop="project_type">
         <el-radio-group v-model="projectForm.project_type" :disabled="isEdit">
           <el-radio label="定制项目">定制项目</el-radio>
           <el-radio label="公模项目">公模项目</el-radio>
         </el-radio-group>
+      </el-form-item>
+      <el-form-item v-else label="项目类型">
+        <el-input :model-value="defaultProjectType" disabled />
       </el-form-item>
 
       <el-form-item label="项目名称" prop="name">
@@ -113,7 +116,7 @@
           </template>
         </el-upload>
       </el-form-item>
-      <el-form-item label="立项文件" prop="project_proposal">
+      <el-form-item v-if="!isFeatureDevelopment" label="立项文件" prop="project_proposal">
         <el-upload v-model:file-list="proposalFileList" multiple :auto-upload="false"
           :on-remove="handleProposalFileRemove" :on-change="handleProposalFileChange"
           :before-upload="handleBeforeUpload">
@@ -272,10 +275,15 @@ import { createProject, updateProject, uploadFile } from "@/api/project";
 import type { UpdateProjectParams } from "@/api/project";
 import { selectAllUsers, flattenDepartmentSelectUsers } from "@/api/system";
 import RichTextEditor from "./RichTextEditor.vue";
+import {
+  FEATURE_DEVELOPMENT_TYPE,
+  isFeatureDevelopmentType
+} from "@/utils/projectRoute";
 
 interface Props {
   visible: boolean;
   project?: Project | null;
+  defaultProjectType?: string;
 }
 
 interface Emits {
@@ -328,7 +336,13 @@ const rules: FormRules = {
   project_proposal: [
     {
       required: true,
-      validator: (rule: any, value: any, callback: any) => {
+      validator: (_rule: any, _value: any, callback: any) => {
+        const projectType =
+          props.defaultProjectType || projectForm.project_type;
+        if (isFeatureDevelopmentType(projectType)) {
+          callback();
+          return;
+        }
         if (!proposalFileList.value || proposalFileList.value.length === 0) {
           callback(new Error("请上传立项文件"));
         } else {
@@ -413,6 +427,12 @@ const disabledEndDate = (time: Date): boolean => {
 };
 
 const isEdit = computed(() => !!props.project);
+
+const isFeatureDevelopment = computed(() =>
+  isFeatureDevelopmentType(
+    props.defaultProjectType || projectForm.project_type
+  )
+);
 
 const dialogVisible = computed({
   get: () => props.visible,
@@ -624,6 +644,9 @@ const getEmptyProjectForm = () => ({
 
 const resetProjectForm = () => {
   Object.assign(projectForm, getEmptyProjectForm());
+  if (props.defaultProjectType) {
+    projectForm.project_type = props.defaultProjectType;
+  }
   fileList.value = [];
   proposalFileList.value = [];
 };
@@ -769,7 +792,10 @@ const handleSubmit = async () => {
     }
 
     // 验证立项文件
-    if (!proposalFileList.value || proposalFileList.value.length === 0) {
+    if (
+      !isFeatureDevelopment.value &&
+      (!proposalFileList.value || proposalFileList.value.length === 0)
+    ) {
       ElMessage.warning("请上传立项文件");
       submitting.value = false;
       return;
@@ -827,7 +853,8 @@ const handleSubmit = async () => {
 
     // 处理立项文件
     const proposalUrls: string[] = [];
-    for (const file of proposalFileList.value) {
+    if (!isFeatureDevelopment.value) {
+      for (const file of proposalFileList.value) {
       if (file.raw) {
         // 新上传的文件，需要上传
         const url = await uploadAttachmentFile(file.raw);
@@ -858,6 +885,7 @@ const handleSubmit = async () => {
           proposalUrls.push(url);
         }
       }
+    }
     }
     // 去重（都使用相对路径）
     const allProposalUrls = Array.from(new Set(proposalUrls));

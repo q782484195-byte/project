@@ -82,6 +82,17 @@ export const getTaskDepartment = (row?: any): string => {
   return dept ? String(dept) : "";
 };
 
+/** 任务责任人（取列表指派人，兼容 assignee） */
+export const getTaskAssignee = (row?: any): string => {
+  if (!row || row._isGroupHeader) return "";
+  const value = row.指派人 ?? row.assignee;
+  if (Array.isArray(value)) {
+    const names = value.map(item => String(item).trim()).filter(Boolean);
+    return names.join("、");
+  }
+  return value ? String(value) : "";
+};
+
 /** 任务备注（兼容 remark / 备注） */
 export const getTaskRemark = (row?: any): string => {
   if (!row || row._isGroupHeader) return "";

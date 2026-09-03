@@ -32,7 +32,7 @@ export const uploadFile = (params: UploadFileParams) => {
 
 /** 创建项目参数 */
 export interface CreateProjectParams {
-  project_type: string; // 项目类型：定制项目 | 公模项目
+  project_type: string; // 项目类型：定制项目 | 公模项目 | 功能开发
   project_name: string;
   customer_name: string; // 客户名称
   product_type: string; // 产品类型
@@ -67,7 +67,7 @@ export interface ApiResponse<T> {
 export interface SelectProjectParams {
   project_id?: string;
   project_name?: string;
-  project_type?: string; // 项目类型：定制项目 | 公模项目
+  project_type?: string; // 项目类型：定制项目 | 公模项目 | 功能开发
   creator?: string;
   state?: string; // "未开始,进行中,已完成"
   page?: number;
@@ -84,6 +84,7 @@ export interface ProjectListItem {
   completion_time?: string;
   creator: string;
   state: string;
+  project_type?: string;
   describe: DescribeContent[];
   attachment: any[];
   create_time: string;
@@ -140,9 +141,29 @@ export const updateProject = (params: UpdateProjectParams) => {
   });
 };
 
+/** 项目列表状态统计 */
+export interface ProjectStateCount {
+  _id?: string | null;
+  总项目数?: number;
+  进行中?: number;
+  延期?: number;
+  已完成?: number;
+  [key: string]: string | number | null | undefined;
+}
+
+/** 项目列表查询响应 */
+export interface ProjectSelectResponse {
+  code: number;
+  message?: string;
+  result?: ProjectListItem[];
+  data?: ProjectListItem[];
+  total_count?: number;
+  state_count?: ProjectStateCount;
+}
+
 /** 查询项目列表 */
 export const selectProjects = (params: SelectProjectParams) => {
-  return http.request<ApiResponse<ProjectListItem[]>>(
+  return http.request<ProjectSelectResponse>(
     "post",
     "/project/select",
     {

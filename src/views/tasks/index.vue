@@ -77,7 +77,7 @@
                       <el-table-column prop="一级分类" label="一级分类" :min-width="TASK_TABLE_COLUMN_WIDTHS.primary" />
                       <el-table-column prop="二级分类" label="二级分类" :min-width="TASK_TABLE_COLUMN_WIDTHS.secondary" />
                       <el-table-column prop="department" label="部门" :min-width="TASK_TABLE_COLUMN_WIDTHS.department" />
-                      <el-table-column prop="当前处理人" label="责任人" :min-width="TASK_TABLE_COLUMN_WIDTHS.assignee" />
+                      <el-table-column prop="指派人" label="责任人" :min-width="TASK_TABLE_COLUMN_WIDTHS.assignee" />
                       <el-table-column prop="状态" label="状态" :min-width="TASK_TABLE_COLUMN_WIDTHS.status" />
                       <el-table-column prop="优先级" label="优先级" :min-width="TASK_TABLE_COLUMN_WIDTHS.priority" />
                       <el-table-column prop="create_time" label="任务分配时间"

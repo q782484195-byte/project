@@ -570,6 +570,7 @@ import { ElMessage } from "element-plus";
 import { User, Clock, Document, DataLine, OfficeBuilding } from "@element-plus/icons-vue";
 import type { TaskListItem, RequirementListItem, ProjectListItem } from "@/api/project";
 import { getTaskAssigneeText } from "@/api/daily-task";
+import { getProjectDetailRouteName } from "@/utils/projectRoute";
 import { TaskStatus } from "@/types";
 import TaskStatusFlowDialog from "@/components/TaskStatusFlowDialog.vue";
 import DailyTaskAssigneeTags from "@/components/DailyTaskAssigneeTags.vue";
@@ -1264,9 +1265,11 @@ const viewRequirement = (requirement: RequirementListItem) => {
 
 // 查看项目
 const viewProject = (project: ProjectListItem) => {
+  const projectType = project.project_type;
   router.push({
-    name: "ProjectDetail",
-    params: { id: project._id }
+    name: getProjectDetailRouteName(projectType),
+    params: { id: project._id, state: project.state || "进行中" },
+    ...(projectType ? { query: { project_type: projectType } } : {})
   });
 };
 
