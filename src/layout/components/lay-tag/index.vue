@@ -80,11 +80,14 @@ const isHomeLikeTag = (item: RouteConfigs) => {
   );
 };
 
-const showTagClose = (item: RouteConfigs, index: number) => {
-  if (isFixedTag.value(item) || isHomeLikeTag(item) || index === 0) return false;
+const resolveTagIndex = (index: string | number) => Number(index);
+
+const showTagClose = (item: RouteConfigs, index: string | number) => {
+  const tagIndex = resolveTagIndex(index);
+  if (isFixedTag.value(item) || isHomeLikeTag(item) || tagIndex === 0) return false;
   return (
-    iconIsActive.value(item, index) ||
-    index === activeIndex.value ||
+    iconIsActive.value(item, tagIndex) ||
+    tagIndex === activeIndex.value ||
     linkIsActive.value(item) === "is-active"
   );
 };
@@ -600,8 +603,8 @@ onBeforeUnmount(() => {
           linkIsActive(item),
           showModel === 'chrome' && 'chrome-item',
           isFixedTag(item) && 'fixed-tag'
-        ]" @contextmenu.prevent="openMenu(item, $event)" @mouseenter.prevent="onMouseenter(index)"
-          @mouseleave.prevent="onMouseleave(index)" @click="tagOnClick(item)">
+        ]" @contextmenu.prevent="openMenu(item, $event)" @mouseenter.prevent="onMouseenter(resolveTagIndex(index))"
+          @mouseleave.prevent="onMouseleave(resolveTagIndex(index))" @click="tagOnClick(item)">
           <template v-if="showModel !== 'chrome'">
             <div class="tag-inner">
               <span class="tag-title">{{ item.meta.title }}</span>

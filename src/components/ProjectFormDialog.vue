@@ -1,7 +1,7 @@
 <template>
   <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑项目' : '新建项目'" width="900px" class="project-form-dialog"
     @close="handleClose">
-    <el-form ref="formRef" :model="projectForm" :rules="rules" label-width="100px">
+    <el-form ref="formRef" :model="projectForm" :rules="formRules" label-width="100px">
       <el-form-item v-if="!defaultProjectType" label="项目类型" prop="project_type">
         <el-radio-group v-model="projectForm.project_type" :disabled="isEdit">
           <el-radio label="定制项目">定制项目</el-radio>
@@ -30,12 +30,12 @@
       </el-row>
 
       <el-row :gutter="20">
-        <el-col :span="12">
+        <el-col :span="isFeatureDevelopment ? 24 : 12">
           <el-form-item label="平台名称" prop="platform_name">
             <el-input v-model="projectForm.platform_name" placeholder="请输入平台名称" />
           </el-form-item>
         </el-col>
-        <el-col :span="12">
+        <el-col v-if="!isFeatureDevelopment" :span="12">
           <el-form-item label="主板名称" prop="motherboard_name">
             <el-input v-model="projectForm.motherboard_name" placeholder="请输入主板名称" />
           </el-form-item>
@@ -43,12 +43,12 @@
       </el-row>
 
       <el-row :gutter="20">
-        <el-col :span="12">
+        <el-col :span="isFeatureDevelopment ? 24 : 12">
           <el-form-item label="分辨率" prop="resolution">
             <el-input v-model="projectForm.resolution" placeholder="请输入分辨率" />
           </el-form-item>
         </el-col>
-        <el-col :span="12">
+        <el-col v-if="!isFeatureDevelopment" :span="12">
           <el-form-item label="业务负责人" prop="business_owner">
             <el-input v-model="projectForm.business_owner" placeholder="请输入业务负责人" :disabled="isEdit" />
           </el-form-item>
@@ -131,7 +131,7 @@
           </template>
         </el-upload>
       </el-form-item>
-      <el-form-item label="立项时间" prop="project_initiation_date">
+      <el-form-item v-if="!isFeatureDevelopment" label="立项时间" prop="project_initiation_date">
         <el-date-picker v-model="projectForm.project_initiation_date" type="date" placeholder="选择立项时间（年月日）"
           format="YYYY-MM-DD" value-format="YYYY-MM-DD" style="width: 100%" />
       </el-form-item>
@@ -327,84 +327,107 @@ const projectForm = reactive({
   project_initiation_date: "" // 立项时间（年月日）
 });
 
-const rules: FormRules = {
-  project_type: [
-    { required: true, message: "请选择项目类型", trigger: "change" }
-  ],
-  name: [{ required: true, message: "请输入项目名称", trigger: "blur" }],
-  describe: [{ required: true, message: "请输入项目描述", trigger: "change" }],
-  project_proposal: [
-    {
-      required: true,
-      validator: (_rule: any, _value: any, callback: any) => {
-        const projectType =
-          props.defaultProjectType || projectForm.project_type;
-        if (isFeatureDevelopmentType(projectType)) {
-          callback();
-          return;
-        }
-        if (!proposalFileList.value || proposalFileList.value.length === 0) {
-          callback(new Error("请上传立项文件"));
-        } else {
-          callback();
-        }
-      },
-      trigger: "change",
-    }
-  ],
-  project_initiation_date: [
-    { required: true, message: "请选择立项时间", trigger: ["blur", "change"] }
-  ],
-  startDate: [
-    {
-      validator: (rule: any, value: any, callback: any) => {
-        if (!value) {
-          callback();
-          return;
-        }
-        // 如果结束时间已选择，检查开始时间是否大于结束时间
-        if (projectForm.endDate) {
-          const startTime = new Date(value).getTime();
-          const endTime = new Date(projectForm.endDate).getTime();
-          if (startTime > endTime) {
-            callback(new Error("计划开始时间不能大于计划结束时间"));
+const isFeatureDevelopment = computed(() =>
+  isFeatureDevelopmentType(
+    props.defaultProjectType || projectForm.project_type
+  )
+);
+
+const formRules = computed<FormRules>(() => {
+  const featureDev = isFeatureDevelopment.value;
+
+  return {
+    project_type: [
+      { required: true, message: "请选择项目类型", trigger: "change" }
+    ],
+    name: [{ required: true, message: "请输入项目名称", trigger: "blur" }],
+    describe: [{ required: true, message: "请输入项目描述", trigger: "change" }],
+    project_proposal: featureDev
+      ? []
+      : [
+          {
+            required: true,
+            validator: (_rule: any, _value: any, callback: any) => {
+              if (
+                !proposalFileList.value ||
+                proposalFileList.value.length === 0
+              ) {
+                callback(new Error("请上传立项文件"));
+              } else {
+                callback();
+              }
+            },
+            trigger: "change"
+          }
+        ],
+    project_initiation_date: featureDev
+      ? []
+      : [
+          {
+            required: true,
+            message: "请选择立项时间",
+            trigger: ["blur", "change"]
+          }
+        ],
+    startDate: [
+      {
+        validator: (_rule: any, value: any, callback: any) => {
+          if (!value) {
+            callback();
             return;
           }
-        }
-        callback();
-      },
-      trigger: "change"
-    }
-  ],
-  endDate: [
-    { required: true, message: "请选择计划结束时间", trigger: "change" },
-    {
-      validator: (rule: any, value: any, callback: any) => {
-        if (!value) {
-          callback(new Error("请选择计划结束时间"));
-          return;
-        }
-        // 如果开始时间已选择，检查结束时间是否小于开始时间
-        if (projectForm.startDate) {
-          const startTime = new Date(projectForm.startDate).getTime();
-          const endTime = new Date(value).getTime();
-          if (endTime < startTime) {
-            callback(new Error("计划结束时间不能小于计划开始时间"));
+          if (projectForm.endDate) {
+            const startTime = new Date(value).getTime();
+            const endTime = new Date(projectForm.endDate).getTime();
+            if (startTime > endTime) {
+              callback(new Error("计划开始时间不能大于计划结束时间"));
+              return;
+            }
+          }
+          callback();
+        },
+        trigger: "change"
+      }
+    ],
+    endDate: [
+      { required: true, message: "请选择计划结束时间", trigger: "change" },
+      {
+        validator: (_rule: any, value: any, callback: any) => {
+          if (!value) {
+            callback(new Error("请选择计划结束时间"));
             return;
           }
-        }
-        callback();
-      },
-      trigger: "change"
-    }
-  ],
-  customer_name: [{ required: true, message: "请输入客户名称", trigger: "blur" }],
-  product_type: [{ required: true, message: "请输入产品类型", trigger: "blur" }],
-  platform_name: [{ required: true, message: "请输入平台名称", trigger: "blur" }],
-  motherboard_name: [{ required: true, message: "请输入主板名称", trigger: "blur" }],
-  resolution: [{ required: true, message: "请输入分辨率", trigger: "blur" }],
-  business_owner: [{ required: true, message: "请输入业务负责人", trigger: "blur" }],
-};
+          if (projectForm.startDate) {
+            const startTime = new Date(projectForm.startDate).getTime();
+            const endTime = new Date(value).getTime();
+            if (endTime < startTime) {
+              callback(new Error("计划结束时间不能小于计划开始时间"));
+              return;
+            }
+          }
+          callback();
+        },
+        trigger: "change"
+      }
+    ],
+    customer_name: [
+      { required: true, message: "请输入客户名称", trigger: "blur" }
+    ],
+    product_type: [
+      { required: true, message: "请输入产品类型", trigger: "blur" }
+    ],
+    platform_name: [
+      { required: true, message: "请输入平台名称", trigger: "blur" }
+    ],
+    motherboard_name: featureDev
+      ? []
+      : [{ required: true, message: "请输入主板名称", trigger: "blur" }],
+    resolution: [{ required: true, message: "请输入分辨率", trigger: "blur" }],
+    business_owner: featureDev
+      ? []
+      : [{ required: true, message: "请输入业务负责人", trigger: "blur" }]
+  };
+});
 
 // 禁用开始时间大于结束时间的日期
 const disabledStartDate = (time: Date): boolean => {
@@ -427,12 +450,6 @@ const disabledEndDate = (time: Date): boolean => {
 };
 
 const isEdit = computed(() => !!props.project);
-
-const isFeatureDevelopment = computed(() =>
-  isFeatureDevelopmentType(
-    props.defaultProjectType || projectForm.project_type
-  )
-);
 
 const dialogVisible = computed({
   get: () => props.visible,
@@ -802,7 +819,7 @@ const handleSubmit = async () => {
     }
 
     // 验证立项时间
-    if (!projectForm.project_initiation_date) {
+    if (!isFeatureDevelopment.value && !projectForm.project_initiation_date) {
       ElMessage.warning("请选择立项时间");
       submitting.value = false;
       return;

@@ -124,13 +124,13 @@
 
           <!-- 第三行：平台名称，主板名称 -->
           <div class="project-row project-row-second">
-            <div class="field-item">
+            <div class="field-item" :class="{ 'field-item--full': isFeatureDevelopment }">
               <span class="field-label">平台名称:</span>
               <el-tooltip :content="project.platform_name || '-'" placement="top">
                 <span class="field-value">{{ project.platform_name || "-" }}</span>
               </el-tooltip>
             </div>
-            <div class="field-item">
+            <div v-if="!isFeatureDevelopment" class="field-item">
               <span class="field-label">主板名称:</span>
               <el-tooltip :content="project.motherboard_name || '-'" placement="top">
                 <span class="field-value">{{ project.motherboard_name || "-" }}</span>
@@ -140,21 +140,20 @@
 
           <!-- 第四行：分辨率，业务负责人 -->
           <div class="project-row project-row-third">
-            <div class="field-item">
+            <div class="field-item" :class="{ 'field-item--full': isFeatureDevelopment }">
               <span class="field-label">分辨率:</span>
               <el-tooltip :content="project.resolution || '-'" placement="top">
                 <span class="field-value">{{ project.resolution || "-" }}</span>
               </el-tooltip>
             </div>
-            <div class="field-item">
+            <div v-if="!isFeatureDevelopment" class="field-item">
               <span class="field-label">业务负责人:</span>
               <el-tooltip :content="project.business_owner || '-'" placement="top">
                 <span class="field-value">{{ project.business_owner || "-" }}</span>
               </el-tooltip>
             </div>
           </div>
-          <!-- -->
-          <div class="project-row project-row-third">
+          <div v-if="!isFeatureDevelopment" class="project-row project-row-third">
             <div class="field-item">
               <span class="field-label">立项时间:</span>
               <el-tooltip :content="project.project_initiation_date || '-'" placement="top">
@@ -237,10 +236,13 @@
           <el-table-column prop="customer_name" label="客户名称" show-overflow-tooltip />
           <el-table-column prop="product_type" label="产品类型" show-overflow-tooltip />
           <el-table-column prop="platform_name" label="平台名称" show-overflow-tooltip />
-          <el-table-column prop="motherboard_name" label="主板名称" show-overflow-tooltip />
+          <el-table-column v-if="!isFeatureDevelopment" prop="motherboard_name" label="主板名称"
+            show-overflow-tooltip />
           <el-table-column prop="resolution" label="分辨率" show-overflow-tooltip />
-          <el-table-column prop="business_owner" label="业务负责人" show-overflow-tooltip />
-          <el-table-column prop="project_initiation_date" label="立项时间" show-overflow-tooltip />
+          <el-table-column v-if="!isFeatureDevelopment" prop="business_owner" label="业务负责人"
+            show-overflow-tooltip />
+          <el-table-column v-if="!isFeatureDevelopment" prop="project_initiation_date" label="立项时间"
+            show-overflow-tooltip />
           <el-table-column label="进度">
             <template #default="{ row }">
               <div class="table-progress-cell">
@@ -329,7 +331,7 @@ import {
   type SelectProjectParams,
   deleteProject as deleteProjectApi
 } from "@/api/project";
-import { getProjectDetailRouteName } from "@/utils/projectRoute";
+import { getProjectDetailRouteName, isFeatureDevelopmentType } from "@/utils/projectRoute";
 
 const projectStore = useProjectStoreHook();
 const router = useRouter();
@@ -342,6 +344,9 @@ const fixedProjectType = computed(
 const pageTitle = computed(() => fixedProjectType.value || "项目管理");
 const projectDetailRouteName = computed(() =>
   getProjectDetailRouteName(fixedProjectType.value)
+);
+const isFeatureDevelopment = computed(() =>
+  isFeatureDevelopmentType(fixedProjectType.value)
 );
 
 const searchKeyword = ref("");
@@ -1087,6 +1092,11 @@ onMounted(() => {
       width: 50%;
       flex: 0 0 50%;
       box-sizing: border-box;
+
+      &.field-item--full {
+        width: 100%;
+        flex: 0 0 100%;
+      }
     }
   }
 

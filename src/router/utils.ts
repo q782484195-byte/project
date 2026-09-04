@@ -538,6 +538,40 @@ export async function pushDynamicRouteTag(to: ToRouteType) {
   });
 }
 
+/** 在菜单树中按 path 查找路由项 */
+function findMenuInTree(menus: any[], targetPath: string): menuType | null {
+  for (const menu of menus) {
+    if (menu?.path === targetPath) {
+      return menu as menuType;
+    }
+    if (Array.isArray(menu?.children) && menu.children.length > 0) {
+      const found = findMenuInTree(menu.children, targetPath);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+/** 登录后默认进入的菜单（部门主管进入待办任务） */
+function getLandingMenu(tag = false): menuType | null {
+  const currentRoles =
+    storageLocal().getItem<DataInfo<number>>(userKey)?.roles ?? [];
+
+  if (currentRoles.includes("DepartmentManager") && storeHooksCache) {
+    const permissionStore = storeHooksCache.usePermissionStoreHook();
+    const wholeMenus = permissionStore.wholeMenus as any[];
+    const workspaceMenu = findMenuInTree(wholeMenus, "/workspace/index");
+    if (workspaceMenu) {
+      if (tag) {
+        storeHooksCache.useMultiTagsStoreHook().handleTags("push", workspaceMenu);
+      }
+      return workspaceMenu;
+    }
+  }
+
+  return getTopMenu(tag);
+}
+
 export {
   hasAuth,
   getAuths,
@@ -545,6 +579,7 @@ export {
   filterTree,
   initRouter,
   getTopMenu,
+  getLandingMenu,
   addPathMatch,
   isOneOfArray,
   getHistoryMode,

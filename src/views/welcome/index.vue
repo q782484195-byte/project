@@ -3,6 +3,7 @@ import { computed } from "vue";
 import { useRouter } from "vue-router";
 import { configRef } from "@/config";
 import { useUserStoreHook } from "@/store/modules/user";
+import { isOneOfArray } from "@/router/utils";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
 import ListCheck from "~icons/ri/list-check-2";
 import FolderLine from "~icons/ri/folder-line";
@@ -36,37 +37,73 @@ const todayText = computed(() => {
   return `${now.getFullYear()} 年 ${now.getMonth() + 1} 月 ${now.getDate()} 日，${weekDays[now.getDay()]}`;
 });
 
-const quickLinks = [
+interface QuickLink {
+  title: string;
+  desc: string;
+  path: string;
+  icon: typeof FolderLine;
+  color: string;
+  roles: string[];
+}
 
+const allQuickLinks: QuickLink[] = [
   {
-    title: "项目列表",
-    desc: "浏览与管理所有项目",
-    path: "/projects/index",
-    icon: FolderLine,
-    color: "#67c23a"
-  },
-  {
-    title: "功能开发",
-    desc: "管理功能开发类项目",
-    path: "/feature-development/index",
-    icon: CodeBoxLine,
-    color: "#409eff"
-  },
-  {
-    title: "日常任务",
-    desc: "记录与跟进日常工作",
-    path: "/personal-task/list",
-    icon: CalendarCheck,
-    color: "#e6a23c"
+    title: "待办任务",
+    desc: "查看和处理当前待办工作",
+    path: "/workspace/index",
+    icon: ListCheck,
+    color: "#409eff",
+    roles: ["Admin", "DepartmentManager", "Member"]
   },
   {
     title: "项目概览",
     desc: "了解项目整体运行状况",
     path: "/project-overview/index",
     icon: DashboardLine,
-    color: "#909399"
+    color: "#909399",
+    roles: ["Admin", "ProjectDirector", "ProjectManager", "BusinessDepartmentMembers"]
+  },
+  {
+    title: "项目列表",
+    desc: "浏览与管理所有项目",
+    path: "/projects/index",
+    icon: FolderLine,
+    color: "#67c23a",
+    roles: ["Admin", "ProjectManager", "Member", "DepartmentManager", "ProjectDirector", "BusinessDepartmentMembers"]
+  },
+  {
+    title: "功能开发",
+    desc: "管理功能开发类项目",
+    path: "/feature-development/index",
+    icon: CodeBoxLine,
+    color: "#409eff",
+    roles: ["Admin", "ProjectManager", "Member", "DepartmentManager", "ProjectDirector", "BusinessDepartmentMembers"]
+  },
+  {
+    title: "日常任务",
+    desc: "记录与跟进日常工作",
+    path: "/personal-task/list",
+    icon: CalendarCheck,
+    color: "#e6a23c",
+    roles: ["Admin", "ProjectManager", "ProjectDirector"]
   }
 ];
+
+const quickLinks = computed(() => {
+  const userRoles = userStore.roles || [];
+  return allQuickLinks.filter(link => isOneOfArray(link.roles, userRoles));
+});
+
+const welcomeTip = computed(() => {
+  const titles = quickLinks.value.map(item => `「${item.title}」`);
+  if (!titles.length) {
+    return "请从左侧菜单进入你有权限的功能模块。";
+  }
+  if (titles.length === 1) {
+    return `建议从 ${titles[0]} 开始，快速进入当前工作。`;
+  }
+  return `建议从 ${titles.slice(0, 2).join("或")} 开始，查看当前需要跟进的工作。`;
+});
 
 const features = [
   "统一管理项目、任务与需求，让协作信息集中可见",
@@ -98,7 +135,7 @@ function goTo(path: string) {
       </div>
     </section>
 
-    <section class="welcome-section">
+    <section v-if="quickLinks.length" class="welcome-section">
       <h2 class="welcome-section__title">快捷入口</h2>
       <el-row :gutter="16">
         <el-col v-for="item in quickLinks" :key="item.path" :xs="24" :sm="12" :lg="6">
@@ -137,15 +174,11 @@ function goTo(path: string) {
             <span class="welcome-card__header">开始使用</span>
           </template>
           <p class="welcome-card__tip">
-            建议从「待办任务」开始，查看当前需要跟进的工作；如需了解项目整体情况，可前往「项目概览」。
+            {{ welcomeTip }}
           </p>
-          <div class="welcome-card__actions">
-
-            <el-button @click="goTo('/projects/index')">
-              浏览项目
-            </el-button>
-            <el-button @click="goTo('/feature-development/index')">
-              功能开发
+          <div v-if="quickLinks.length" class="welcome-card__actions">
+            <el-button v-for="item in quickLinks.slice(0, 3)" :key="item.path" @click="goTo(item.path)">
+              {{ item.title }}
             </el-button>
           </div>
         </el-card>

@@ -9,7 +9,7 @@ import { useEventListener, onClickOutside } from "@vueuse/core";
 import type { FormInstance } from "element-plus";
 import { useLayout } from "@/layout/hooks/useLayout";
 import { useUserStoreHook } from "@/store/modules/user";
-import { initRouter, getTopMenu } from "@/router/utils";
+import { initRouter, getLandingMenu } from "@/router/utils";
 import { bg, avatar, illustration } from "./utils/static";
 import { useRenderIcon } from "@/components/ReIcon/src/hooks";
 import { useDataThemeChange } from "@/layout/hooks/useDataThemeChange";
@@ -128,10 +128,10 @@ const onLogin = async (formEl: FormInstance | undefined) => {
             return initRouter().then(async () => {
               disabled.value = true;
               try {
-                const topMenu = await getTopMenu(true);
-                if (topMenu && topMenu.path) {
+                const landingMenu = await getLandingMenu(true);
+                if (landingMenu && landingMenu.path) {
                   router
-                    .push(topMenu.path)
+                    .push(landingMenu.path)
                     .then(() => {
                       message("登录成功", { type: "success" });
                     })

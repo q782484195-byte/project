@@ -32,6 +32,7 @@
                 size="default">
                 <el-option label="定制项目" value="定制项目" />
                 <el-option label="公模项目" value="公模项目" />
+                <el-option label="功能开发" value="功能开发" />
               </el-select>
             </div>
             <div class="filter-field">
@@ -124,8 +125,7 @@
                       </span>
                     </div>
                     <div class="mobile-task-card__meta">
-                      <el-tag :type="getStatusType(row.状态 || row.status, row) || undefined" size="small"
-                        effect="light">
+                      <el-tag :type="getStatusType(row.状态 || row.status, row) || undefined" size="small" effect="light">
                         {{ getDisplayStatus(row) }}
                       </el-tag>
                       <el-tag :type="getPriorityType(row.优先级 || row.priority) || undefined" size="small">
@@ -317,7 +317,7 @@ const goProjectDetail = (row: Record<string, unknown>) => {
       params: { id: pid, state },
       ...(projectType ? { query: { project_type: projectType } } : {})
     })
-    .catch(() => {});
+    .catch(() => { });
 };
 
 const goProjectByGroup = (group: ProjectTaskGroup) => {
@@ -727,7 +727,7 @@ onUnmounted(() => {
   padding-bottom: 8px;
 }
 
-.project-table-block + .project-table-block {
+.project-table-block+.project-table-block {
   padding-top: 4px;
 }
 
@@ -823,7 +823,7 @@ onUnmounted(() => {
   gap: 12px;
 }
 
-.mobile-project-block + .mobile-project-block {
+.mobile-project-block+.mobile-project-block {
   margin-top: 4px;
   padding-top: 16px;
   border-top: 1px dashed var(--el-border-color-light);

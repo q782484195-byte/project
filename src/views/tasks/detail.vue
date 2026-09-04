@@ -102,6 +102,12 @@
                     <span>{{ task.assignment_time || "-" }}</span>
                   </span>
                 </div>
+                <div class="project-info-row">
+                  <span class="info-label">备注</span>
+                  <span class="info-value">
+                    <span>{{ task.remark || "-" }}</span>
+                  </span>
+                </div>
                 <div class="project-info-row project-info-row--time">
                   <span class="info-label">任务完成期限</span>
                   <span class="info-value info-value--editable">

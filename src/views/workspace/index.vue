@@ -600,6 +600,10 @@ const displayRoleNames = computed(() => {
   return roles.length ? roles.map(getRoleName).join("、") : "";
 });
 
+const isDepartmentManager = computed(() =>
+  (userStore.roles || []).includes("DepartmentManager")
+);
+
 // 当前时间
 const currentTime = ref("");
 let timeInterval: number | null = null;
@@ -1858,14 +1862,19 @@ onMounted(() => {
   updateTime();
   timeInterval = window.setInterval(updateTime, 1000);
 
-  // 检查query参数，如果有tab参数就激活对应的TAB
-  const tab = route.query.tab as string;
-  if (tab && ["workspace", "tasks", "requirements", "projects"].includes(tab)) {
-    activeTab.value = tab;
-    handleTabChange(tab);
-  } else {
-    // 默认加载工作台的待办任务
+  if (isDepartmentManager.value) {
+    activeTab.value = "workspace";
     loadTodoTasks();
+  } else {
+    // 检查query参数，如果有tab参数就激活对应的TAB
+    const tab = route.query.tab as string;
+    if (tab && ["workspace", "tasks", "requirements", "projects"].includes(tab)) {
+      activeTab.value = tab;
+      handleTabChange(tab);
+    } else {
+      // 默认加载工作台的待办任务
+      loadTodoTasks();
+    }
   }
 
   // 计算表格高度

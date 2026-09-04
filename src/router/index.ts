@@ -15,6 +15,7 @@ import { setRouterInstance } from "./context";
 import {
   ascending,
   getTopMenu,
+  getLandingMenu,
   initRouter,
   isOneOfArray,
   findRouteByPath,
@@ -251,7 +252,7 @@ function setupRouterGuards(router: Router) {
                   path,
                   routerInstance.options.routes[0].children
                 );
-                getTopMenu(true);
+                getLandingMenu(true);
                 // query、params模式路由传参数的标签页不在此处处理
                 if (route && route.meta?.title) {
                   if (isAllEmpty(route.parentId) && route.meta?.backstage) {
