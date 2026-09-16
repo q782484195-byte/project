@@ -46,12 +46,12 @@
         <template #default="{ row }">
           <el-tag
             v-if="!row._isGroupHeader"
-            :type="ctx.getStatusType(row.状态 || row.status) || undefined"
+            :type="ctx.getStatusType(row.状态 || row.status, row) || undefined"
             size="small"
             effect="plain"
             round
           >
-            {{ row.状态 || row.status || "-" }}
+            {{ ctx.getDisplayStatus(row) }}
           </el-tag>
         </template>
       </el-table-column>
@@ -86,7 +86,7 @@
         <template #default="{ row }">
           <div v-if="!row._isGroupHeader" class="task-remark-cell" @click.stop>
             <el-input
-              v-if="canUpdateRemark && isEditingRemark(row)"
+              v-if="canEditRemark(row) && isEditingRemark(row)"
               ref="remarkInputRef"
               v-model="row.remark"
               size="small"
@@ -103,7 +103,7 @@
                 {{ getTaskRemark(row) || "-" }}
               </span>
               <el-icon
-                v-if="canUpdateRemark"
+                v-if="canEditRemark(row)"
                 class="task-remark-edit"
                 title="编辑备注"
                 @click="startEditRemark(row, $event)"
@@ -138,11 +138,11 @@
           <div class="mobile-task-card__title">{{ row.任务名 || row.task_name || row.title || "-" }}</div>
           <div class="mobile-task-card__meta">
             <el-tag
-              :type="ctx.getStatusType(row.状态 || row.status) || undefined"
+              :type="ctx.getStatusType(row.状态 || row.status, row) || undefined"
               size="small"
               effect="light"
             >
-              {{ row.状态 || row.status || "-" }}
+              {{ ctx.getDisplayStatus(row) }}
             </el-tag>
             <el-tag :type="ctx.getPriorityType(row.优先级 || row.priority) || undefined" size="small">
               {{ row.优先级 || row.priority || "-" }}
@@ -167,7 +167,7 @@
           <div class="mobile-task-card__row">
             <span class="mobile-task-card__label">备注</span>
             <span class="mobile-task-card__value">
-              <div v-if="canUpdateRemark && isEditingRemark(row)" class="task-remark-cell">
+              <div v-if="canEditRemark(row) && isEditingRemark(row)" class="task-remark-cell">
                 <el-input
                   ref="remarkInputRef"
                   v-model="row.remark"
@@ -181,7 +181,7 @@
               <div v-else class="task-remark-cell">
                 <span class="task-remark-cell__text">{{ getTaskRemark(row) || "-" }}</span>
                 <el-icon
-                  v-if="canUpdateRemark"
+                  v-if="canEditRemark(row)"
                   class="task-remark-edit"
                   title="编辑备注"
                   @click="startEditRemark(row, $event)"
@@ -230,18 +230,33 @@ const props = defineProps<{
 
 const ctx = inject<TaskCollapseContext>(TASK_COLLAPSE_CTX_KEY)!;
 const isMobile = ctx.isMobile;
-const canUpdateRemark = computed(() => ctx.hasPerms(["task:update_remark"]));
 const savingRemarkIds = reactive<Record<string, boolean>>({});
 const editingRemarkId = ref("");
 const remarkInputRef = ref();
 
 const getRowId = (row: any) => String(row?._id || row?.id || "");
 
+const isCurrentAssignee = (row: any) => {
+  if (!ctx.username) return false;
+  const assignee = row?.指派人 ?? row?.assignee;
+  if (Array.isArray(assignee)) {
+    return assignee.some((item: any) => String(item).trim() === ctx.username);
+  }
+  return Boolean(assignee) && String(assignee) === ctx.username;
+};
+
+/** 管理员/项目总监/项目负责人可编辑全部；其余角色仅当自己是该任务指派人时可编辑 */
+const canEditRemark = (row: any) =>
+  ctx.isAdmin ||
+  ctx.isProjectManager ||
+  ctx.isProjectDirector ||
+  isCurrentAssignee(row);
+
 const isEditingRemark = (row: any) => editingRemarkId.value === getRowId(row);
 
 const startEditRemark = async (row: any, event?: Event) => {
   event?.stopPropagation();
-  if (!canUpdateRemark.value) return;
+  if (!canEditRemark(row)) return;
   const id = getRowId(row);
   if (!id) return;
   editingRemarkId.value = id;
@@ -281,7 +296,7 @@ const blurRemarkInput = (event: KeyboardEvent) => {
 };
 
 const handleSaveRemark = async (row: any) => {
-  if (!canUpdateRemark.value) return;
+  if (!canEditRemark(row)) return;
   const taskId = row?._id || row?.id;
   if (!taskId) {
     ElMessage.warning("任务ID不存在，无法保存备注");

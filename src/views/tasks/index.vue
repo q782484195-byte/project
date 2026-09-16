@@ -299,6 +299,7 @@ const userStore = useUserStoreHook();
 const userRoles = computed(() => userStore.roles || []);
 const isAdmin = computed(() => userRoles.value.includes("Admin"));
 const isProjectManager = computed(() => userRoles.value.includes("ProjectManager"));
+const isProjectDirector = computed(() => userRoles.value.includes("ProjectDirector"));
 const canCallDepartmentSelect = computed(() => isAdmin.value || isProjectManager.value);
 
 // 移动端适配：设备检测 + 视口宽度
@@ -641,9 +642,43 @@ const getTotalTaskCount = (node: any): number => {
 };
 
 // 获取状态类型
+const isTaskDelayed = (row: any): boolean => {
+  const status = row?.状态 || row?.status;
+  if (status === TaskStatus.COMPLETED) return false;
+  return row?.delay?.task_is_delay === true;
+};
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const getTaskDeadline = (row: any): string | undefined =>
+  row?.task_deadline || row?.task_dead_line || row?.任务完成期限 || undefined;
+
+/** 根据 task_deadline 与当前日期计算延期天数 */
+const getTaskDelayDays = (row: any): number | null => {
+  const deadline = getTaskDeadline(row);
+  if (!deadline) return null;
+  const deadlineDate = new Date(deadline);
+  if (Number.isNaN(deadlineDate.getTime())) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  deadlineDate.setHours(0, 0, 0, 0);
+  const days = Math.floor((today.getTime() - deadlineDate.getTime()) / DAY_MS);
+  return days > 0 ? days : null;
+};
+
+const getDisplayStatus = (row: any): string => {
+  if (isTaskDelayed(row)) {
+    const days = getTaskDelayDays(row);
+    return days != null ? `延期 ${days}天` : "延期";
+  }
+  return row.状态 || row.status || "-";
+};
+
 const getStatusType = (
-  status: string
+  status: string,
+  row?: any
 ): "success" | "info" | "warning" | "danger" | "" => {
+  if (row && isTaskDelayed(row)) return "danger";
   if (!status) return "";
   const map: Record<string, "success" | "info" | "warning" | "danger" | ""> = {
     [TaskStatus.PENDING_ASSIGN_TO_DEPT_LEADER]: "warning", // 待分配给部门负责人 - 黄色
@@ -2021,9 +2056,13 @@ provide(TASK_COLLAPSE_CTX_KEY, {
   get isProjectManager() {
     return isProjectManager.value;
   },
+  get isProjectDirector() {
+    return isProjectDirector.value;
+  },
   getGroupIndentPx,
   getTaskIndentPx,
   getStatusType,
+  getDisplayStatus,
   getPriorityType,
   operationColWidth,
   hasPerms,

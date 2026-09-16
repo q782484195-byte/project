@@ -755,7 +755,11 @@ const updateTime = () => {
   currentTime.value = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 };
 
-const isTaskDelayed = (row: any): boolean => row?.delay?.task_is_delay === true;
+const isTaskDelayed = (row: any): boolean => {
+  const status = row?.状态 || row?.status;
+  if (status === TaskStatus.COMPLETED) return false;
+  return row?.delay?.task_is_delay === true;
+};
 
 const getDisplayStatus = (row: any): string => {
   if (isTaskDelayed(row)) return "延期";

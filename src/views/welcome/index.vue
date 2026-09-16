@@ -80,6 +80,14 @@ const allQuickLinks: QuickLink[] = [
     roles: ["Admin", "ProjectManager", "Member", "DepartmentManager", "ProjectDirector", "BusinessDepartmentMembers"]
   },
   {
+    title: "APP功能开发",
+    desc: "管理 APP 功能开发类项目",
+    path: "/app-feature-development/index",
+    icon: CodeBoxLine,
+    color: "#626aef",
+    roles: ["Admin", "ProjectManager", "Member", "DepartmentManager", "ProjectDirector", "BusinessDepartmentMembers"]
+  },
+  {
     title: "日常任务",
     desc: "记录与跟进日常工作",
     path: "/personal-task/list",

@@ -68,9 +68,7 @@
           <div class="card-header">
             <div class="project-info">
               <el-tag :type="getStatusTagType(project.status)">
-                {{ getStatusText(project.status) }}{{ project.state_description ? '（' + project.state_description + '）'
-                  :
-                  '' }}
+                {{ getDisplayProjectStatus(project) }}
               </el-tag>
             </div>
             <div class="more-button-wrapper"
@@ -122,38 +120,50 @@
             </div>
           </div>
 
-          <!-- 第三行：平台名称，主板名称 -->
+          <!-- 第三行：平台名称，主板名称 / APP 协议 -->
           <div class="project-row project-row-second">
-            <div class="field-item" :class="{ 'field-item--full': isFeatureDevelopment }">
+            <div class="field-item" :class="{ 'field-item--full': isFeatureDevelopmentOnly }">
               <span class="field-label">平台名称:</span>
               <el-tooltip :content="project.platform_name || '-'" placement="top">
                 <span class="field-value">{{ project.platform_name || "-" }}</span>
               </el-tooltip>
             </div>
-            <div v-if="!isFeatureDevelopment" class="field-item">
+            <div v-if="isStandardProjectList" class="field-item">
               <span class="field-label">主板名称:</span>
               <el-tooltip :content="project.motherboard_name || '-'" placement="top">
                 <span class="field-value">{{ project.motherboard_name || "-" }}</span>
               </el-tooltip>
             </div>
+            <div v-if="isAppFeatureDevelopment" class="field-item">
+              <span class="field-label">APP协议:</span>
+              <el-tooltip :content="project.app_protocol || '-'" placement="top">
+                <span class="field-value">{{ project.app_protocol || "-" }}</span>
+              </el-tooltip>
+            </div>
           </div>
 
-          <!-- 第四行：分辨率，业务负责人 -->
+          <!-- 第四行：分辨率，业务负责人 / 马甲包名称 -->
           <div class="project-row project-row-third">
-            <div class="field-item" :class="{ 'field-item--full': isFeatureDevelopment }">
+            <div class="field-item" :class="{ 'field-item--full': isFeatureDevelopmentOnly }">
               <span class="field-label">分辨率:</span>
               <el-tooltip :content="project.resolution || '-'" placement="top">
                 <span class="field-value">{{ project.resolution || "-" }}</span>
               </el-tooltip>
             </div>
-            <div v-if="!isFeatureDevelopment" class="field-item">
+            <div v-if="isAppFeatureDevelopment" class="field-item">
+              <span class="field-label">马甲包名称:</span>
+              <el-tooltip :content="project.shadow_app || '-'" placement="top">
+                <span class="field-value">{{ project.shadow_app || "-" }}</span>
+              </el-tooltip>
+            </div>
+            <div v-if="!isFeatureDevelopmentOnly" class="field-item">
               <span class="field-label">业务负责人:</span>
               <el-tooltip :content="project.business_owner || '-'" placement="top">
                 <span class="field-value">{{ project.business_owner || "-" }}</span>
               </el-tooltip>
             </div>
           </div>
-          <div v-if="!isFeatureDevelopment" class="project-row project-row-third">
+          <div v-if="!isFeatureDevelopmentOnly" class="project-row project-row-third">
             <div class="field-item">
               <span class="field-label">立项时间:</span>
               <el-tooltip :content="project.project_initiation_date || '-'" placement="top">
@@ -177,8 +187,8 @@
               </el-tooltip>
             </div>
           </div>
-          <!-- 第三行：项目负责人，业务负责人 -->
-          <div class="project-row project-row-owners">
+          <!-- 项目负责人 -->
+          <div v-if="!isAppFeatureDevelopment" class="project-row project-row-owners">
             <div class="field-item">
               <span class="field-label">项目负责人:</span>
               <el-tooltip :content="project.creator || '-'" placement="top">
@@ -226,22 +236,22 @@
               <span class="table-project-name">{{ row.name || "-" }}</span>
             </template>
           </el-table-column>
+          <el-table-column v-if="isStandardProjectList" prop="motherboard_name" label="主板名称" show-overflow-tooltip />
           <el-table-column prop="status" label="状态">
             <template #default="{ row }">
               <el-tag :type="getStatusTagType(row.status)" size="small">
-                {{ getStatusText(row.status) }}{{ row.state_description ? '（' + row.state_description + '）' : '' }}
+                {{ getDisplayProjectStatus(row) }}
               </el-tag>
             </template>
           </el-table-column>
           <el-table-column prop="customer_name" label="客户名称" show-overflow-tooltip />
           <el-table-column prop="product_type" label="产品类型" show-overflow-tooltip />
           <el-table-column prop="platform_name" label="平台名称" show-overflow-tooltip />
-          <el-table-column v-if="!isFeatureDevelopment" prop="motherboard_name" label="主板名称"
-            show-overflow-tooltip />
           <el-table-column prop="resolution" label="分辨率" show-overflow-tooltip />
-          <el-table-column v-if="!isFeatureDevelopment" prop="business_owner" label="业务负责人"
-            show-overflow-tooltip />
-          <el-table-column v-if="!isFeatureDevelopment" prop="project_initiation_date" label="立项时间"
+          <el-table-column v-if="isAppFeatureDevelopment" prop="app_protocol" label="APP协议" show-overflow-tooltip />
+          <el-table-column v-if="isAppFeatureDevelopment" prop="shadow_app" label="马甲包名称" show-overflow-tooltip />
+          <el-table-column v-if="!isFeatureDevelopmentOnly" prop="business_owner" label="业务负责人" show-overflow-tooltip />
+          <el-table-column v-if="!isFeatureDevelopmentOnly" prop="project_initiation_date" label="立项时间"
             show-overflow-tooltip />
           <el-table-column label="进度">
             <template #default="{ row }">
@@ -256,7 +266,7 @@
               {{ getProjectNode(row) }}
             </template>
           </el-table-column>
-          <el-table-column prop="creator" label="项目负责人" show-overflow-tooltip />
+          <el-table-column v-if="!isAppFeatureDevelopment" prop="creator" label="项目负责人" show-overflow-tooltip />
           <el-table-column label="计划时间" show-overflow-tooltip>
             <template #default="{ row }">
               {{ formatDateRange(row.startDate, row.endDate) }}
@@ -298,8 +308,7 @@
 
     <!-- 新建/编辑项目对话框 -->
     <ProjectFormDialog v-model:visible="showProjectDialog" :project="editingProject"
-      :default-project-type="fixedProjectType" @created="handleProjectCreated"
-      @updated="handleProjectUpdated" />
+      :default-project-type="fixedProjectType" @created="handleProjectCreated" @updated="handleProjectUpdated" />
 
     <!-- 成员管理对话框 -->
     <ProjectMembersDialog v-model:visible="showMembersDialog" :project="selectedProject"
@@ -331,7 +340,11 @@ import {
   type SelectProjectParams,
   deleteProject as deleteProjectApi
 } from "@/api/project";
-import { getProjectDetailRouteName, isFeatureDevelopmentType } from "@/utils/projectRoute";
+import {
+  getProjectDetailRouteName,
+  isAppFeatureDevelopmentType,
+  isFeatureDevelopmentType
+} from "@/utils/projectRoute";
 
 const projectStore = useProjectStoreHook();
 const router = useRouter();
@@ -345,8 +358,14 @@ const pageTitle = computed(() => fixedProjectType.value || "项目管理");
 const projectDetailRouteName = computed(() =>
   getProjectDetailRouteName(fixedProjectType.value)
 );
-const isFeatureDevelopment = computed(() =>
+const isFeatureDevelopmentOnly = computed(() =>
   isFeatureDevelopmentType(fixedProjectType.value)
+);
+const isAppFeatureDevelopment = computed(() =>
+  isAppFeatureDevelopmentType(fixedProjectType.value)
+);
+const isStandardProjectList = computed(
+  () => !isFeatureDevelopmentOnly.value && !isAppFeatureDevelopment.value
 );
 
 const searchKeyword = ref("");
@@ -569,6 +588,8 @@ const loadProjects = async () => {
           platform_name: item.platform_name || "", // 平台名称
           motherboard_name: item.motherboard_name || "", // 主板名称
           resolution: item.resolution || "", // 分辨率
+          app_protocol: item.app_protocol || "", // APP协议
+          shadow_app: item.shadow_app || "", // 马甲包名称
           business_owner: item.business_owner || "", // 业务负责人
           project_initiation_date: item.project_initiation_date || "", // 立项时间
           node: (() => {
@@ -786,6 +807,29 @@ const getStatusText = (status?: string) => {
   return status || "-";
 };
 
+const isProjectDelayed = (project: { status?: string }): boolean =>
+  project?.status === "延期";
+
+/** 根据计划结束时间 endDate 与当前日期计算延期天数 */
+const getProjectDelayDays = (project: { endDate?: string }): number | null => {
+  const deadline = project?.endDate;
+  if (!deadline) return null;
+  const deadlineDate = dayjs(deadline).startOf("day");
+  if (!deadlineDate.isValid()) return null;
+  const days = dayjs().startOf("day").diff(deadlineDate, "day");
+  return days > 0 ? days : null;
+};
+
+const getDisplayProjectStatus = (project: Project): string => {
+  let statusText = getStatusText(project.status);
+  if (isProjectDelayed(project)) {
+    const days = getProjectDelayDays(project);
+    statusText = days != null ? `延期 ${days}天` : "延期";
+  }
+  const desc = project.state_description?.trim();
+  return desc ? `${statusText}（${desc}）` : statusText;
+};
+
 // 格式化日期范围
 const formatDateRange = (startDate?: string, endDate?: string) => {
   if (!startDate || !endDate) return "-";
@@ -812,9 +856,13 @@ watch(
   () => route.path,
   (path, oldPath) => {
     const isListRoute =
-      path === "/projects/index" || path === "/feature-development/index";
+      path === "/projects/index" ||
+      path === "/feature-development/index" ||
+      path === "/app-feature-development/index";
     const wasListRoute =
-      oldPath === "/projects/index" || oldPath === "/feature-development/index";
+      oldPath === "/projects/index" ||
+      oldPath === "/feature-development/index" ||
+      oldPath === "/app-feature-development/index";
     if (isListRoute && wasListRoute && path !== oldPath) {
       searchKeyword.value = "";
       statusFilter.value = "";

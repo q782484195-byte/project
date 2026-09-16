@@ -19,9 +19,11 @@ export interface TaskCollapseContext {
   username: string;
   isAdmin: boolean;
   isProjectManager: boolean;
+  isProjectDirector: boolean;
   getGroupIndentPx: (depth: number) => number;
   getTaskIndentPx: (depth: number) => number;
-  getStatusType: (status: string) => "success" | "info" | "warning" | "danger" | "";
+  getStatusType: (status: string, row?: any) => "success" | "info" | "warning" | "danger" | "";
+  getDisplayStatus: (row: any) => string;
   getPriorityType: (priority: string) => "success" | "info" | "warning" | "danger" | "";
   operationColWidth: (buttonCount: number) => number;
   hasPerms: (perms: string[]) => boolean;
@@ -38,7 +40,7 @@ export const TASK_TABLE_COLUMN_WIDTHS = {
   secondary: 120,
   department: 100,
   assignee: 120,
-  status: 100,
+  status: 130,
   priority: 90,
   assignTime: 140,
   remark: 180,

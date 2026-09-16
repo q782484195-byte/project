@@ -2,7 +2,7 @@
   <el-drawer v-model="drawerVisible" :title="isEdit ? '编辑任务' : '新建任务'" size="600px" direction="rtl"
     @close="handleClose">
     <div class="task-drawer">
-      <el-form ref="formRef" :model="taskForm" :rules="rules" label-width="100px" label-position="left">
+      <el-form ref="formRef" :model="taskForm" :rules="rules" label-width="132px" label-position="left">
         <el-form-item label="任务名称" prop="task_name">
           <el-input v-model="taskForm.task_name" placeholder="请输入任务名称" maxlength="100" show-word-limit
             :disabled="isEdit && !canEditAllFields" />
@@ -1091,6 +1091,7 @@ const handleSubmit = async () => {
       .el-form-item__label {
         font-weight: 500;
         color: #606266;
+        white-space: nowrap;
       }
 
       .el-form-item__content {

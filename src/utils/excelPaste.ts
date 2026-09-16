@@ -126,22 +126,25 @@ export function collectImageFiles(clipboardData: DataTransfer): File[] {
 
   const pushFile = (file: File | null) => {
     if (!file || !file.type.startsWith("image/")) return;
-    const key = `${file.name}-${file.size}-${file.lastModified}`;
+    // 剪贴板同一张图在 files / items 中可能是不同 File 对象，用 type+size 去重
+    const key = `${file.type}-${file.size}`;
     if (seen.has(key)) return;
     seen.add(key);
     files.push(file);
   };
 
-  if (clipboardData.files?.length) {
-    Array.from(clipboardData.files).forEach(f => pushFile(f));
-  }
-
+  // items 与 files 常指向同一张图，优先 items，避免重复收集
   if (clipboardData.items?.length) {
     Array.from(clipboardData.items).forEach(item => {
       if (item.kind === "file" && item.type.startsWith("image/")) {
         pushFile(item.getAsFile());
       }
     });
+    if (files.length > 0) return files;
+  }
+
+  if (clipboardData.files?.length) {
+    Array.from(clipboardData.files).forEach(f => pushFile(f));
   }
 
   return files;

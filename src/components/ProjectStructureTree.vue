@@ -619,25 +619,69 @@ const TreeNode = defineComponent({
 
     &--category {
       border-style: dashed;
-      background: var(--el-fill-color-light);
+      border-color: var(--el-color-primary-light-5);
+      background: #c8d9ed;
+
+      .node-card__title {
+        font-weight: 600;
+        color: #1a3a5c;
+      }
     }
 
     &--requirement,
     &--task {
+      background: #e2e8f0;
+
+      .node-card__title {
+        color: #1f2d3d;
+      }
+
+      .node-card__assignee {
+        color: #4a5568;
+      }
+
+      .node-card__file-link {
+        color: #2563b8;
+      }
+
       &.node-card--done {
         border-left: 3px solid #67c23a;
-        background: #f0f9eb;
+        background: #d4edcc;
+
+        .node-card__title {
+          color: #2d5016;
+        }
+
+        .node-card__assignee {
+          color: #3d6b24;
+        }
       }
 
       &.node-card--pending {
         border-left: 3px solid #e6a23c;
-        background: #fdf6ec;
+        background: #f5dfba;
+
+        .node-card__title {
+          color: #6b4423;
+        }
+
+        .node-card__assignee {
+          color: #8b5a2b;
+        }
       }
 
       &.node-card--cancelled {
         border-left: 3px solid #c0c4cc;
-        background: var(--el-fill-color-light);
-        opacity: 0.85;
+        background: #dde1e6;
+        opacity: 0.9;
+
+        .node-card__title {
+          color: #4a4f57;
+        }
+
+        .node-card__assignee {
+          color: #5c6370;
+        }
       }
     }
 

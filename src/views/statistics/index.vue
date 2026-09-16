@@ -33,6 +33,7 @@
                 <el-option label="定制项目" value="定制项目" />
                 <el-option label="公模项目" value="公模项目" />
                 <el-option label="功能开发" value="功能开发" />
+                <el-option label="APP功能开发" value="APP功能开发" />
               </el-select>
             </div>
             <div class="filter-field">
@@ -79,7 +80,7 @@
                         <span v-else>{{ getTaskAssigneeDisplay(row) }}</span>
                       </template>
                     </el-table-column>
-                    <el-table-column prop="状态" label="状态" width="150" align="center">
+                    <el-table-column prop="状态" label="状态" width="180" align="center">
                       <template #default="{ row }">
                         <el-tag :type="getStatusType(row.状态 || row.status, row) || undefined" size="small"
                           effect="light">
@@ -94,7 +95,28 @@
                         </el-tag>
                       </template>
                     </el-table-column>
-                    <el-table-column prop="task_deadline" label="任务完成期限" min-width="120" show-overflow-tooltip />
+                    <el-table-column prop="task_deadline" min-width="140" show-overflow-tooltip>
+                      <template #header>
+                        <div class="deadline-column-header">
+                          <span class="deadline-column-header__label">任务完成期限</span>
+                          <el-button link type="primary" size="small" class="deadline-sort-btn"
+                            :title="deadlineReverse ? '当前倒序，点击切换为正序' : '当前正序，点击切换为倒序'"
+                            @click.stop="toggleDeadlineReverse">
+                            <span class="deadline-sort-carets">
+                              <el-icon :class="{ 'is-active': !deadlineReverse }">
+                                <CaretTop />
+                              </el-icon>
+                              <el-icon :class="{ 'is-active': deadlineReverse }">
+                                <CaretBottom />
+                              </el-icon>
+                            </span>
+                          </el-button>
+                        </div>
+                      </template>
+                      <template #default="{ row }">
+                        {{ row.task_deadline || "-" }}
+                      </template>
+                    </el-table-column>
                     <el-table-column prop="create_time" label="任务分配时间" min-width="160" show-overflow-tooltip />
                   </el-table>
                 </section>
@@ -180,6 +202,7 @@
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
+import { CaretBottom, CaretTop } from "@element-plus/icons-vue";
 import { deviceDetection } from "@pureadmin/utils";
 import { selectTaskStatistics } from "@/api/project";
 import { selectAllUsers, flattenDepartmentSelectUsers } from "@/api/system";
@@ -219,6 +242,8 @@ const selectedDepartment = ref<string>("");
 const selectedUser = ref<string>("");
 const selectedProjectType = ref<string>("定制项目");
 const projectName = ref<string>("");
+/** 任务完成期限倒序；false 为正序，对应 task_select 的 reverse 参数 */
+const deadlineReverse = ref(false);
 const containerRef = ref<HTMLElement>();
 const wrapHeight = ref<number>(800);
 const tableMaxHeight = ref<number>(480);
@@ -356,10 +381,32 @@ const handleDepartmentChange = () => {
   selectedUser.value = USER_ALL;
 };
 
-const isTaskDelayed = (row: any): boolean => row?.delay?.task_is_delay === true;
+const isTaskDelayed = (row: any): boolean => {
+  const status = row?.状态 || row?.status;
+  if (status === TaskStatus.COMPLETED) return false;
+  return row?.delay?.task_is_delay === true;
+};
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** 根据 task_deadline 与当前日期计算延期天数 */
+const getTaskDelayDays = (row: any): number | null => {
+  const deadline = row?.task_deadline;
+  if (!deadline) return null;
+  const deadlineDate = new Date(deadline);
+  if (Number.isNaN(deadlineDate.getTime())) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  deadlineDate.setHours(0, 0, 0, 0);
+  const days = Math.floor((today.getTime() - deadlineDate.getTime()) / DAY_MS);
+  return days > 0 ? days : null;
+};
 
 const getDisplayStatus = (row: any): string => {
-  if (isTaskDelayed(row)) return "延期";
+  if (isTaskDelayed(row)) {
+    const days = getTaskDelayDays(row);
+    return days != null ? `延期 ${days}天` : "延期";
+  }
   return row.状态 || row.status || "-";
 };
 
@@ -400,16 +447,16 @@ const getPriorityType = (
 
 /** 接口 show_color 对应浅色行背景 */
 const TASK_SHOW_COLOR_MAP: Record<string, string> = {
-  red: "#fef0f0",
-  green: "#f0f9eb",
-  blue: "#ecf5ff",
-  yellow: "#fdfce6",
-  orange: "#fdf6ec",
-  purple: "#f5f0ff",
-  gray: "#f4f4f5",
-  grey: "#f4f4f5",
-  pink: "#fef0f5",
-  cyan: "#e8f8f8"
+  red: "#fff7f7",
+  green: "#f7fcf5",
+  blue: "#f5faff",
+  yellow: "#fefef3",
+  orange: "#fefaf5",
+  purple: "#faf7ff",
+  gray: "#fafafa",
+  grey: "#fafafa",
+  pink: "#fff7fa",
+  cyan: "#f4fcfc"
 };
 
 const getTaskShowColorBackground = (showColor?: string) => {
@@ -455,8 +502,13 @@ const handleTableRefresh = () => {
     selectedDepartment.value || "",
     selectedUser.value || "",
     selectedProjectType.value,
-    projectName.value
+    projectName.value,
+    deadlineReverse.value
   );
+};
+
+const toggleDeadlineReverse = () => {
+  deadlineReverse.value = !deadlineReverse.value;
 };
 
 /** 将 select_all_users 解析为 部门 -> 成员列表（兼容分组结构） */
@@ -583,7 +635,8 @@ const fetchTaskStatistics = async (
   department: string,
   user: string,
   projectType: string,
-  projectNameValue: string
+  projectNameValue: string,
+  reverse = false
 ) => {
   tasksLoading.value = true;
   try {
@@ -592,7 +645,8 @@ const fetchTaskStatistics = async (
       department: (department || "").trim(),
       user_name: (userNameParam || "").trim(),
       project_type: (projectType || "").trim(),
-      project_name: (projectNameValue || "").trim()
+      project_name: (projectNameValue || "").trim(),
+      reverse
     });
     const raw = (res.result ?? res.data) as unknown;
     if (res.code === 200 && raw != null) {
@@ -617,10 +671,11 @@ watch(
       selectedDepartment.value,
       selectedUser.value,
       selectedProjectType.value,
-      projectName.value
+      projectName.value,
+      deadlineReverse.value
     ] as const,
-  ([dept, user, projectType, projectNameValue]) => {
-    void fetchTaskStatistics(dept || "", user || "", projectType, projectNameValue);
+  ([dept, user, projectType, projectNameValue, reverse]) => {
+    void fetchTaskStatistics(dept || "", user || "", projectType, projectNameValue, reverse);
   },
   { immediate: true }
 );
@@ -717,6 +772,45 @@ onUnmounted(() => {
   :deep(.table-panel--fullscreen .table-panel__body) {
     display: block;
     overflow: auto;
+  }
+}
+
+.deadline-column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 4px;
+
+  &__label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.deadline-sort-btn {
+  flex-shrink: 0;
+  padding: 0;
+  height: auto;
+  margin-left: auto;
+}
+
+.deadline-sort-carets {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+
+  .el-icon {
+    font-size: 12px;
+    color: var(--el-text-color-placeholder);
+
+    &.is-active {
+      color: var(--el-color-primary);
+    }
   }
 }
 

@@ -165,6 +165,8 @@ export interface Project {
   motherboard_name?: string; // 主板名称
   resolution?: string; // 分辨率
   business_owner?: string; // 业务负责人
+  app_protocol?: string; // APP协议
+  shadow_app?: string; // 马甲包名称
   createdAt?: string;
   updatedAt?: string;
   总进度?: number; // 项目总进度（来自后端API）

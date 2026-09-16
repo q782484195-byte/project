@@ -1,160 +1,210 @@
 <template>
-  <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑项目' : '新建项目'" width="900px" class="project-form-dialog"
-    @close="handleClose">
-    <el-form ref="formRef" :model="projectForm" :rules="formRules" label-width="100px">
-      <el-form-item v-if="!defaultProjectType" label="项目类型" prop="project_type">
-        <el-radio-group v-model="projectForm.project_type" :disabled="isEdit">
-          <el-radio label="定制项目">定制项目</el-radio>
-          <el-radio label="公模项目">公模项目</el-radio>
-        </el-radio-group>
-      </el-form-item>
-      <el-form-item v-else label="项目类型">
-        <el-input :model-value="defaultProjectType" disabled />
-      </el-form-item>
+  <el-dialog
+    v-model="dialogVisible"
+    :title="isEdit ? '编辑项目' : '新建项目'"
+    width="760px"
+    class="project-form-dialog"
+    @close="handleClose"
+  >
+    <el-form
+      ref="formRef"
+      :model="projectForm"
+      :rules="formRules"
+      label-width="88px"
+      label-position="right"
+      class="project-form"
+    >
+      <div v-if="defaultProjectType" class="form-type-bar">
+        <span class="form-type-bar__label">项目类型</span>
+        <el-tag size="small" type="info" effect="plain">{{ defaultProjectType }}</el-tag>
+      </div>
 
-      <el-form-item label="项目名称" prop="name">
-        <el-input v-model="projectForm.name" placeholder="请输入项目名称" />
-      </el-form-item>
+      <section class="form-section">
+        <div class="form-section__title">基本信息</div>
+        <el-form-item v-if="!defaultProjectType" label="项目类型" prop="project_type">
+          <el-radio-group v-model="projectForm.project_type" :disabled="isEdit">
+            <el-radio label="定制项目">定制项目</el-radio>
+            <el-radio label="公模项目">公模项目</el-radio>
+          </el-radio-group>
+        </el-form-item>
 
-      <el-row :gutter="20">
-        <el-col :span="12">
-          <el-form-item label="客户名称" prop="customer_name">
-            <el-input v-model="projectForm.customer_name" placeholder="请输入客户名称" />
-          </el-form-item>
-        </el-col>
-        <el-col :span="12">
-          <el-form-item label="产品类型" prop="product_type">
-            <el-input v-model="projectForm.product_type" placeholder="请输入产品类型" />
-          </el-form-item>
-        </el-col>
-      </el-row>
+        <el-form-item label="项目名称" prop="name">
+          <el-input v-model="projectForm.name" placeholder="请输入项目名称" />
+        </el-form-item>
 
-      <el-row :gutter="20">
-        <el-col :span="isFeatureDevelopment ? 24 : 12">
-          <el-form-item label="平台名称" prop="platform_name">
-            <el-input v-model="projectForm.platform_name" placeholder="请输入平台名称" />
-          </el-form-item>
-        </el-col>
-        <el-col v-if="!isFeatureDevelopment" :span="12">
-          <el-form-item label="主板名称" prop="motherboard_name">
-            <el-input v-model="projectForm.motherboard_name" placeholder="请输入主板名称" />
-          </el-form-item>
-        </el-col>
-      </el-row>
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="客户名称" prop="customer_name">
+              <el-input v-model="projectForm.customer_name" placeholder="客户名称" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="产品类型" prop="product_type">
+              <el-input v-model="projectForm.product_type" placeholder="产品类型" />
+            </el-form-item>
+          </el-col>
+        </el-row>
 
-      <el-row :gutter="20">
-        <el-col :span="isFeatureDevelopment ? 24 : 12">
-          <el-form-item label="分辨率" prop="resolution">
-            <el-input v-model="projectForm.resolution" placeholder="请输入分辨率" />
-          </el-form-item>
-        </el-col>
-        <el-col v-if="!isFeatureDevelopment" :span="12">
-          <el-form-item label="业务负责人" prop="business_owner">
-            <el-input v-model="projectForm.business_owner" placeholder="请输入业务负责人" :disabled="isEdit" />
-          </el-form-item>
-        </el-col>
-      </el-row>
+        <el-row v-if="isAppFeatureDevelopment" :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="业务负责人" prop="business_owner">
+              <el-input
+                v-model="projectForm.business_owner"
+                placeholder="业务负责人"
+                :disabled="isEdit"
+              />
+            </el-form-item>
+          </el-col>
+        </el-row>
 
-      <el-form-item label="项目负责人" prop="creator">
-        <el-select v-model="projectForm.creator" placeholder="请选择项目负责人" clearable filterable style="width: 100%"
-          :loading="projectManagersLoading">
-          <el-option v-for="manager in projectManagers" :key="manager.value" :label="manager.label"
-            :value="manager.value" />
-        </el-select>
-      </el-form-item>
+        <el-form-item v-if="!isAppFeatureDevelopment" label="项目负责人" prop="creator">
+          <el-select
+            v-model="projectForm.creator"
+            placeholder="请选择"
+            clearable
+            filterable
+            style="width: 100%"
+            :loading="projectManagersLoading"
+          >
+            <el-option
+              v-for="manager in projectManagers"
+              :key="manager.value"
+              :label="manager.label"
+              :value="manager.value"
+            />
+          </el-select>
+        </el-form-item>
+      </section>
 
-      <!-- <el-form-item label="项目类型" prop="typeId">
-        <el-select
-          v-model="projectForm.typeId"
-          placeholder="选择项目类型"
-          style="width: 100%"
-          @change="handleTypeChange"
-        >
-          <el-option
-            v-for="type in projectTypes"
-            :key="type.id"
-            :label="type.name"
-            :value="type.id"
-          />
-        </el-select>
-      </el-form-item> -->
-      <!-- 
-      <el-form-item label="项目模板" prop="templateId">
-        <el-select
-          v-model="projectForm.templateId"
-          placeholder="选择项目模板"
-          style="width: 100%"
-          :disabled="!projectForm.typeId"
-        >
-          <el-option
-            v-for="template in availableTemplates"
-            :key="template.id"
-            :label="template.name"
-            :value="template.id"
-          />
-        </el-select>
-      </el-form-item> -->
-      <el-form-item label="状态描述" prop="state_description" v-if="isEdit">
-        <el-input v-model="projectForm.state_description" placeholder="请输入状态描述" />
-      </el-form-item>
-      <el-form-item label="项目描述" prop="describe">
-        <RichTextEditor ref="richTextEditorRef" v-model="projectForm.describe" />
-      </el-form-item>
+      <section class="form-section">
+        <div class="form-section__title">项目属性</div>
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="平台名称" prop="platform_name">
+              <el-input v-model="projectForm.platform_name" placeholder="平台名称" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item v-if="isStandardProjectForm" label="主板名称" prop="motherboard_name">
+              <el-input v-model="projectForm.motherboard_name" placeholder="主板名称" />
+            </el-form-item>
+            <el-form-item v-else-if="isAppFeatureDevelopment" label="APP协议" prop="app_protocol">
+              <el-input v-model="projectForm.app_protocol" placeholder="APP协议" />
+            </el-form-item>
+            <el-form-item v-else label="分辨率" prop="resolution">
+              <el-input v-model="projectForm.resolution" placeholder="分辨率" />
+            </el-form-item>
+          </el-col>
+        </el-row>
 
-      <!-- 附件上传（新建和编辑都可以） -->
-      <el-form-item label="附件文件">
-        <el-upload v-model:file-list="fileList" multiple :auto-upload="false" :on-remove="handleFileRemove"
-          :on-change="handleFileChange" :before-upload="handleBeforeUpload">
-          <el-button type="primary">
-            <el-icon>
-              <Upload />
-            </el-icon>
-            选择文件
-          </el-button>
-          <template #tip>
-            <div class="el-upload__tip">可以上传多个文件</div>
-          </template>
-        </el-upload>
-      </el-form-item>
-      <el-form-item v-if="!isFeatureDevelopment" label="立项文件" prop="project_proposal">
-        <el-upload v-model:file-list="proposalFileList" multiple :auto-upload="false"
-          :on-remove="handleProposalFileRemove" :on-change="handleProposalFileChange"
-          :before-upload="handleBeforeUpload">
-          <el-button type="primary">
-            <el-icon>
-              <Upload />
-            </el-icon>
-            选择文件
-          </el-button>
-          <template #tip>
-            <div class="el-upload__tip">可以上传多个文件</div>
-          </template>
-        </el-upload>
-      </el-form-item>
-      <el-form-item v-if="!isFeatureDevelopment" label="立项时间" prop="project_initiation_date">
-        <el-date-picker v-model="projectForm.project_initiation_date" type="date" placeholder="选择立项时间（年月日）"
-          format="YYYY-MM-DD" value-format="YYYY-MM-DD" style="width: 100%" />
-      </el-form-item>
-      <el-row :gutter="20">
-        <el-col :span="12">
-          <el-form-item label="计划开始时间" prop="startDate" class="date-form-item">
-            <el-date-picker v-model="projectForm.startDate" type="date" placeholder="选择计划开始时间" format="YYYY-MM-DD"
-              value-format="YYYY-MM-DD" style="width: 100%" :disabled-date="disabledStartDate" />
-          </el-form-item>
-        </el-col>
-        <el-col :span="12">
-          <el-form-item label="计划结束时间" prop="endDate" class="date-form-item">
-            <el-date-picker v-model="projectForm.endDate" type="date" placeholder="选择计划结束时间" format="YYYY-MM-DD"
-              value-format="YYYY-MM-DD" style="width: 100%" :disabled-date="disabledEndDate" />
-          </el-form-item>
-        </el-col>
-      </el-row>
+        <el-row v-if="!isFeatureDevelopmentOnly" :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="分辨率" prop="resolution">
+              <el-input v-model="projectForm.resolution" placeholder="分辨率" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item v-if="isAppFeatureDevelopment" label="马甲包" prop="shadow_app">
+              <el-input v-model="projectForm.shadow_app" placeholder="马甲包名称" />
+            </el-form-item>
+            <el-form-item v-else label="业务负责人" prop="business_owner">
+              <el-input
+                v-model="projectForm.business_owner"
+                placeholder="业务负责人"
+                :disabled="isEdit"
+              />
+            </el-form-item>
+          </el-col>
+        </el-row>
+      </section>
 
-      <!-- <el-form-item label="团队成员">
-        <el-select v-model="projectForm.memberIds" multiple placeholder="选择团队成员" style="width: 100%">
-          <el-option v-for="user in allUsers" :key="user.id" :label="user.name" :value="user.id" />
-        </el-select>
-      </el-form-item> -->
+      <section class="form-section">
+        <div class="form-section__title">计划时间</div>
+        <el-row :gutter="16">
+          <el-col v-if="!isFeatureDevelopmentOnly" :span="8">
+            <el-form-item label="立项时间" prop="project_initiation_date">
+              <el-date-picker
+                v-model="projectForm.project_initiation_date"
+                type="date"
+                placeholder="选择日期"
+                format="YYYY-MM-DD"
+                value-format="YYYY-MM-DD"
+                style="width: 100%"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :span="!isFeatureDevelopmentOnly ? 8 : 12">
+            <el-form-item label="开始时间" prop="startDate">
+              <el-date-picker
+                v-model="projectForm.startDate"
+                type="date"
+                placeholder="计划开始"
+                format="YYYY-MM-DD"
+                value-format="YYYY-MM-DD"
+                style="width: 100%"
+                :disabled-date="disabledStartDate"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :span="!isFeatureDevelopmentOnly ? 8 : 12">
+            <el-form-item label="结束时间" prop="endDate">
+              <el-date-picker
+                v-model="projectForm.endDate"
+                type="date"
+                placeholder="计划结束"
+                format="YYYY-MM-DD"
+                value-format="YYYY-MM-DD"
+                style="width: 100%"
+                :disabled-date="disabledEndDate"
+              />
+            </el-form-item>
+          </el-col>
+        </el-row>
+      </section>
+
+      <section class="form-section">
+        <div class="form-section__title">描述与附件</div>
+        <el-form-item label="项目描述" prop="describe" class="form-item--block">
+          <RichTextEditor ref="richTextEditorRef" v-model="projectForm.describe" />
+        </el-form-item>
+
+        <el-row :gutter="16" class="upload-row">
+          <el-col :span="!isFeatureDevelopmentOnly ? 12 : 24">
+            <el-form-item label="附件" class="form-item--upload">
+              <el-upload
+                v-model:file-list="fileList"
+                multiple
+                :auto-upload="false"
+                :on-remove="handleFileRemove"
+                :on-change="handleFileChange"
+                :before-upload="handleBeforeUpload"
+              >
+                <el-button plain size="small">
+                  <el-icon><Upload /></el-icon>
+                  选择文件
+                </el-button>
+              </el-upload>
+            </el-form-item>
+          </el-col>
+          <el-col v-if="!isFeatureDevelopmentOnly" :span="12">
+            <el-form-item :label="proposalFileLabel" prop="project_proposal" class="form-item--upload">
+              <el-upload
+                v-model:file-list="proposalFileList"
+                multiple
+                :auto-upload="false"
+                :on-remove="handleProposalFileRemove"
+                :on-change="handleProposalFileChange"
+                :before-upload="handleBeforeUpload"
+              >
+                <el-button plain size="small">
+                  <el-icon><Upload /></el-icon>
+                  选择文件
+                </el-button>
+              </el-upload>
+            </el-form-item>
+          </el-col>
+        </el-row>
+      </section>
     </el-form>
 
     <template #footer>
@@ -165,91 +215,123 @@
 </template>
 
 <style lang="scss" scoped>
-// 移动端适配
-@media (max-width: 640px) {
-  .project-form-dialog {
-    :deep(.el-form) {
-      .el-form-item {
-        margin-bottom: 18px;
-      }
-
-      .el-row {
-        margin-left: 0 !important;
-        margin-right: 0 !important;
-
-        .el-col {
-          padding-left: 0 !important;
-          padding-right: 0 !important;
-          width: 100% !important;
-          margin-bottom: 18px;
-        }
-      }
-
-      .el-form-item__label {
-        font-size: 14px;
-        margin-bottom: 8px;
-      }
-
-      .el-input,
-      .el-select,
-      .el-date-picker {
-        width: 100%;
-      }
-    }
-  }
-}
-
-.date-form-item {
-  :deep(.el-form-item__label) {
-    white-space: nowrap;
-  }
-}
-
 .project-form-dialog {
-  :deep(.el-dialog__footer) {
-    padding: 16px 20px;
-    border-top: 1px solid #ebeef5;
-    display: flex;
-    justify-content: flex-end;
-    gap: 12px;
-    background-color: #fff;
-    border-radius: 0 0 4px 4px;
-
-    .el-button {
-      min-width: 80px;
-      padding: 8px 20px;
-      font-size: 14px;
-    }
-  }
-
   :deep(.el-dialog__body) {
-    padding: 20px;
+    padding: 16px 20px 8px;
+    max-height: 72vh;
     overflow-y: auto;
   }
+
+  :deep(.el-dialog__footer) {
+    padding: 12px 20px 16px;
+    border-top: 1px solid var(--el-border-color-lighter);
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
 }
 
-// 移动端适配
+.project-form {
+  :deep(.el-form-item) {
+    margin-bottom: 12px;
+  }
+
+  :deep(.el-form-item__label) {
+    color: var(--el-text-color-regular);
+    padding-right: 8px;
+  }
+
+  :deep(.el-row) {
+    margin-bottom: 0;
+  }
+}
+
+.form-type-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: var(--el-fill-color-light);
+  border-radius: 6px;
+
+  &__label {
+    font-size: 13px;
+    color: var(--el-text-color-secondary);
+  }
+}
+
+.form-section {
+  & + & {
+    margin-top: 4px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--el-border-color-lighter);
+  }
+
+  &__title {
+    margin-bottom: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--el-text-color-primary);
+    line-height: 1;
+  }
+}
+
+.form-item--block {
+  :deep(.el-form-item__content) {
+    display: block;
+  }
+}
+
+.form-item--upload {
+  :deep(.el-upload-list) {
+    margin-top: 4px;
+  }
+
+  :deep(.el-upload-list__item) {
+    margin-bottom: 2px;
+  }
+}
+
+.upload-row {
+  :deep(.el-form-item) {
+    margin-bottom: 0;
+  }
+}
+
 @media (max-width: 640px) {
   .project-form-dialog {
     :deep(.el-dialog) {
-      width: 95% !important;
-      margin: 5vh auto;
+      width: 94% !important;
+      margin: 4vh auto;
+    }
+
+    :deep(.el-dialog__body) {
+      padding: 12px 14px 4px;
+      max-height: none;
     }
 
     :deep(.el-dialog__footer) {
-      padding: 12px 16px;
       flex-direction: column-reverse;
       gap: 8px;
 
       .el-button {
         width: 100%;
-        min-width: auto;
         margin: 0;
       }
     }
+  }
 
-    :deep(.el-dialog__body) {
-      padding: 16px;
+  .project-form {
+    :deep(.el-row .el-col) {
+      max-width: 100%;
+      flex: 0 0 100%;
+    }
+
+    :deep(.el-input),
+    :deep(.el-select),
+    :deep(.el-date-editor) {
+      width: 100%;
     }
   }
 }
@@ -266,17 +348,27 @@ import type {
   UploadFiles
 } from "element-plus";
 import type { Project } from "@/types";
-import type { DescribeContent, CreateProjectParams } from "@/api/project";
+import type {
+  DescribeContent,
+  CreateProjectParams,
+  CreateAppProjectParams,
+  UpdateProjectParams
+} from "@/api/project";
+import {
+  createProject,
+  createAppProject,
+  updateProject,
+  uploadFile
+} from "@/api/project";
 import { mockUsers } from "@/mock/users";
 import { useProjectTypeStoreHook } from "@/store/modules/projectType";
 import { useProjectTemplateStoreHook } from "@/store/modules/projectTemplate";
 import { getAllProjectTemplates } from "@/mock/projectTemplates";
-import { createProject, updateProject, uploadFile } from "@/api/project";
-import type { UpdateProjectParams } from "@/api/project";
 import { selectAllUsers, flattenDepartmentSelectUsers } from "@/api/system";
 import RichTextEditor from "./RichTextEditor.vue";
 import {
-  FEATURE_DEVELOPMENT_TYPE,
+  APP_FEATURE_DEVELOPMENT_TYPE,
+  isAppFeatureDevelopmentType,
   isFeatureDevelopmentType
 } from "@/utils/projectRoute";
 
@@ -324,17 +416,38 @@ const projectForm = reactive({
   state_description: "",
   memberIds: [] as string[],
   project_proposal: [] as string[], // 用于表单验证
-  project_initiation_date: "" // 立项时间（年月日）
+  project_initiation_date: "", // 立项时间（年月日）
+  app_protocol: "",
+  shadow_app: ""
 });
 
-const isFeatureDevelopment = computed(() =>
+const isFeatureDevelopmentOnly = computed(() =>
   isFeatureDevelopmentType(
     props.defaultProjectType || projectForm.project_type
   )
 );
 
+const isAppFeatureDevelopment = computed(() =>
+  isAppFeatureDevelopmentType(
+    props.defaultProjectType || projectForm.project_type
+  )
+);
+
+const hideMotherboard = computed(
+  () => isFeatureDevelopmentOnly.value || isAppFeatureDevelopment.value
+);
+
+const isStandardProjectForm = computed(
+  () => !isFeatureDevelopmentOnly.value && !isAppFeatureDevelopment.value
+);
+
+const proposalFileLabel = computed(() =>
+  isAppFeatureDevelopment.value ? "合同" : "立项文件"
+);
+
 const formRules = computed<FormRules>(() => {
-  const featureDev = isFeatureDevelopment.value;
+  const featureDevOnly = isFeatureDevelopmentOnly.value;
+  const appDev = isAppFeatureDevelopment.value;
 
   return {
     project_type: [
@@ -342,33 +455,33 @@ const formRules = computed<FormRules>(() => {
     ],
     name: [{ required: true, message: "请输入项目名称", trigger: "blur" }],
     describe: [{ required: true, message: "请输入项目描述", trigger: "change" }],
-    project_proposal: featureDev
+    project_proposal: featureDevOnly
       ? []
       : [
-          {
-            required: true,
-            validator: (_rule: any, _value: any, callback: any) => {
-              if (
-                !proposalFileList.value ||
-                proposalFileList.value.length === 0
-              ) {
-                callback(new Error("请上传立项文件"));
-              } else {
-                callback();
-              }
-            },
-            trigger: "change"
-          }
-        ],
-    project_initiation_date: featureDev
+        {
+          required: true,
+          validator: (_rule: any, _value: any, callback: any) => {
+            if (
+              !proposalFileList.value ||
+              proposalFileList.value.length === 0
+            ) {
+              callback(new Error(`请上传${proposalFileLabel.value}`));
+            } else {
+              callback();
+            }
+          },
+          trigger: "change"
+        }
+      ],
+    project_initiation_date: featureDevOnly
       ? []
       : [
-          {
-            required: true,
-            message: "请选择立项时间",
-            trigger: ["blur", "change"]
-          }
-        ],
+        {
+          required: true,
+          message: "请选择立项时间",
+          trigger: ["blur", "change"]
+        }
+      ],
     startDate: [
       {
         validator: (_rule: any, value: any, callback: any) => {
@@ -419,13 +532,19 @@ const formRules = computed<FormRules>(() => {
     platform_name: [
       { required: true, message: "请输入平台名称", trigger: "blur" }
     ],
-    motherboard_name: featureDev
+    motherboard_name: hideMotherboard.value
       ? []
       : [{ required: true, message: "请输入主板名称", trigger: "blur" }],
     resolution: [{ required: true, message: "请输入分辨率", trigger: "blur" }],
-    business_owner: featureDev
+    business_owner: featureDevOnly
       ? []
-      : [{ required: true, message: "请输入业务负责人", trigger: "blur" }]
+      : [{ required: true, message: "请输入业务负责人", trigger: "blur" }],
+    app_protocol: appDev
+      ? [{ required: true, message: "请输入APP协议", trigger: "blur" }]
+      : [],
+    shadow_app: appDev
+      ? [{ required: true, message: "请输入马甲包名称", trigger: "blur" }]
+      : []
   };
 });
 
@@ -656,7 +775,9 @@ const getEmptyProjectForm = () => ({
   state_description: "",
   memberIds: [] as string[],
   project_proposal: [] as string[],
-  project_initiation_date: ""
+  project_initiation_date: "",
+  app_protocol: "",
+  shadow_app: ""
 });
 
 const resetProjectForm = () => {
@@ -714,7 +835,9 @@ const fillFormFromProject = (project: Project) => {
     endDate,
     state_description: (project as any).state_description || "",
     memberIds: project.members?.map(member => member.id) || [],
-    project_initiation_date: initiationDateNorm
+    project_initiation_date: initiationDateNorm,
+    app_protocol: (project as any).app_protocol || "",
+    shadow_app: (project as any).shadow_app || ""
   });
 
   const attachmentList = project.attachment || (project as any).attachment || [];
@@ -810,16 +933,16 @@ const handleSubmit = async () => {
 
     // 验证立项文件
     if (
-      !isFeatureDevelopment.value &&
+      !isFeatureDevelopmentOnly.value &&
       (!proposalFileList.value || proposalFileList.value.length === 0)
     ) {
-      ElMessage.warning("请上传立项文件");
+      ElMessage.warning(`请上传${proposalFileLabel.value}`);
       submitting.value = false;
       return;
     }
 
     // 验证立项时间
-    if (!isFeatureDevelopment.value && !projectForm.project_initiation_date) {
+    if (!isFeatureDevelopmentOnly.value && !projectForm.project_initiation_date) {
       ElMessage.warning("请选择立项时间");
       submitting.value = false;
       return;
@@ -870,39 +993,39 @@ const handleSubmit = async () => {
 
     // 处理立项文件
     const proposalUrls: string[] = [];
-    if (!isFeatureDevelopment.value) {
+    if (!isFeatureDevelopmentOnly.value) {
       for (const file of proposalFileList.value) {
-      if (file.raw) {
-        // 新上传的文件，需要上传
-        const url = await uploadAttachmentFile(file.raw);
-        if (url) {
-          // 上传接口返回的已经是相对路径，直接使用
-          proposalUrls.push(url);
-        }
-      } else if (file.response) {
-        // 已有的文件，从 response 中获取相对路径
-        let url = "";
-        if (typeof file.response === "string") {
-          url = file.response;
-        } else if (
-          file.response &&
-          typeof file.response === "object" &&
-          "url" in file.response
-        ) {
-          url = (file.response as any).url || "";
-        }
-        if (url) {
-          // 确保是相对路径
-          proposalUrls.push(convertToRelativePath(url));
-        }
-      } else if (file.url) {
-        // 如果 response 不存在，尝试从 url 中提取相对路径
-        const url = convertToRelativePath(file.url);
-        if (url) {
-          proposalUrls.push(url);
+        if (file.raw) {
+          // 新上传的文件，需要上传
+          const url = await uploadAttachmentFile(file.raw);
+          if (url) {
+            // 上传接口返回的已经是相对路径，直接使用
+            proposalUrls.push(url);
+          }
+        } else if (file.response) {
+          // 已有的文件，从 response 中获取相对路径
+          let url = "";
+          if (typeof file.response === "string") {
+            url = file.response;
+          } else if (
+            file.response &&
+            typeof file.response === "object" &&
+            "url" in file.response
+          ) {
+            url = (file.response as any).url || "";
+          }
+          if (url) {
+            // 确保是相对路径
+            proposalUrls.push(convertToRelativePath(url));
+          }
+        } else if (file.url) {
+          // 如果 response 不存在，尝试从 url 中提取相对路径
+          const url = convertToRelativePath(file.url);
+          if (url) {
+            proposalUrls.push(url);
+          }
         }
       }
-    }
     }
     // 去重（都使用相对路径）
     const allProposalUrls = Array.from(new Set(proposalUrls));
@@ -952,7 +1075,7 @@ const handleSubmit = async () => {
         platform_name: projectForm.platform_name,
         motherboard_name: projectForm.motherboard_name,
         resolution: projectForm.resolution,
-        state_description: projectForm.state_description,
+        state_description: projectForm.state_description || '',
         business_owner: projectForm.business_owner,
         creator: projectForm.creator,
         plant_start_time: projectForm.startDate,
@@ -1012,27 +1135,49 @@ const handleSubmit = async () => {
         );
       }
     } else {
-      // 新建模式 - 使用新的参数格式
-      const submitData: CreateProjectParams = {
-        project_type: projectForm.project_type,
-        project_name: projectForm.name,
-        customer_name: projectForm.customer_name,
-        product_type: projectForm.product_type,
-        platform_name: projectForm.platform_name,
-        motherboard_name: projectForm.motherboard_name,
-        resolution: projectForm.resolution,
-        business_owner: projectForm.business_owner,
-        creator: projectForm.creator,
-        plant_start_time: projectForm.startDate,
-        plant_end_time: projectForm.endDate,
-        describe: describeUrls,
-        attachment: allAttachmentUrls,
-        project_proposal: allProposalUrls,
-        project_initiation_date: projectForm.project_initiation_date || ""
-      };
-
+      // 新建模式
       try {
-        const response = await createProject(submitData);
+        let response;
+
+        if (isAppFeatureDevelopment.value) {
+          const submitData: CreateAppProjectParams = {
+            project_type: APP_FEATURE_DEVELOPMENT_TYPE,
+            project_name: projectForm.name,
+            customer_name: projectForm.customer_name,
+            product_type: projectForm.product_type,
+            platform_name: projectForm.platform_name,
+            resolution: projectForm.resolution,
+            app_protocol: projectForm.app_protocol,
+            shadow_app: projectForm.shadow_app,
+            business_owner: projectForm.business_owner,
+            project_initiation_date: projectForm.project_initiation_date || "",
+            plant_start_time: projectForm.startDate,
+            plant_end_time: projectForm.endDate,
+            describe: describeUrls,
+            attachment: allAttachmentUrls,
+            project_proposal: allProposalUrls
+          };
+          response = await createAppProject(submitData);
+        } else {
+          const submitData: CreateProjectParams = {
+            project_type: projectForm.project_type,
+            project_name: projectForm.name,
+            customer_name: projectForm.customer_name,
+            product_type: projectForm.product_type,
+            platform_name: projectForm.platform_name,
+            motherboard_name: projectForm.motherboard_name,
+            resolution: projectForm.resolution,
+            business_owner: projectForm.business_owner,
+            creator: projectForm.creator,
+            plant_start_time: projectForm.startDate,
+            plant_end_time: projectForm.endDate,
+            describe: describeUrls,
+            attachment: allAttachmentUrls,
+            project_proposal: allProposalUrls,
+            project_initiation_date: projectForm.project_initiation_date || ""
+          };
+          response = await createProject(submitData);
+        }
 
         if (response.code === 200) {
           ElMessage.success("项目创建成功");

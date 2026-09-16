@@ -15,6 +15,7 @@ import Image from "@tiptap/extension-image";
 import { ElMessage } from "element-plus";
 import type { DescribeContent } from "@/api/project";
 import { uploadFile } from "@/api/project";
+import { collectImageFiles } from "@/utils/excelPaste";
 
 interface Props {
   modelValue: DescribeContent[];
@@ -34,6 +35,107 @@ const emit = defineEmits<Emits>();
 
 // 标志位：防止循环更新导致光标位置丢失
 const isInternalUpdate = ref(false);
+// 防止同一次粘贴被重复处理（剪贴板双通道或事件重复触发）
+const isPastingImages = ref(false);
+
+const readFileAsDataUrl = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
+/** 上传图片并插入编辑器（按钮上传与粘贴共用） */
+const uploadAndInsertImage = async (
+  file: File,
+  options: { atEnd?: boolean } = {}
+): Promise<boolean> => {
+  const ed = editor.value;
+  if (!ed || props.disableImageUpload || props.readonly) return false;
+
+  try {
+    const previewUrl = await readFileAsDataUrl(file);
+    const response = await uploadFile({ file });
+
+    if (response.code !== 200 || !response.url) {
+      ElMessage.error("图片上传失败");
+      return false;
+    }
+
+    const relativePath = response.url;
+    const fullImageUrl = getImageUrl(relativePath);
+
+    fileMap.value.set(relativePath, {
+      file,
+      url: previewUrl,
+      serverUrl: relativePath
+    });
+
+    const chain = options.atEnd ? ed.chain().focus("end") : ed.chain().focus();
+    chain
+      .setImage({
+        src: fullImageUrl,
+        alt: file.name || "图片",
+        "data-file-path": relativePath
+      } as any)
+      .run();
+
+    if (options.atEnd) {
+      await nextTick();
+      placeCaretAtEnd();
+    }
+
+    return true;
+  } catch (error: any) {
+    console.error("上传图片失败:", error);
+    ElMessage.error(
+      error?.response?.data?.message || error?.message || "图片上传失败"
+    );
+    return false;
+  }
+};
+
+/** 处理剪贴板粘贴的图片（截图等） */
+const handleEditorPaste = (
+  _view: unknown,
+  event: ClipboardEvent
+): boolean => {
+  if (props.disableImageUpload || props.readonly) return false;
+  if (isPastingImages.value) {
+    event.preventDefault();
+    return true;
+  }
+
+  const clipboardData = event.clipboardData;
+  if (!clipboardData) return false;
+
+  const imageFiles = collectImageFiles(clipboardData);
+  if (imageFiles.length === 0) return false;
+
+  event.preventDefault();
+  event.stopPropagation();
+  isPastingImages.value = true;
+
+  void (async () => {
+    try {
+      let successCount = 0;
+      for (const file of imageFiles) {
+        const ok = await uploadAndInsertImage(file);
+        if (ok) successCount++;
+      }
+      if (successCount > 0) {
+        ElMessage.success(
+          successCount > 1 ? `已上传 ${successCount} 张图片` : "图片上传成功"
+        );
+      }
+    } finally {
+      isPastingImages.value = false;
+    }
+  })();
+
+  return true;
+};
 
 const editor = useEditor({
   extensions: [
@@ -58,11 +160,14 @@ const editor = useEditor({
       }
     }).configure({
       inline: false,
-      allowBase64: true
+      allowBase64: false
     })
   ],
   content: "",
   editable: !props.readonly,
+  editorProps: {
+    handlePaste: handleEditorPaste
+  },
   onUpdate: ({ editor }) => {
     // 标记为内部更新，避免触发 watch
     isInternalUpdate.value = true;
@@ -306,55 +411,11 @@ const handleImageUpload = async () => {
 
   input.onchange = async () => {
     const file = input.files?.[0];
-    if (file && editor.value) {
-      try {
-        // 先显示 base64 预览
-        const reader = new FileReader();
-        reader.onload = async () => {
-          const base64Url = reader.result as string;
+    if (!file) return;
 
-          // 调用上传接口
-          const response = await uploadFile({ file });
-
-          if (response.code === 200 && response.url) {
-            // 上传成功，服务器返回的是相对路径（如 /data/xxx.png）
-            const relativePath = response.url;
-            // 转换为完整 URL 用于显示
-            const fullImageUrl = getImageUrl(relativePath);
-
-            // 保存文件映射，使用相对路径作为 key（用于提交时识别）
-            fileMap.value.set(relativePath, {
-              file,
-              url: base64Url,
-              serverUrl: relativePath
-            });
-
-            // 插入到文档末尾，并将焦点置于图片之后便于继续输入
-            editor.value
-              ?.chain()
-              .focus("end")
-              .setImage({
-                src: fullImageUrl,
-                alt: file.name,
-                "data-file-path": relativePath
-              } as any)
-              .run();
-
-            await nextTick();
-            placeCaretAtEnd();
-
-            ElMessage.success("图片上传成功");
-          } else {
-            ElMessage.error("图片上传失败");
-          }
-        };
-        reader.readAsDataURL(file);
-      } catch (error: any) {
-        console.error("上传图片失败:", error);
-        ElMessage.error(
-          error?.response?.data?.message || error?.message || "图片上传失败"
-        );
-      }
+    const ok = await uploadAndInsertImage(file, { atEnd: true });
+    if (ok) {
+      ElMessage.success("图片上传成功");
     }
   };
 };

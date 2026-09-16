@@ -91,6 +91,63 @@ export interface ProjectListItem {
   motherboard_name: string;
 }
 
+/** 创建 APP 功能开发项目参数（project_type 固定为 APP功能开发） */
+export interface CreateAppProjectParams {
+  /** 项目类型，固定值：APP功能开发 */
+  project_type: string;
+  /** 项目名 */
+  project_name: string;
+  /** 客户名 */
+  customer_name: string;
+  /** 产品类型 */
+  product_type: string;
+  /** 平台名称 */
+  platform_name: string;
+  /** 分辨率 */
+  resolution: string;
+  /** APP协议 */
+  app_protocol: string;
+  /** 马甲包名称 */
+  shadow_app: string;
+  /** 业务负责人 */
+  business_owner: string;
+  /** 立项时间 */
+  project_initiation_date: string;
+  /** 计划开始时间 */
+  plant_start_time: string;
+  /** 计划结束时间 */
+  plant_end_time: string;
+  /** 描述 */
+  describe: string[];
+  /** 附件 */
+  attachment: string[];
+  /** 合同 */
+  project_proposal: string[];
+}
+
+/** 创建 APP 功能开发项目 */
+export const createAppProject = (params: CreateAppProjectParams) => {
+  return http.request<ApiResponse<any>>("post", "/project/add_app_project", {
+    data: {
+      project_type: params.project_type || "APP功能开发",
+      project_name: params.project_name,
+      customer_name: params.customer_name || "",
+      product_type: params.product_type || "",
+      platform_name: params.platform_name || "",
+      resolution: params.resolution || "",
+      app_protocol: params.app_protocol || "",
+      shadow_app: params.shadow_app || "",
+      business_owner: params.business_owner || "",
+      project_initiation_date: params.project_initiation_date || "",
+      plant_start_time: params.plant_start_time,
+      plant_end_time: params.plant_end_time,
+      describe: params.describe,
+      attachment: params.attachment,
+      project_proposal: params.project_proposal || []
+    }
+  });
+};
+
 /** 创建项目 */
 export const createProject = (params: CreateProjectParams) => {
   // 使用 JSON 格式发送数据
@@ -1028,6 +1085,8 @@ export const selectTaskStatistics = (params: {
   user_name?: string;
   project_type?: string;
   project_name?: string;
+  /** 任务完成期限倒序；默认 false 为正序 */
+  reverse?: boolean;
 }) => {
   return http.request<ApiResponse<Record<string, any[]> | any[]>>(
     "post",
@@ -1037,7 +1096,8 @@ export const selectTaskStatistics = (params: {
         department: params.department || "",
         user_name: params.user_name || "",
         project_type: params.project_type || "",
-        project_name: params.project_name || ""
+        project_name: params.project_name || "",
+        reverse: params.reverse ?? false
       }
     }
   );

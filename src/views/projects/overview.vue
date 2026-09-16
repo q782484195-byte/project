@@ -11,6 +11,7 @@
         <el-tab-pane label="定制项目" name="定制项目" />
         <el-tab-pane label="公模项目" name="公模项目" />
         <el-tab-pane label="功能开发" name="功能开发" />
+        <el-tab-pane label="APP功能开发" name="APP功能开发" />
       </el-tabs>
 
       <!-- 查询表单 -->
@@ -34,62 +35,62 @@
 
         <!-- 桌面端：表格 -->
         <TablePanel v-if="!isMobile" :loading="loading" @refresh="loadData">
-        <el-table v-loading="loading" :data="snapshot.tableData" border stripe style="width: 100%"
-          :default-expand-all="false" row-key="projectId" empty-text="暂无项目数据" :header-cell-style="{ textAlign: 'center' }"
-          :cell-style="{ textAlign: 'center' }">
-          <el-table-column type="expand" width="50">
-            <template #default="{ row }">
-              <div class="expanded-content">
-                <el-table :data="[row.detailedData]" border style="width: 100%" :show-header="true"
-                  :header-cell-style="{ textAlign: 'center' }" :cell-style="{ textAlign: 'center' }">
-                  <el-table-column v-for="(header, index) in detailedHeaders" :key="index" :prop="`col_${index}`"
-                    :label="header" :min-width="index === 0 ? 120 : 100" show-overflow-tooltip>
-                    <template #default="{ row: detailRow }">
-                      <span>{{
-                        detailRow[`col_${index}`] !== undefined && detailRow[`col_${index}`] !== null
-                          ? detailRow[`col_${index}`]
-                          : '-'
-                      }}</span>
-                    </template>
-                  </el-table-column>
-                </el-table>
-              </div>
-            </template>
-          </el-table-column>
-          <el-table-column v-for="(header, index) in overviewHeaders" :key="index" :prop="`col_${index}`"
-            :label="header" :min-width="getColumnWidth(header)" :fixed="index === 0 ? 'left' : false"
-            show-overflow-tooltip>
-            <template #default="{ row }">
-              <span v-if="header === '项目状态'">
-                <el-tag :type="getStatusTagType(row.overview[index])" size="small">
-                  {{ row.overview[index] || '-' }}
-                </el-tag>
-              </span>
-              <span v-else-if="header === '延期时间' && row.overview[index]">
-                <el-tag type="danger" size="small">{{ row.overview[index] }} 天</el-tag>
-              </span>
-              <span v-else-if="header === '项目名' && row.projectId">
-                <el-link type="primary" :underline="false" class="cell-link"
-                  @click.stop="goToTaskList(row.projectId)">
-                  {{
-                    row.overview[index] !== undefined &&
-                      row.overview[index] !== null &&
-                      row.overview[index] !== ''
-                      ? row.overview[index]
-                      : '-'
-                  }}
-                </el-link>
-              </span>
-              <span v-else>{{
-                row.overview[index] !== undefined &&
-                  row.overview[index] !== null &&
-                  row.overview[index] !== ''
-                  ? row.overview[index]
-                  : '-'
-              }}</span>
-            </template>
-          </el-table-column>
-        </el-table>
+          <el-table v-loading="loading" :data="snapshot.tableData" border stripe style="width: 100%"
+            :default-expand-all="false" row-key="projectId" empty-text="暂无项目数据"
+            :header-cell-style="{ textAlign: 'center' }" :cell-style="{ textAlign: 'center' }">
+            <el-table-column type="expand" width="50">
+              <template #default="{ row }">
+                <div class="expanded-content">
+                  <el-table :data="[row.detailedData]" border style="width: 100%" :show-header="true"
+                    :header-cell-style="{ textAlign: 'center' }" :cell-style="{ textAlign: 'center' }">
+                    <el-table-column v-for="(header, index) in detailedHeaders" :key="index" :prop="`col_${index}`"
+                      :label="header" :min-width="index === 0 ? 120 : 100" show-overflow-tooltip>
+                      <template #default="{ row: detailRow }">
+                        <span>{{
+                          detailRow[`col_${index}`] !== undefined && detailRow[`col_${index}`] !== null
+                            ? detailRow[`col_${index}`]
+                            : '-'
+                          }}</span>
+                      </template>
+                    </el-table-column>
+                  </el-table>
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column v-for="(header, index) in overviewHeaders" :key="index" :prop="`col_${index}`"
+              :label="header" :min-width="getColumnWidth(header)" :fixed="index === 0 ? 'left' : false"
+              show-overflow-tooltip>
+              <template #default="{ row }">
+                <span v-if="header === '项目状态'">
+                  <el-tag :type="getStatusTagType(row.overview[index])" size="small">
+                    {{ row.overview[index] || '-' }}
+                  </el-tag>
+                </span>
+                <span v-else-if="header === '延期时间' && row.overview[index]">
+                  <el-tag type="danger" size="small">{{ row.overview[index] }} 天</el-tag>
+                </span>
+                <span v-else-if="header === '项目名' && row.projectId">
+                  <el-link type="primary" :underline="false" class="cell-link"
+                    @click.stop="goToTaskList(row.projectId)">
+                    {{
+                      row.overview[index] !== undefined &&
+                        row.overview[index] !== null &&
+                        row.overview[index] !== ''
+                        ? row.overview[index]
+                        : '-'
+                    }}
+                  </el-link>
+                </span>
+                <span v-else>{{
+                  row.overview[index] !== undefined &&
+                    row.overview[index] !== null &&
+                    row.overview[index] !== ''
+                    ? row.overview[index]
+                    : '-'
+                }}</span>
+              </template>
+            </el-table-column>
+          </el-table>
         </TablePanel>
 
         <!-- 移动端：卡片列表 -->
