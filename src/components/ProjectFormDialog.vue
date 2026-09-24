@@ -169,7 +169,7 @@
         </el-form-item>
 
         <el-row :gutter="16" class="upload-row">
-          <el-col :span="!isFeatureDevelopmentOnly ? 12 : 24">
+          <el-col :span="showProposalUpload ? 12 : 24">
             <el-form-item label="附件" class="form-item--upload">
               <el-upload
                 v-model:file-list="fileList"
@@ -186,8 +186,8 @@
               </el-upload>
             </el-form-item>
           </el-col>
-          <el-col v-if="!isFeatureDevelopmentOnly" :span="12">
-            <el-form-item :label="proposalFileLabel" prop="project_proposal" class="form-item--upload">
+          <el-col v-if="showProposalUpload" :span="12">
+            <el-form-item label="立项文件" prop="project_proposal" class="form-item--upload">
               <el-upload
                 v-model:file-list="proposalFileList"
                 multiple
@@ -441,13 +441,12 @@ const isStandardProjectForm = computed(
   () => !isFeatureDevelopmentOnly.value && !isAppFeatureDevelopment.value
 );
 
-const proposalFileLabel = computed(() =>
-  isAppFeatureDevelopment.value ? "合同" : "立项文件"
-);
+const showProposalUpload = computed(() => isStandardProjectForm.value);
 
 const formRules = computed<FormRules>(() => {
   const featureDevOnly = isFeatureDevelopmentOnly.value;
   const appDev = isAppFeatureDevelopment.value;
+  const showProposal = showProposalUpload.value;
 
   return {
     project_type: [
@@ -455,9 +454,8 @@ const formRules = computed<FormRules>(() => {
     ],
     name: [{ required: true, message: "请输入项目名称", trigger: "blur" }],
     describe: [{ required: true, message: "请输入项目描述", trigger: "change" }],
-    project_proposal: featureDevOnly
-      ? []
-      : [
+    project_proposal: showProposal
+      ? [
         {
           required: true,
           validator: (_rule: any, _value: any, callback: any) => {
@@ -465,14 +463,15 @@ const formRules = computed<FormRules>(() => {
               !proposalFileList.value ||
               proposalFileList.value.length === 0
             ) {
-              callback(new Error(`请上传${proposalFileLabel.value}`));
+              callback(new Error("请上传立项文件"));
             } else {
               callback();
             }
           },
           trigger: "change"
         }
-      ],
+      ]
+      : [],
     project_initiation_date: featureDevOnly
       ? []
       : [
@@ -529,22 +528,20 @@ const formRules = computed<FormRules>(() => {
     product_type: [
       { required: true, message: "请输入产品类型", trigger: "blur" }
     ],
-    platform_name: [
-      { required: true, message: "请输入平台名称", trigger: "blur" }
-    ],
+    platform_name: appDev
+      ? []
+      : [{ required: true, message: "请输入平台名称", trigger: "blur" }],
     motherboard_name: hideMotherboard.value
       ? []
       : [{ required: true, message: "请输入主板名称", trigger: "blur" }],
-    resolution: [{ required: true, message: "请输入分辨率", trigger: "blur" }],
+    resolution: appDev
+      ? []
+      : [{ required: true, message: "请输入分辨率", trigger: "blur" }],
     business_owner: featureDevOnly
       ? []
       : [{ required: true, message: "请输入业务负责人", trigger: "blur" }],
-    app_protocol: appDev
-      ? [{ required: true, message: "请输入APP协议", trigger: "blur" }]
-      : [],
-    shadow_app: appDev
-      ? [{ required: true, message: "请输入马甲包名称", trigger: "blur" }]
-      : []
+    app_protocol: [],
+    shadow_app: []
   };
 });
 
@@ -859,7 +856,13 @@ const fillFormFromProject = (project: Project) => {
 
   const proposalList =
     project.project_proposal || (project as any).project_proposal || [];
-  if (proposalList && proposalList.length > 0) {
+  const projectType =
+    (project as any).project_type || props.defaultProjectType || "";
+  if (
+    !isAppFeatureDevelopmentType(projectType) &&
+    proposalList &&
+    proposalList.length > 0
+  ) {
     proposalFileList.value = proposalList.map(
       (proposalPath: string, index: number) => {
         const fileName = getFileNameFromPath(proposalPath);
@@ -931,12 +934,12 @@ const handleSubmit = async () => {
       return;
     }
 
-    // 验证立项文件
+    // 验证立项文件（仅定制/公模项目）
     if (
-      !isFeatureDevelopmentOnly.value &&
+      showProposalUpload.value &&
       (!proposalFileList.value || proposalFileList.value.length === 0)
     ) {
-      ElMessage.warning(`请上传${proposalFileLabel.value}`);
+      ElMessage.warning("请上传立项文件");
       submitting.value = false;
       return;
     }
@@ -993,7 +996,7 @@ const handleSubmit = async () => {
 
     // 处理立项文件
     const proposalUrls: string[] = [];
-    if (!isFeatureDevelopmentOnly.value) {
+    if (showProposalUpload.value) {
       for (const file of proposalFileList.value) {
         if (file.raw) {
           // 新上传的文件，需要上传
@@ -1154,8 +1157,7 @@ const handleSubmit = async () => {
             plant_start_time: projectForm.startDate,
             plant_end_time: projectForm.endDate,
             describe: describeUrls,
-            attachment: allAttachmentUrls,
-            project_proposal: allProposalUrls
+            attachment: allAttachmentUrls
           };
           response = await createAppProject(submitData);
         } else {

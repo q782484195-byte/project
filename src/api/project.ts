@@ -121,8 +121,8 @@ export interface CreateAppProjectParams {
   describe: string[];
   /** 附件 */
   attachment: string[];
-  /** 合同 */
-  project_proposal: string[];
+  /** 合同（APP 功能开发不需要） */
+  project_proposal?: string[];
 }
 
 /** 创建 APP 功能开发项目 */
@@ -143,7 +143,9 @@ export const createAppProject = (params: CreateAppProjectParams) => {
       plant_end_time: params.plant_end_time,
       describe: params.describe,
       attachment: params.attachment,
-      project_proposal: params.project_proposal || []
+      ...(params.project_proposal?.length
+        ? { project_proposal: params.project_proposal }
+        : {})
     }
   });
 };
@@ -208,12 +210,12 @@ export interface ProjectStateCount {
   [key: string]: string | number | null | undefined;
 }
 
-/** 项目列表查询响应 */
+/** 项目列表查询响应（部分场景 result 为需求任务嵌套树） */
 export interface ProjectSelectResponse {
   code: number;
   message?: string;
-  result?: ProjectListItem[];
-  data?: ProjectListItem[];
+  result?: ProjectListItem[] | Record<string, unknown>;
+  data?: ProjectListItem[] | Record<string, unknown>;
   total_count?: number;
   state_count?: ProjectStateCount;
 }

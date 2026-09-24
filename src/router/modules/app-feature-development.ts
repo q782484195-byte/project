@@ -17,7 +17,7 @@ export default {
       component: () => import("@/views/projects/index.vue"),
       meta: {
         icon: "ri:apps-line",
-        title: "APP功能开发列表",
+        title: "APP功能开发",
         showLink: true,
         showParent: false,
         defaultProjectType: "APP功能开发",

@@ -1,6 +1,6 @@
 <template>
   <div class="dashboard">
-    <el-row :gutter="20">
+    <el-row :gutter="20" class="dashboard-main-row">
       <!-- 左侧：汇报列表 -->
       <el-col :span="12" :xs="24" class="dashboard-col-reports">
         <el-card class="report-card">
@@ -28,7 +28,7 @@
                         <span class="report-project">{{ report.project_name || "-" }}</span>
                         <span v-if="report.requirement_name" class="report-divider">|</span>
                         <span v-if="report.requirement_name" class="report-requirement">{{ report.requirement_name
-                          }}</span>
+                        }}</span>
                         <span v-if="report.task_name" class="report-divider">|</span>
                         <span v-if="report.task_name" class="report-task">{{ report.task_name }}</span>
                         <el-tag v-if="report.state" :type="getReportStatusType(report.state)" size="small">状态: {{
@@ -65,9 +65,9 @@
       </el-col>
 
       <!-- 右侧：图表 -->
-      <el-col :span="12" :xs="24">
+      <el-col :span="12" :xs="24" class="dashboard-col-charts">
         <!-- 项目进度图表 -->
-        <el-card class="mb-20">
+        <el-card class="dashboard-chart-card">
           <template #header>
             <div class="card-header-title">
               <span>进行中项目进度</span>
@@ -77,7 +77,7 @@
         </el-card>
 
         <!-- 任务状态分布 -->
-        <el-card class="mb-20">
+        <el-card class="dashboard-chart-card">
           <template #header>
             <div class="card-header-title">
               <span>进行中任务状态分布</span>
@@ -699,6 +699,10 @@ onMounted(async () => {
   // 在图表初始化后再加载数据
   await loadTaskStatusData(); // 加载任务状态统计数据
 
+  nextTick(() => {
+    handleResize();
+  });
+
   // 监听窗口大小变化，重新调整图表
   window.addEventListener("resize", handleResize);
 });
@@ -734,6 +738,47 @@ onBeforeUnmount(() => {
 .dashboard {
   background: linear-gradient(135deg, #f5f7fa 0%, #fafbfc 100%);
   min-height: calc(100vh - 60px);
+}
+
+.dashboard-main-row {
+  align-items: stretch;
+}
+
+.dashboard-col-reports,
+.dashboard-col-charts {
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-col-reports .report-card {
+  flex: 1;
+  min-height: 0;
+}
+
+.dashboard-col-charts {
+  gap: 24px;
+  min-height: 0;
+}
+
+.dashboard-chart-card {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0;
+
+  :deep(.el-card__body) {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .chart {
+    flex: 1;
+    min-height: 160px;
+    height: auto;
+  }
 }
 
 .stat-card {
@@ -1142,9 +1187,23 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 768px) {
+
   /* 窄屏下两列纵向堆叠时，汇报列表与右侧图表区块之间的间距 */
   .dashboard-col-reports {
     margin-bottom: 20px;
+  }
+
+  .dashboard-col-charts {
+    gap: 20px;
+  }
+
+  .dashboard-chart-card {
+    flex: none;
+
+    .chart {
+      flex: none;
+      height: 250px;
+    }
   }
 
   .stat-card {
@@ -1153,10 +1212,6 @@ onBeforeUnmount(() => {
     .stat-number {
       font-size: 28px;
     }
-  }
-
-  .chart {
-    height: 250px;
   }
 
   :deep(.el-card) {
@@ -1176,6 +1231,14 @@ onBeforeUnmount(() => {
     margin-bottom: 12px;
   }
 
+  .dashboard-col-charts {
+    gap: 12px;
+  }
+
+  .dashboard-chart-card .chart {
+    height: 220px;
+  }
+
   .stat-card {
     padding: 16px 12px;
     margin-bottom: 12px;
@@ -1187,10 +1250,6 @@ onBeforeUnmount(() => {
     .stat-label {
       font-size: 13px;
     }
-  }
-
-  .chart {
-    height: 220px;
   }
 
   :deep(.el-card) {

@@ -368,6 +368,7 @@ import {
   loadRequirementFromExcel,
   updateProjectPause,
   type RequirementListItem,
+  type ProjectListItem,
   type DescribeContent,
   type ProjectStatisticsResponse,
   type TaskListItem,
@@ -639,89 +640,242 @@ const convertToTreeData = (
 // 获取项目ID
 const projectId = computed(() => route.params.id as string);
 
+const normalizeDescribeContent = (describe: unknown): DescribeContent[] => {
+  if (!describe || !Array.isArray(describe)) return [];
+
+  if (
+    describe.length > 0 &&
+    typeof describe[0] === "object" &&
+    describe[0] !== null &&
+    "type" in describe[0]
+  ) {
+    return (describe as any[]).map(d => {
+      if (d.type === "image" && d.url) {
+        return { type: "url" as const, content: d.url };
+      }
+      if (d.type === "url" && d.url && !d.content) {
+        return { type: "url" as const, content: d.url };
+      }
+      return d;
+    });
+  }
+
+  return (describe as string[]).map(str => {
+    const isImageUrl =
+      (str.startsWith("http://") ||
+        str.startsWith("https://") ||
+        str.startsWith("/")) &&
+      /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?|$)/i.test(str);
+
+    if (isImageUrl) {
+      return { type: "url" as const, content: str };
+    }
+    return { type: "text" as const, content: str };
+  });
+};
+
+const resolveProjectStatusFromRoute = (): "未开始" | "进行中" | "已完成" => {
+  const stateParam = route.params.state as string;
+  if (stateParam === "未开始" || stateParam === "进行中" || stateParam === "已完成") {
+    return stateParam;
+  }
+  return "进行中";
+};
+
+const collectRequirementNodesInTree = (
+  data: unknown,
+  bucket: (RequirementListItem & Record<string, any>)[]
+) => {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return;
+  if (isRequirementItem(data)) {
+    bucket.push(data as RequirementListItem & Record<string, any>);
+    return;
+  }
+  for (const key of Object.keys(data as Record<string, unknown>)) {
+    collectRequirementNodesInTree(
+      (data as Record<string, unknown>)[key],
+      bucket
+    );
+  }
+};
+
+const findRequirementNodeForProject = (
+  tree: Record<string, unknown>,
+  targetProjectId?: string
+): (RequirementListItem & Record<string, any>) | null => {
+  const nodes: (RequirementListItem & Record<string, any>)[] = [];
+  collectRequirementNodesInTree(tree, nodes);
+  if (nodes.length === 0) return null;
+  if (targetProjectId) {
+    const matched = nodes.find(n => n.project_id === targetProjectId);
+    if (matched) return matched;
+  }
+  return nodes[0];
+};
+
+const applyProjectFromListItem = (item: ProjectListItem & Record<string, any>) => {
+  let status = item.state as "未开始" | "进行中" | "已完成";
+  if (status && String(status).includes(",")) {
+    status = String(status).split(",")[0].trim() as "未开始" | "进行中" | "已完成";
+  }
+
+  project.value = {
+    id: item._id || item.project_id || projectId.value,
+    name: item.project_name,
+    project_type: item.project_type || projectType.value,
+    startDate: item.plant_start_time,
+    endDate: item.plant_end_time,
+    status,
+    creator: item.creator,
+    describe: normalizeDescribeContent(item.describe),
+    attachment: item.attachment || [],
+    project_proposal: item.project_proposal || [],
+    createdAt: item.create_time,
+    progress: 0
+  } as any;
+  currentStatus.value = project.value?.status || "进行中";
+  projectHistory.value =
+    item.history && Array.isArray(item.history) ? item.history : [];
+};
+
+const applyProjectFromRequirementsTree = (
+  tree: Record<string, unknown>
+): boolean => {
+  const node = findRequirementNodeForProject(tree, projectId.value);
+  if (!node) return false;
+
+  project.value = {
+    id: projectId.value || (node.project_id as string) || "",
+    name: (node.project_name as string) || "项目详情",
+    project_type: projectType.value,
+    startDate: "",
+    endDate: "",
+    status: resolveProjectStatusFromRoute(),
+    creator: node.creator as string | undefined,
+    describe: [],
+    attachment: [],
+    project_proposal: [],
+    createdAt: (node.create_time as string) || "",
+    progress: 0
+  } as any;
+  currentStatus.value = project.value?.status || "进行中";
+  projectHistory.value = [];
+  return true;
+};
+
+const applyProjectFromSelectAllArray = (
+  list: RequirementWithTasksItem[]
+): boolean => {
+  if (!list.length) return false;
+  const first = list[0];
+  project.value = {
+    id: projectId.value || first.project_id,
+    name: first.project_name || "项目详情",
+    project_type: projectType.value,
+    startDate: "",
+    endDate: "",
+    status: resolveProjectStatusFromRoute(),
+    creator: first.creator,
+    describe: normalizeDescribeContent(first.describe),
+    attachment: first.attachment || [],
+    project_proposal: [],
+    createdAt: first.create_time,
+    progress: 0
+  } as any;
+  currentStatus.value = project.value?.status || "进行中";
+  projectHistory.value = [];
+  return true;
+};
+
+const tryApplyProjectFromApiResult = (rawResult: unknown): boolean => {
+  if (Array.isArray(rawResult) && rawResult.length > 0) {
+    applyProjectFromListItem(rawResult[0] as ProjectListItem & Record<string, any>);
+    return true;
+  }
+  if (rawResult && typeof rawResult === "object" && !Array.isArray(rawResult)) {
+    return applyProjectFromRequirementsTree(rawResult as Record<string, unknown>);
+  }
+  return false;
+};
+
+const loadProjectMetaFromSelectAll = async (): Promise<boolean> => {
+  const trySelectAll = async (project_type: string) => {
+    const response = await selectAllRequirementsAndTasks({
+      project_id: projectId.value,
+      project_type
+    });
+    if (response.code !== 200) return false;
+    const raw = response.result ?? response.data;
+    if (Array.isArray(raw)) {
+      return applyProjectFromSelectAllArray(raw as RequirementWithTasksItem[]);
+    }
+    if (raw && typeof raw === "object") {
+      return applyProjectFromRequirementsTree(raw as Record<string, unknown>);
+    }
+    return false;
+  };
+
+  if (await trySelectAll(projectType.value)) return true;
+  if (projectType.value && (await trySelectAll(""))) return true;
+  return false;
+};
+
 // 加载项目详情
 const loadProject = async () => {
   if (!projectId.value) return;
   loading.value = true;
   try {
-    const response = await selectProjects({
-      state: route.params.state === '暂停' ? "暂停" : "",
+    const buildSelectParams = (project_type: string) => ({
+      state: route.params.state === "暂停" ? "暂停" : "",
       project_id: projectId.value,
-      project_type: projectType.value,
+      project_type,
       page: 1,
       page_size: 1
     });
 
-    if (
-      response.code === 200 &&
-      response.result &&
-      response.result.length > 0
-    ) {
-      const item = response.result[0];
-      // 处理 describe：可能是字符串数组或 DescribeContent[]
-      let describeContent: DescribeContent[] = [];
-      if (item.describe && Array.isArray(item.describe)) {
-        // 检查第一个元素是否是对象（DescribeContent[] 格式）
-        if (
-          item.describe.length > 0 &&
-          typeof item.describe[0] === "object" &&
-          "type" in item.describe[0]
-        ) {
-          // 已经是 DescribeContent[] 格式
-          describeContent = item.describe.map((d: any) => {
-            // 处理 type: "image" 的情况
-            if (d.type === "image" && d.url) {
-              return { type: "url" as const, content: d.url };
-            }
-            // 处理 type: "url" 但使用 url 字段的情况
-            if (d.type === "url" && d.url && !d.content) {
-              return { type: "url" as const, content: d.url };
-            }
-            return d;
-          });
-        } else {
-          // 是字符串数组，转换为 DescribeContent[]
-          const stringArray = item.describe as unknown as string[];
-          describeContent = stringArray.map(str => {
-            // 判断是否是图片 URL（以 http://、https:// 或 / 开头，且包含图片扩展名）
-            const isImageUrl =
-              (str.startsWith("http://") ||
-                str.startsWith("https://") ||
-                str.startsWith("/")) &&
-              /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?|$)/i.test(str);
+    let response = await selectProjects(buildSelectParams(projectType.value));
 
-            if (isImageUrl) {
-              return { type: "url" as const, content: str };
-            } else {
-              return { type: "text" as const, content: str };
-            }
-          });
-        }
+    if (response.code !== 200) {
+      ElMessage.error(response.message || "加载项目失败");
+      router.push(projectIndexPath.value);
+      return;
+    }
+
+    let loaded = tryApplyProjectFromApiResult(
+      response.result ?? response.data
+    );
+
+    if (!loaded && projectType.value) {
+      response = await selectProjects(buildSelectParams(""));
+      if (response.code === 200) {
+        loaded = tryApplyProjectFromApiResult(
+          response.result ?? response.data
+        );
       }
+    }
 
-      project.value = {
-        id: item._id,
-        name: item.project_name,
-        project_type: (item as any).project_type || projectType.value,
-        startDate: item.plant_start_time,
-        endDate: item.plant_end_time,
-        status: item.state as "未开始" | "进行中" | "已完成",
-        creator: item.creator,
-        describe: describeContent,
-        attachment: item.attachment || [],
-        project_proposal: (item as any).project_proposal || [],
-        createdAt: item.create_time,
-        progress: 0
-      } as any;
-      currentStatus.value = project.value.status || "进行中";
+    if (!loaded) {
+      loaded = await loadProjectMetaFromSelectAll();
+    }
 
-      // 加载项目更新记录
-      projectHistory.value = ((item as any).history && Array.isArray((item as any).history)) ? (item as any).history : [];
+    if (!loaded && requirementsTasksData.value) {
+      loaded = applyProjectFromRequirementsTree(
+        requirementsTasksData.value as Record<string, unknown>
+      );
+    }
 
-      // 加载项目统计数据
+    // 与「项目统计/项目节点」同源：避免 select 空数据但 select_all 已有数据时误报
+    if (!loaded) {
+      await loadProjectStructure();
+      if (requirementsTasksData.value) {
+        loaded = applyProjectFromRequirementsTree(
+          requirementsTasksData.value as Record<string, unknown>
+        );
+      }
+    }
+
+    if (loaded) {
       await loadProjectStatistics(projectId.value);
-      // 加载BUG统计数据
-      // await loadBugStatistics(projectId.value);
     } else {
       ElMessage.error("项目不存在");
       router.push(projectIndexPath.value);

@@ -17,7 +17,7 @@ export default {
       component: () => import("@/views/projects/index.vue"),
       meta: {
         icon: "ri:code-box-line",
-        title: "功能开发列表",
+        title: "功能开发",
         showLink: true,
         showParent: false,
         defaultProjectType: "功能开发",
