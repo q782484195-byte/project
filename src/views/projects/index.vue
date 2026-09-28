@@ -458,7 +458,8 @@ const loadProjects = async () => {
 
     if (response.code === 200) {
       // 获取返回的数据（可能是 result 或 data）
-      const projectList = response.result || response.data || [];
+      const rawList = response.result ?? response.data;
+      const projectList = Array.isArray(rawList) ? rawList : [];
 
       // 将 API 返回的数据转换为前端 Project 类型
       projects.value = projectList.map((item: any) => {
@@ -684,7 +685,13 @@ const goToTaskList = (project: Project, event?: Event) => {
   }
   router.push({
     path: "/tasks/list",
-    query: { project_id: project.id }
+    query: {
+      project_id: project.id,
+      project_name:
+        (project as Project & { project_name?: string }).project_name ||
+        project.name ||
+        ""
+    }
   });
 };
 

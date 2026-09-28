@@ -354,6 +354,20 @@ const containerRef = ref<HTMLDivElement>();
 // 缓存键名
 const CACHE_KEY = "tasks-list-params";
 
+const readCachedListQuery = () => {
+  try {
+    const cached = JSON.parse(sessionStorage.getItem(CACHE_KEY) || "null");
+    if (!cached || typeof cached !== "object") return null;
+    return cached as {
+      project_id?: string;
+      project_name?: string;
+      task_name?: string;
+    };
+  } catch {
+    return null;
+  }
+};
+
 // 刷新前保存的折叠展开状态，刷新后恢复
 const savedExpandedKeysBeforeRefresh = ref<string[] | null>(null);
 
@@ -793,9 +807,11 @@ const loadProjects = async () => {
       page_size: 100 // 获取所有项目
     });
 
-    if (response.code === 200 && response.result) {
-      projects.value = response.result.map((item: ProjectListItem) => ({
-        id: item._id,
+    if (response.code === 200 && Array.isArray(response.result)) {
+      projects.value = response.result.map((item: ProjectListItem) => {
+        const raw = item as ProjectListItem & { project_id?: string; id?: string };
+        return {
+        id: raw._id || raw.project_id || raw.id || "",
         name: `${item.project_name || ""} - ${item.motherboard_name || ""}`,
         project_name: item.project_name || "",
         motherboard_name: item.motherboard_name || "",
@@ -804,7 +820,8 @@ const loadProjects = async () => {
         endDate: item.plant_end_time,
         creator: item.creator,
         createdAt: item.create_time
-      })) as Project[];
+      };
+      }) as Project[];
     } else {
       ElMessage.error(response.message || "加载项目列表失败");
       projects.value = [];
@@ -1032,17 +1049,35 @@ const projectReportRules: FormRules = {
   message: [{ required: true, message: "请输入汇报内容", trigger: "blur" }]
 };
 
+const getQueryString = (key: string) => {
+  const value = route.query[key];
+  const raw = Array.isArray(value) ? value[0] : value;
+  return typeof raw === "string" && raw.trim() ? raw.trim() : "";
+};
+
 const getSelectedProject = () => {
-  return projects.value.find((project: Project) => project.id === searchForm.value.projectId);
+  const projectId = searchForm.value.projectId;
+  if (!projectId) return undefined;
+  return projects.value.find(
+    (project: Project) => String(project.id) === String(projectId)
+  );
 };
 
 const currentProjectDisplayName = computed(() => {
   const project = getSelectedProject();
-  if (!project) return "-";
-  const name = (project as Project & { project_name?: string }).project_name || project.name || "-";
-  // const motherboard = (project as Project & { motherboard_name?: string }).motherboard_name;
-  // return motherboard ? `${name}-${motherboard}` : name;
-  return name;
+  if (project) {
+    const projectName = (
+      project as Project & { project_name?: string }
+    ).project_name?.trim();
+    if (projectName) return projectName;
+    const combinedName = project.name?.trim();
+    if (combinedName && combinedName !== "-") return combinedName;
+  }
+  const fromRoute = getQueryString("project_name");
+  if (fromRoute) return fromRoute;
+  const cachedName = readCachedListQuery()?.project_name?.trim();
+  if (cachedName) return cachedName;
+  return "-";
 });
 
 const currentProjectApiName = computed(() => {
@@ -2011,21 +2046,19 @@ watch(
   { immediate: false }
 );
 
-const readCachedListQuery = () => {
-  try {
-    const cached = JSON.parse(sessionStorage.getItem(CACHE_KEY) || "null");
-    if (!cached || typeof cached !== "object") return null;
-    return cached as { project_id?: string; task_name?: string };
-  } catch {
-    return null;
-  }
-};
-
 const saveCachedListQuery = () => {
   if (!searchForm.value.projectId) return;
   const payload: Record<string, string> = {
     project_id: searchForm.value.projectId
   };
+  const project = getSelectedProject();
+  const projectName =
+    project?.project_name?.trim() ||
+    project?.name?.trim() ||
+    getQueryString("project_name");
+  if (projectName && projectName !== "-") {
+    payload.project_name = projectName;
+  }
   if (searchForm.value.taskName) payload.task_name = searchForm.value.taskName;
   sessionStorage.setItem(CACHE_KEY, JSON.stringify(payload));
 };
@@ -2035,6 +2068,7 @@ const restoreSearchFromQuery = async () => {
   const queryValue = (value: unknown) =>
     Array.isArray(value) ? value[0] : value;
   let routeProjectId = queryValue(route.query.project_id) as string | undefined;
+  let routeProjectName = queryValue(route.query.project_name) as string | undefined;
   let routeTaskName = queryValue(route.query.task_name) as string | undefined;
   let restoredFromCache = false;
 
@@ -2042,12 +2076,13 @@ const restoreSearchFromQuery = async () => {
     const cached = readCachedListQuery();
     if (cached?.project_id) {
       routeProjectId = cached.project_id;
+      routeProjectName = routeProjectName || cached.project_name;
       routeTaskName = routeTaskName || cached.task_name;
       restoredFromCache = true;
     }
   }
 
-  if (routeProjectId || routeTaskName) {
+  if (routeProjectId || routeProjectName || routeTaskName) {
     if (routeProjectId) {
       searchForm.value.projectId = routeProjectId;
     }
@@ -2056,6 +2091,7 @@ const restoreSearchFromQuery = async () => {
     }
     if (restoredFromCache && routeProjectId) {
       const query: Record<string, string> = { project_id: routeProjectId };
+      if (routeProjectName) query.project_name = routeProjectName;
       if (routeTaskName) query.task_name = routeTaskName;
       await router.replace({ name: "TasksList", query });
     }
@@ -2115,6 +2151,13 @@ onMounted(async () => {
   await restoreSearchFromQuery();
   window.addEventListener("resize", handleResize);
 });
+
+watch(
+  () => [route.query.project_id, route.query.project_name],
+  async () => {
+    await restoreSearchFromQuery();
+  }
+);
 
 onUnmounted(() => {
   window.removeEventListener("resize", handleResize);
