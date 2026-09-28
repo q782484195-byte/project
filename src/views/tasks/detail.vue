@@ -1,12 +1,15 @@
 <template>
   <div class="task-detail-page">
     <div class="page-header">
-      <el-button type="text" class="back-button" @click="goBack">
-        <el-icon>
-          <ArrowLeft />
-        </el-icon>
-        返回
-      </el-button>
+      <div class="header-nav">
+        <el-button type="text" class="back-button" @click="goBack">
+          <el-icon>
+            <ArrowLeft />
+          </el-icon>
+          返回
+        </el-button>
+
+      </div>
       <h2 class="page-title">
         {{ task?.任务名 || task?.task_name || task?.title || "任务详情" }}
       </h2>
@@ -15,7 +18,7 @@
 
     <div v-loading="loading" class="detail-content">
       <el-card v-if="task" class="main-card">
-        <el-tabs v-model="activeTab" class="detail-tabs">
+        <el-tabs v-model="activeTab" class="detail-tabs" :before-leave="handleDetailTabBeforeLeave">
           <!-- 基本信息 Tab -->
           <el-tab-pane label="基本信息" name="info">
             <!-- 基本信息 -->
@@ -457,6 +460,15 @@
                   @size-change="handleBugPageSizeChange" @current-change="handleBugPageChange"
                   style="margin-top: 16px; justify-content: flex-end" />
               </div>
+            </el-card>
+          </el-tab-pane>
+
+          <!-- 任务节点 Tab -->
+          <el-tab-pane label="任务节点" name="nodes">
+            <el-card class="nodes-card" shadow="never">
+              <template #header>
+                <span>任务节点</span>
+              </template>
             </el-card>
           </el-tab-pane>
         </el-tabs>
@@ -1459,39 +1471,39 @@ const loadTask = async () => {
   }
 };
 
+// 直接进入任务列表（不依赖浏览器历史，避免从工作台/看板进入后无法回到列表）
+const goToTaskList = () => {
+  const query: Record<string, string> = {};
+  if (projectId.value) {
+    query.project_id = projectId.value;
+  }
+  if (projectName.value) {
+    query.project_name = projectName.value;
+  }
+  if (task.value?.requirement_id) {
+    query.requirement_id = task.value.requirement_id;
+  }
+  if (task.value?.requirement_name) {
+    query.requirement_name = task.value.requirement_name;
+  }
+
+  router.push({
+    name: "TasksList",
+    query: Object.keys(query).length > 0 ? query : undefined
+  });
+};
+
 // 返回
 const goBack = () => {
   // 根据来源决定返回到哪里
   if (from.value === "workspace") {
     // 从工作台进入的，返回到工作台
     router.push({ name: "Workspace" });
-  }
-
-  else if (from.value === "dashboard") {
+  } else if (from.value === "dashboard") {
     // 从dashboard进入的，返回到dashboard
     router.push({ name: "Dashboard" });
   } else {
-    // 从任务列表进入的，返回到任务列表
-    // 构建查询参数，传递项目ID和需求ID
-    const query: Record<string, string> = {};
-    if (projectId.value) {
-      query.project_id = projectId.value;
-    }
-    if (projectName.value) {
-      query.project_name = projectName.value;
-    }
-    // 从任务数据中获取需求ID
-    if (task.value?.requirement_id) {
-      query.requirement_id = task.value.requirement_id;
-    }
-    if (task.value?.requirement_name) {
-      query.requirement_name = task.value.requirement_name;
-    }
-
-    router.push({
-      name: "TasksList",
-      query: Object.keys(query).length > 0 ? query : undefined
-    });
+    goToTaskList();
   }
 };
 
@@ -1739,6 +1751,14 @@ const handleReportPageChange = (page: number) => {
   loadReports();
 };
 
+const handleDetailTabBeforeLeave = (activeName: string | number) => {
+  if (activeName === "nodes") {
+    goToTaskList();
+    return false;
+  }
+  return true;
+};
+
 // 监听activeTab变化，切换到BUG记录tab时加载数据
 watch(
   () => activeTab.value,
@@ -1746,6 +1766,13 @@ watch(
     if (newTab === "bugs" && task.value) {
       loadBugs();
     }
+  }
+);
+
+watch(
+  () => route.params.id,
+  () => {
+    loadTask();
   }
 );
 
@@ -1779,6 +1806,7 @@ onUnmounted(() => {
       white-space: nowrap;
     }
 
+    .header-nav,
     .header-actions {
       display: flex;
       align-items: center;
@@ -2386,6 +2414,10 @@ onUnmounted(() => {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+
+    .header-nav {
+      width: 100%;
     }
 
     .back-button {

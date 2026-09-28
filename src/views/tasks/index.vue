@@ -860,6 +860,7 @@ const handleSearchAllTasks = async () => {
     ElMessage.warning("请先选择项目");
     return;
   }
+  saveCachedListQuery();
   loading.value = true;
   try {
     const response = await selectAllRequirementsAndTasksTwo({
@@ -2010,25 +2011,58 @@ watch(
   { immediate: false }
 );
 
-// 从路由参数中恢复搜索条件
+const readCachedListQuery = () => {
+  try {
+    const cached = JSON.parse(sessionStorage.getItem(CACHE_KEY) || "null");
+    if (!cached || typeof cached !== "object") return null;
+    return cached as { project_id?: string; task_name?: string };
+  } catch {
+    return null;
+  }
+};
+
+const saveCachedListQuery = () => {
+  if (!searchForm.value.projectId) return;
+  const payload: Record<string, string> = {
+    project_id: searchForm.value.projectId
+  };
+  if (searchForm.value.taskName) payload.task_name = searchForm.value.taskName;
+  sessionStorage.setItem(CACHE_KEY, JSON.stringify(payload));
+};
+
+// 从路由参数中恢复搜索条件；标签点击丢失参数时，回退到上次打开的项目
 const restoreSearchFromQuery = async () => {
-  // 优先使用路由参数，如果没有则从缓存恢复
-  const routeProjectId = route.query.project_id as string | undefined;
-  const routeTaskName = route.query.task_name as string | undefined;
+  const queryValue = (value: unknown) =>
+    Array.isArray(value) ? value[0] : value;
+  let routeProjectId = queryValue(route.query.project_id) as string | undefined;
+  let routeTaskName = queryValue(route.query.task_name) as string | undefined;
+  let restoredFromCache = false;
+
+  if (!routeProjectId) {
+    const cached = readCachedListQuery();
+    if (cached?.project_id) {
+      routeProjectId = cached.project_id;
+      routeTaskName = routeTaskName || cached.task_name;
+      restoredFromCache = true;
+    }
+  }
 
   if (routeProjectId || routeTaskName) {
-    // 如果有路由参数，使用路由参数
     if (routeProjectId) {
       searchForm.value.projectId = routeProjectId;
     }
     if (routeTaskName) {
       searchForm.value.taskName = routeTaskName;
     }
-    // 如果项目ID存在，自动查询任务
+    if (restoredFromCache && routeProjectId) {
+      const query: Record<string, string> = { project_id: routeProjectId };
+      if (routeTaskName) query.task_name = routeTaskName;
+      await router.replace({ name: "TasksList", query });
+    }
     if (searchForm.value.projectId) {
+      saveCachedListQuery();
       await handleSearchAllTasks();
     }
-  } else {
   }
 
   // 如果路由有 create 参数且项目已选择，尝试打开新建抽屉

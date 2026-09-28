@@ -529,12 +529,14 @@ export async function pushDynamicRouteTag(to: ToRouteType) {
 
   const leaf = to.matched[to.matched.length - 1];
   const { useMultiTagsStoreHook } = await import("@/store/modules/multiTags");
+  const query = { ...to.query };
+  const params = { ...to.params };
   useMultiTagsStoreHook().handleTags("push", {
     path: leaf?.path ?? to.path,
     name: to.name as string,
-    meta: to.meta,
-    query: to.query,
-    params: to.params
+    meta: { ...to.meta },
+    query: Object.keys(query).length ? query : undefined,
+    params: Object.keys(params).length ? params : undefined
   });
 }
 

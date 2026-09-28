@@ -204,6 +204,60 @@ const smoothScroll = (offset: number): void => {
   requestAnimationFrame(scrollStep);
 };
 
+function copyRouteRecord(record?: Record<string, unknown>) {
+  if (!record) return undefined;
+  const copy: Record<string, unknown> = {};
+  Object.keys(record).forEach(key => {
+    const value = record[key];
+    if (value !== undefined && value !== null && value !== "") {
+      copy[key] = Array.isArray(value) ? [...value] : value;
+    }
+  });
+  return Object.keys(copy).length ? copy : undefined;
+}
+
+/** 把当前路由的 query/params 写回标签，避免再次点击时丢掉页面参数 */
+function syncCurrentTag() {
+  const name = route.name;
+  if (!name || name === "Redirect") return;
+  const tags = multiTags.value as any[];
+  const dynamicLevel = Number(route.meta?.dynamicLevel ?? 0);
+  const query = copyRouteRecord(route.query as Record<string, unknown>);
+  const params = copyRouteRecord(route.params as Record<string, unknown>);
+  const tag =
+    dynamicLevel > 0
+      ? tags.find(
+          item => item.name === name && isEqual(item.params, route.params)
+        )
+      : tags.find(item => item.name === name);
+  if (!tag) return;
+  if (query) tag.query = query;
+  if (params) tag.params = params;
+  useMultiTagsStoreHook().tagsCache(tags);
+}
+
+function pushStoredTag(tagRoute?: {
+  name?: string;
+  path?: string;
+  query?: Record<string, unknown>;
+  params?: Record<string, unknown>;
+}) {
+  if (!tagRoute) return;
+  const query = copyRouteRecord(tagRoute.query);
+  const params = copyRouteRecord(tagRoute.params);
+  if (tagRoute.name) {
+    router.push({
+      name: tagRoute.name,
+      query,
+      params
+    });
+    return;
+  }
+  if (tagRoute.path && !tagRoute.path.includes(":")) {
+    router.push({ path: tagRoute.path, query });
+  }
+}
+
 function dynamicRouteTag(value: string): void {
   const hasValue = multiTags.value.some(item => {
     return item.path === value;
@@ -292,23 +346,11 @@ function deleteDynamicTag(obj: any, current: any, tag?: string) {
   if (current === route.path) {
     // 如果删除当前激活tag就自动切换到最后一个tag
     if (tag === "left") return;
-    if (newRoute[0]?.query) {
-      router.push({ name: newRoute[0].name, query: newRoute[0].query });
-    } else if (newRoute[0]?.params) {
-      router.push({ name: newRoute[0].name, params: newRoute[0].params });
-    } else {
-      router.push({ path: newRoute[0].path });
-    }
+    pushStoredTag(newRoute[0]);
   } else {
     if (!multiTags.value.length) return;
     if (multiTags.value.some(item => item.path === route.path)) return;
-    if (newRoute[0]?.query) {
-      router.push({ name: newRoute[0].name, query: newRoute[0].query });
-    } else if (newRoute[0]?.params) {
-      router.push({ name: newRoute[0].name, params: newRoute[0].params });
-    } else {
-      router.push({ path: newRoute[0].path });
-    }
+    pushStoredTag(newRoute[0]);
   }
 }
 
@@ -523,24 +565,7 @@ function openMenu(tag, e) {
 
 /** 触发tags标签切换 */
 function tagOnClick(item) {
-  const { name, path } = item;
-  if (name) {
-    if (item.query) {
-      router.push({
-        name,
-        query: item.query
-      });
-    } else if (item.params) {
-      router.push({
-        name,
-        params: item.params
-      });
-    } else {
-      router.push({ name });
-    }
-  } else {
-    router.push({ path });
-  }
+  pushStoredTag(item);
   emitter.emit("tagOnClick", item);
 }
 
@@ -550,6 +575,7 @@ onClickOutside(contextmenuRef, closeMenu, {
 
 watch(route, () => {
   activeIndex.value = -1;
+  syncCurrentTag();
   dynamicTagView();
 });
 

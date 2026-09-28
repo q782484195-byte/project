@@ -115,20 +115,27 @@ export function useTags() {
   function conditionHandle(item, previous, next) {
     const currentName = route.name || "";
     const itemName = item.name || "";
+    if (currentName !== itemName) return next;
 
     if (isBoolean(route?.meta?.showLink) && route?.meta?.showLink === false) {
-      if (Object.keys(route.query).length > 0) {
-        return currentName === itemName && isEqual(route.query, item.query)
-          ? previous
-          : next;
-      } else {
-        return currentName === itemName && isEqual(route.params, item.params)
-          ? previous
-          : next;
+      const routeParams = route.params || {};
+      const itemParams = item?.params || {};
+      if (
+        Object.keys(routeParams).length > 0 ||
+        Object.keys(itemParams).length > 0
+      ) {
+        if (!isEqual(routeParams, itemParams)) return next;
       }
-    } else {
-      return currentName === itemName ? previous : next;
+      const routeQuery = route.query || {};
+      const itemQuery = item?.query || {};
+      if (
+        Object.keys(routeQuery).length > 0 ||
+        Object.keys(itemQuery).length > 0
+      ) {
+        if (!isEqual(routeQuery, itemQuery)) return next;
+      }
     }
+    return previous;
   }
 
   const isFixedTag = computed(() => {
