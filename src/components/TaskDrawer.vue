@@ -109,7 +109,8 @@ import {
   flattenRequirementData,
   type CreateTaskParams,
   type UpdateTaskParams,
-  type RequirementListItem
+  type RequirementListItem,
+  type ProjectListItem
 } from "@/api/project";
 import { getDepartmentNameList, flattenDepartmentList, type DepartmentListItem } from "@/api/system";
 import RichTextEditor from "@/components/RichTextEditor.vue";
@@ -259,6 +260,21 @@ const getTaskDeadlineFromTask = (task: any): string => {
 /** 编辑打开时的完成期限，用于判断是否调用 update_task_deadline */
 const originalTaskDeadline = ref("");
 
+/** 任务描述是否包含有效文本或图片（空段落、空白字符不算） */
+const hasMeaningfulDescribe = (value: DescribeContent[] | undefined | null): boolean => {
+  if (!value || !Array.isArray(value) || value.length === 0) return false;
+  return value.some(item => {
+    if (!item || !item.type) return false;
+    const content = String(item.content ?? "").trim();
+    if (!content) return false;
+    if (item.type === "text") return true;
+    if (item.type === "url" || item.type === "file") {
+      return !content.startsWith("data:") && !content.startsWith("blob:");
+    }
+    return false;
+  });
+};
+
 const taskForm = reactive<{
   task_name: string;
   describe: DescribeContent[];
@@ -294,16 +310,18 @@ const rules: FormRules = {
     }
   ],
   describe: [
-    { required: true, message: "请输入任务描述", trigger: "blur" },
     {
-      validator: (rule: any, value: any, callback: any) => {
-        if (!value || (Array.isArray(value) && value.length === 0)) {
+      required: true,
+      type: "array",
+      message: "请输入任务描述",
+      validator: (_rule, value, callback) => {
+        if (!hasMeaningfulDescribe(value)) {
           callback(new Error("请输入任务描述"));
         } else {
           callback();
         }
       },
-      trigger: "blur"
+      trigger: ["blur", "change"]
     }
   ],
   project_id: [
@@ -321,7 +339,20 @@ const rules: FormRules = {
     { required: true, message: "请选择任务完成期限", trigger: "change" }
   ],
   default_person: [
-    { required: true, message: "请选择默认部门负责人", trigger: "change" }
+    {
+      validator: (_rule, value, callback) => {
+        if (isEdit.value || !canEditAllFields.value) {
+          callback();
+          return;
+        }
+        if (!value) {
+          callback(new Error("请选择默认部门负责人"));
+        } else {
+          callback();
+        }
+      },
+      trigger: "change"
+    }
   ]
 };
 
@@ -349,7 +380,7 @@ const canEditDescribeAndAttachment = computed(() => {
   const handler = currentHandler.value;
   return handler && username.value && handler === username.value;
 });
-const showDefaultPersonField = computed(() => canEditAllFields.value);
+const showDefaultPersonField = computed(() => canEditAllFields.value && !isEdit.value);
 
 // 项目选项（从 API 获取）
 const projectOptions = computed(() => {
@@ -365,8 +396,8 @@ const loadProjects = async () => {
       page_size: 1000 // 获取所有项目
     });
 
-    if (response.code === 200 && response.result) {
-      projects.value = response.result.map((item: any) => ({
+    if (response.code === 200 && Array.isArray(response.result)) {
+      projects.value = response.result.map((item: ProjectListItem) => ({
         id: item._id,
         name: item.project_name
       }));
@@ -580,7 +611,7 @@ watch(
     if (departmentOptions.value.length === 0) {
       loadDepartmentOptions();
     }
-    if (departmentLeadersTree.value.length === 0) {
+    if (!props.task && canEditAllFields.value && departmentLeadersTree.value.length === 0) {
       loadDepartmentLeaders();
     }
     if (props.task) {
@@ -739,7 +770,6 @@ watch(
           props.task.estimatedHours ||
           (props.task as any).预计工时 ||
           0,
-        default_person: props.task.default_person || (props.task as any).默认部门负责人 || "",
         department: props.task.department ? String(props.task.department) : ""
       });
 
@@ -875,14 +905,6 @@ const handleSubmit = async () => {
         return;
       }
 
-      if (
-        !taskForm.describe ||
-        (Array.isArray(taskForm.describe) && taskForm.describe.length === 0)
-      ) {
-        ElMessage.error("请输入任务描述");
-        return;
-      }
-
       submitting.value = true;
       try {
         // 获取富文本编辑器中的图片 URL（已上传的）
@@ -891,7 +913,7 @@ const handleSubmit = async () => {
         // 从 describe 中提取已有的图片 URL
         const existingImageUrls: string[] = [];
         taskForm.describe.forEach(item => {
-          if (item.type === "url") {
+          if (item.type === "url" || item.type === "file") {
             // 只添加有效的 URL（不是 base64 或 blob）
             if (
               item.content &&
@@ -922,7 +944,7 @@ const handleSubmit = async () => {
                 content: text
               });
             }
-          } else if (item.type === "url") {
+          } else if (item.type === "url" || item.type === "file") {
             // 图片 URL，只添加有效的 URL（不是 base64 或 blob），并去重
             if (
               item.content &&
@@ -937,7 +959,7 @@ const handleSubmit = async () => {
                 seenUrls.add(relativePath);
                 // 提交时使用相对路径，保持对象格式
                 describeContents.push({
-                  type: "url",
+                  type: item.type,
                   content: relativePath
                 });
               }
@@ -956,6 +978,12 @@ const handleSubmit = async () => {
             });
           }
         });
+
+        if (describeContents.length === 0) {
+          ElMessage.error("请输入任务描述");
+          submitting.value = false;
+          return;
+        }
 
         // 处理附件文件
         const attachmentUrls: string[] = [];
@@ -1013,7 +1041,6 @@ const handleSubmit = async () => {
             task_name: taskForm.task_name,
             describe: describeContents,
             priority: taskForm.priority,
-            default_person: taskForm.default_person,
             department: taskForm.department,
             attachment: allFiles.length > 0 ? allFiles : undefined
           });

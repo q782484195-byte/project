@@ -8,10 +8,14 @@ import {
   addUser,
   updateUser,
   deleteUser,
-  getDepartmentNameList,
+  selectAllUsers,
   loadUserFromExcel,
   getDepartmentNames,
-  getDepartmentGroupOptions,
+  getDepartmentNamesByCompany,
+  getDepartmentGroupOptionsByCompany,
+  parseSelectAllUsersCompanyMap,
+  getCompanyList,
+  parseCompanyList,
   DEFAULT_DEPARTMENT_GROUP,
   type User,
   type UserListResponse,
@@ -50,6 +54,7 @@ const formData = reactive<{
   username: string;
   password: string;
   department: string;
+  company: string;
   role: string; // 表单中使用字符串类型（单选）
   group: string;
   workchat_username: string;
@@ -58,6 +63,7 @@ const formData = reactive<{
   username: "",
   password: "",
   department: "",
+  company: "",
   role: "", // 初始值为空字符串
   group: "",
   workchat_username: ""
@@ -87,6 +93,9 @@ const formRules: FormRules = {
   department: [
     { required: true, message: "请选择部门", trigger: "change" }
   ],
+  company: [
+    { required: true, message: "请选择公司", trigger: "change" }
+  ],
   role: [
     {
       required: true,
@@ -105,7 +114,8 @@ const formRules: FormRules = {
 // 查询表单
 const queryForm = reactive({
   username: "",
-  department: ""
+  department: "",
+  company: ""
 });
 
 // 表格数据类型（role 为数组）
@@ -114,7 +124,12 @@ interface TableUser extends Omit<User, 'role'> {
 }
 
 const tableData = ref<TableUser[]>([]);
+/** 查询区部门（未选公司时为全部部门） */
 const departmentList = ref<string[]>([]);
+/** 新增/编辑表单：当前公司下的部门 */
+const formDepartmentList = ref<string[]>([]);
+const companyList = ref<string[]>([]);
+const companyListLoading = ref(false);
 const departmentGroupList = ref<Array<{ value: string; label: string }>>([]);
 const departmentSelectRaw = ref<unknown>(null);
 const departmentDataReady = ref(false);
@@ -131,11 +146,18 @@ const columns = [
     prop: "username",
     minWidth: 120
   },
-  // {
-  //   label: "邮箱",
-  //   prop: "email",
-  //   minWidth: 150
-  // },
+  {
+    label: "公司",
+    prop: "company",
+    minWidth: 120,
+    cellRenderer: ({ row }) => {
+      const text = row.company;
+      if (!text) {
+        return h("span", { style: { color: "#999" } }, "—");
+      }
+      return h("span", text);
+    }
+  },
   {
     label: "部门",
     prop: "department",
@@ -182,27 +204,102 @@ const columns = [
   }
 ];
 
-// 加载部门列表
+const refreshQueryDepartmentList = () => {
+  const raw = departmentSelectRaw.value;
+  const company = queryForm.company?.trim();
+  if (company) {
+    departmentList.value = getDepartmentNamesByCompany(raw, company);
+  } else {
+    const companyMap = parseSelectAllUsersCompanyMap(raw);
+    if (companyMap) {
+      const names = new Set<string>();
+      Object.values(companyMap).forEach(deptMap => {
+        Object.keys(deptMap).forEach(name => names.add(name));
+      });
+      departmentList.value = Array.from(names);
+    } else {
+      departmentList.value = getDepartmentNames(raw);
+    }
+  }
+  if (
+    queryForm.department &&
+    !departmentList.value.includes(queryForm.department)
+  ) {
+    queryForm.department = "";
+  }
+};
+
+const syncFormDepartmentOptions = () => {
+  const company = formData.company?.trim();
+  formDepartmentList.value = company
+    ? getDepartmentNamesByCompany(departmentSelectRaw.value, company)
+    : [];
+  if (isFormInitializing.value) {
+    updateDepartmentGroupOptions(formData.department);
+    return;
+  }
+  if (
+    formData.department &&
+    !formDepartmentList.value.includes(formData.department)
+  ) {
+    formData.department = "";
+    formData.group = "";
+  }
+  updateDepartmentGroupOptions(formData.department);
+};
+
 const updateDepartmentGroupOptions = (department?: string) => {
-  departmentGroupList.value = getDepartmentGroupOptions(
+  departmentGroupList.value = getDepartmentGroupOptionsByCompany(
     departmentSelectRaw.value,
+    formData.company,
     department
   );
 };
 
 const loadDepartmentList = async () => {
   try {
-    const response = await getDepartmentNameList();
-    if (response.code === 200) {
-      departmentSelectRaw.value = response.result;
-      departmentList.value = getDepartmentNames(response.result);
-      updateDepartmentGroupOptions(formData.department);
+    const response = await selectAllUsers();
+    const raw = response.result ?? response.data;
+    if (response.code === 200 && raw != null) {
+      departmentSelectRaw.value = raw;
+      refreshQueryDepartmentList();
+      syncFormDepartmentOptions();
       departmentDataReady.value = true;
     }
   } catch (error) {
     console.error("加载部门列表失败:", error);
   }
 };
+
+const loadCompanyList = async () => {
+  companyListLoading.value = true;
+  try {
+    const response = await getCompanyList();
+    if (response.code === 200) {
+      companyList.value = parseCompanyList(response);
+    } else {
+      message(response.message || "获取公司列表失败", { type: "error" });
+    }
+  } catch (error) {
+    message("获取公司列表失败", { type: "error" });
+  } finally {
+    companyListLoading.value = false;
+  }
+};
+
+watch(
+  () => formData.company,
+  () => {
+    syncFormDepartmentOptions();
+  }
+);
+
+watch(
+  () => queryForm.company,
+  () => {
+    refreshQueryDepartmentList();
+  }
+);
 
 watch(
   () => formData.department,
@@ -257,9 +354,10 @@ const loadData = async () => {
   loading.value = true;
   try {
     // 构建查询参数，只包含非空的值
-    const queryParams: { username: string; department: string } = {
+    const queryParams: { username: string; department: string; company: string } = {
       username: "",
-      department: ""
+      department: "",
+      company: ""
     };
 
     if (queryForm.username && queryForm.username.trim()) {
@@ -270,6 +368,10 @@ const loadData = async () => {
       queryParams.department = queryForm.department.trim();
     }
 
+    if (queryForm.company && queryForm.company.trim()) {
+      queryParams.company = queryForm.company.trim();
+    }
+
     const response = await getUserList(queryParams);
     if (response.code === 200) {
       // 将返回的数据转换为表格需要的格式
@@ -278,7 +380,7 @@ const loadData = async () => {
         id: undefined,
         username: user.username,
         password: user.password,
-        // email: user.email || "",
+        company: user.company || "",
         department: user.department || "",
         group: user.group || "",
         role: Array.isArray(user.role) ? user.role : user.role ? [user.role] : [],
@@ -299,6 +401,8 @@ const handleAdd = () => {
   dialogTitle.value = "新增用户";
   isEdit.value = false;
   resetForm();
+  loadCompanyList();
+  syncFormDepartmentOptions();
   isFormInitializing.value = true;
   dialogVisible.value = true;
   nextTick(() => {
@@ -343,6 +447,7 @@ const handleEdit = async (row: TableUser) => {
   }
   dialogTitle.value = "编辑用户";
   isEdit.value = true;
+  await loadCompanyList();
   const groupValue = normalizeUserGroupValue(row.group);
   // 处理编辑时的数据格式：role 数组转换为字符串（单选），department 需要转换为字符串
   const editData = {
@@ -360,11 +465,12 @@ const handleEdit = async (row: TableUser) => {
         ? (typeof row.role === "string" ? row.role : String(row.role))
         : "",
     group: groupValue,
-    workchat_username: row.workchat_username || ""
+    workchat_username: row.workchat_username || "",
+    company: row.company || ""
   };
   isFormInitializing.value = true;
   Object.assign(formData, editData);
-  updateDepartmentGroupOptions(editData.department);
+  syncFormDepartmentOptions();
   dialogVisible.value = true;
   nextTick(() => {
     formData.group = groupValue;
@@ -416,6 +522,7 @@ const handleSave = async () => {
             username: formData.username,
             role: formData.role ? [formData.role] : [],
             department: formData.department || "",
+            company: formData.company || "",
             group:
               formData.group && formData.group !== DEFAULT_DEPARTMENT_GROUP
                 ? formData.group
@@ -430,11 +537,12 @@ const handleSave = async () => {
         } else {
           // 新增用户：按照 API 要求的格式构建参数
           // 将 role 字符串转换为数组格式
-          const submitData = {
+          const submitData: AddUserParams = {
             username: formData.username,
             password: formData.password,
             role: formData.role ? [formData.role] : [],
             department: formData.department || "",
+            company: formData.company || "",
             group:
               formData.group && formData.group !== DEFAULT_DEPARTMENT_GROUP
                 ? formData.group
@@ -463,10 +571,12 @@ const resetForm = () => {
   formData.username = "";
   formData.password = "";
   formData.department = "";
+  formData.company = "";
   formData.role = ""; // 重置为空字符串
   formData.group = "";
   formData.workchat_username = "";
   formRef.value?.resetFields();
+  syncFormDepartmentOptions();
 };
 
 // 查询
@@ -478,7 +588,8 @@ const handleQuery = () => {
 const handleReset = () => {
   queryFormRef.value?.resetFields();
   queryForm.username = "";
-  queryForm.department = undefined;
+  queryForm.department = "";
+  queryForm.company = "";
   loadData();
 };
 
@@ -509,6 +620,7 @@ const handleResize = () => {
 
 onMounted(() => {
   loadDepartmentList();
+  loadCompanyList();
   loadData();
   calculateTableHeight();
   window.addEventListener("resize", handleResize);
@@ -528,6 +640,12 @@ onUnmounted(() => {
         <el-form-item label="用户名" prop="username">
           <el-input v-model="queryForm.username" placeholder="请输入用户名" clearable class="query-input"
             @keyup.enter="handleQuery" />
+        </el-form-item>
+        <el-form-item label="公司" prop="company">
+          <el-select v-model="queryForm.company" placeholder="请选择公司" clearable filterable class="query-select"
+            :loading="companyListLoading">
+            <el-option v-for="name in companyList" :key="name" :label="name" :value="name" />
+          </el-select>
         </el-form-item>
         <el-form-item label="部门" prop="department">
           <el-select v-model="queryForm.department" placeholder="请选择部门" clearable class="query-select">
@@ -588,10 +706,28 @@ onUnmounted(() => {
           <el-input v-model="formData.password" type="password" :placeholder="isEdit ? '不修改请留空' : '请输入密码'" clearable
             show-password />
         </el-form-item>
+        <el-form-item label="公司" prop="company">
+          <el-select v-model="formData.company" placeholder="请选择公司" clearable style="width: 100%"
+            :loading="companyListLoading">
+            <el-option v-for="name in companyList" :key="name" :label="name" :value="name" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="部门" prop="department">
-          <el-select v-model="formData.department" placeholder="请选择部门" clearable style="width: 100%"
-            @change="handleDepartmentChange">
-            <el-option v-for="dept in departmentList" :key="dept" :label="dept" :value="dept" />
+          <el-select
+            v-model="formData.department"
+            :placeholder="
+              !formData.company
+                ? '请先选择公司'
+                : formDepartmentList.length === 0
+                  ? '该公司暂无部门'
+                  : '请选择部门'
+            "
+            clearable
+            style="width: 100%"
+            :disabled="!formData.company || formDepartmentList.length === 0"
+            @change="handleDepartmentChange"
+          >
+            <el-option v-for="dept in formDepartmentList" :key="dept" :label="dept" :value="dept" />
           </el-select>
         </el-form-item>
         <el-form-item label="部门分组" prop="group">

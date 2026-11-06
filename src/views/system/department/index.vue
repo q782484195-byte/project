@@ -5,8 +5,11 @@ import { ElMessageBox } from "element-plus";
 import type { FormInstance, FormRules } from "element-plus";
 import {
   addDepartment,
+  getCompanyList,
+  parseCompanyList,
   selectAllUsers,
   parseDepartmentSelectMap,
+  parseSelectAllUsersCompanyMap,
   formatDepartmentGroupLabel,
   DEFAULT_DEPARTMENT_GROUP,
   type DepartmentListItem,
@@ -59,13 +62,21 @@ const queryFormVisible = ref(false);
 
 interface DepartmentForm {
   department: string;
+  company: string;
 }
 
 const formData = reactive<DepartmentForm>({
-  department: ""
+  department: "",
+  company: ""
 });
 
+const companyList = ref<string[]>([]);
+const companyListLoading = ref(false);
+
 const formRules: FormRules = {
+  company: [
+    { required: true, message: "请选择公司", trigger: "change" }
+  ],
   department: [
     { required: true, message: "请输入部门名称", trigger: "blur" },
     {
@@ -89,6 +100,7 @@ const tableData = ref<(DepartmentListItem & {
   isChild?: boolean;
   username?: string;
   role?: string[];
+  company?: string;
   部门人员?: string[];
   children?: any[];
 })[]>([]);
@@ -121,6 +133,21 @@ const columns = [
         ]);
       }
       return h("span", row["部门名"] || "");
+    }
+  },
+  {
+    label: "公司",
+    prop: "company",
+    minWidth: 120,
+    cellRenderer: ({ row }) => {
+      if (row.isGroup) {
+        return h("span", "");
+      }
+      const text = row.company;
+      if (!text) {
+        return h("span", { style: { color: "#999" } }, "—");
+      }
+      return h("span", text);
     }
   },
   {
@@ -194,6 +221,87 @@ const columns = [
   // }
 ];
 
+const resolveDepartmentCompany = (users: DepartmentSelectUser[]) => {
+  for (const user of users) {
+    const name = user.company?.trim();
+    if (name) return name;
+  }
+  return "";
+};
+
+const appendDepartmentRows = (
+  list: typeof tableData.value,
+  departmentName: string,
+  groups: Record<string, DepartmentSelectUser[]>,
+  departmentCompany: string,
+  rowId: string
+) => {
+  if (queryForm.name && !departmentName.includes(queryForm.name)) {
+    return;
+  }
+
+  const groupKeys = Object.keys(groups);
+  const hasMultipleGroups =
+    groupKeys.length > 1 ||
+    (groupKeys.length === 1 && groupKeys[0] !== DEFAULT_DEPARTMENT_GROUP);
+
+  const allUsers = groupKeys.flatMap(key => groups[key] || []);
+  const managers = allUsers
+    .filter(user => {
+      const roles = Array.isArray(user.role) ? user.role : [];
+      return roles.includes("DepartmentManager");
+    })
+    .map(user => user.username);
+
+  const buildUserChildren = (users: DepartmentSelectUser[], parentId: string) =>
+    users.map((user, index) => ({
+      id: `${parentId}-user-${index}`,
+      username: user.username,
+      company: user.company || departmentCompany,
+      role: Array.isArray(user.role) ? user.role : user.role ? [user.role] : [],
+      部门名: "",
+      负责人: [],
+      isChild: true
+    }));
+
+  if (!hasMultipleGroups) {
+    const users =
+      groups[DEFAULT_DEPARTMENT_GROUP] || groups[groupKeys[0]] || [];
+    const children = buildUserChildren(users, rowId);
+    list.push({
+      部门名: departmentName,
+      负责人: managers,
+      company: departmentCompany || resolveDepartmentCompany(allUsers),
+      id: rowId,
+      部门人员: users.map(user => user.username),
+      children: children.length > 0 ? children : undefined
+    });
+    return;
+  }
+
+  const groupChildren = groupKeys.map(groupKey => {
+    const users = groups[groupKey] || [];
+    const userChildren = buildUserChildren(users, `${rowId}-${groupKey}`);
+    return {
+      部门名: formatDepartmentGroupLabel(groupKey),
+      负责人: [],
+      id: `${rowId}-group-${groupKey}`,
+      isGroup: true,
+      部门人员: users.map(user => user.username),
+      children: userChildren.length > 0 ? userChildren : undefined
+    };
+  });
+
+  list.push({
+    部门名: departmentName,
+    负责人: managers,
+    company: departmentCompany || resolveDepartmentCompany(allUsers),
+    id: rowId,
+    部门人员: allUsers.map(user => user.username),
+    children: groupChildren
+  });
+};
+
 // 加载数据
 const loadData = async () => {
   loading.value = true;
@@ -201,78 +309,27 @@ const loadData = async () => {
     const response = await selectAllUsers();
     if (response.code === 200) {
       const rawResult = response.result ?? response.data;
-      const deptMap = parseDepartmentSelectMap(rawResult);
       const list: typeof tableData.value = [];
+      const companyMap = parseSelectAllUsersCompanyMap(rawResult);
 
-      Object.entries(deptMap).forEach(([departmentName, groups]) => {
-        if (queryForm.name && !departmentName.includes(queryForm.name)) {
-          return;
-        }
-
-        const groupKeys = Object.keys(groups);
-        const hasMultipleGroups =
-          groupKeys.length > 1 ||
-          (groupKeys.length === 1 && groupKeys[0] !== DEFAULT_DEPARTMENT_GROUP);
-
-        const allUsers = groupKeys.flatMap(key => groups[key] || []);
-        const managers = allUsers
-          .filter(user => {
-            const roles = Array.isArray(user.role) ? user.role : [];
-            return roles.includes("DepartmentManager");
-          })
-          .map(user => user.username);
-
-        const buildUserChildren = (
-          users: DepartmentSelectUser[],
-          parentId: string
-        ) =>
-          users.map((user, index) => ({
-            id: `${parentId}-user-${index}`,
-            username: user.username,
-            role: Array.isArray(user.role) ? user.role : user.role ? [user.role] : [],
-            部门名: "",
-            负责人: [],
-            isChild: true
-          }));
-
-        if (!hasMultipleGroups) {
-          const users =
-            groups[DEFAULT_DEPARTMENT_GROUP] || groups[groupKeys[0]] || [];
-          const children = buildUserChildren(users, departmentName);
-          list.push({
-            部门名: departmentName,
-            负责人: managers,
-            id: departmentName,
-            部门人员: users.map(user => user.username),
-            children: children.length > 0 ? children : undefined
+      if (companyMap) {
+        Object.entries(companyMap).forEach(([companyName, deptMap]) => {
+          Object.entries(deptMap).forEach(([departmentName, groups]) => {
+            appendDepartmentRows(
+              list,
+              departmentName,
+              groups,
+              companyName,
+              `${companyName}::${departmentName}`
+            );
           });
-          return;
-        }
-
-        const groupChildren = groupKeys.map(groupKey => {
-          const users = groups[groupKey] || [];
-          const userChildren = buildUserChildren(
-            users,
-            `${departmentName}-${groupKey}`
-          );
-          return {
-            部门名: formatDepartmentGroupLabel(groupKey),
-            负责人: [],
-            id: `${departmentName}-group-${groupKey}`,
-            isGroup: true,
-            部门人员: users.map(user => user.username),
-            children: userChildren.length > 0 ? userChildren : undefined
-          };
         });
-
-        list.push({
-          部门名: departmentName,
-          负责人: managers,
-          id: departmentName,
-          部门人员: allUsers.map(user => user.username),
-          children: groupChildren
+      } else {
+        const deptMap = parseDepartmentSelectMap(rawResult);
+        Object.entries(deptMap).forEach(([departmentName, groups]) => {
+          appendDepartmentRows(list, departmentName, groups, "", departmentName);
         });
-      });
+      }
 
       tableData.value = list;
       pagination.total = list.length;
@@ -286,11 +343,28 @@ const loadData = async () => {
   }
 };
 
+const loadCompanyList = async () => {
+  companyListLoading.value = true;
+  try {
+    const response = await getCompanyList();
+    if (response.code === 200) {
+      companyList.value = parseCompanyList(response);
+    } else {
+      message(response.message || "获取公司列表失败", { type: "error" });
+    }
+  } catch (error) {
+    message("获取公司列表失败", { type: "error" });
+  } finally {
+    companyListLoading.value = false;
+  }
+};
+
 // 打开新增对话框
 const handleAdd = () => {
   dialogTitle.value = "新增部门";
   isEdit.value = false;
   resetForm();
+  loadCompanyList();
   dialogVisible.value = true;
 };
 
@@ -300,7 +374,10 @@ const handleSave = async () => {
   await formRef.value.validate(async valid => {
     if (valid) {
       try {
-        const response = await addDepartment(formData.department);
+        const response = await addDepartment({
+          department: formData.department,
+          company: formData.company
+        });
         if (response.code === 200) {
           message("新增成功", { type: "success" });
           dialogVisible.value = false;
@@ -318,6 +395,7 @@ const handleSave = async () => {
 // 重置表单
 const resetForm = () => {
   formData.department = "";
+  formData.company = "";
   formRef.value?.resetFields();
 };
 
@@ -436,6 +514,12 @@ onUnmounted(() => {
     <!-- 新增/编辑对话框 -->
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="600px" :close-on-click-modal="false">
       <el-form ref="formRef" :model="formData" :rules="formRules" label-width="100px">
+        <el-form-item label="公司" prop="company">
+          <el-select v-model="formData.company" placeholder="请选择公司" clearable style="width: 100%"
+            :loading="companyListLoading">
+            <el-option v-for="name in companyList" :key="name" :label="name" :value="name" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="部门名称" prop="department">
           <el-input v-model="formData.department" placeholder="请输入部门名称" clearable />
         </el-form-item>

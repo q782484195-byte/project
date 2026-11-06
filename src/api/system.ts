@@ -16,6 +16,7 @@ export interface User {
   departmentId?: number;
   department?: string;
   group?: string;
+  company?: string;
   role?: string;
   workchat_username?: string;
   status?: number;
@@ -43,12 +44,49 @@ export interface PageResponse<T> {
   pageSize: number;
 }
 
+// ========== 公司列表（新增用户/部门时下拉） ==========
+
+/** company/list 响应：result 为公司名称字符串数组 */
+export interface CompanyListResponse {
+  code: number;
+  message?: string;
+  result: string[];
+}
+
+/** 解析 company/list 返回为公司名称列表（result 如 ["联合助力","沃其达"]） */
+export const parseCompanyList = (payload: CompanyListResponse | unknown): string[] => {
+  let list: unknown = payload;
+  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+    const obj = payload as Record<string, unknown>;
+    if ("result" in obj) list = obj.result;
+    else if ("data" in obj) list = obj.data;
+  }
+  if (!Array.isArray(list)) return [];
+  return list
+    .map(item => {
+      if (typeof item === "string") return item.trim();
+      if (item && typeof item === "object") {
+        const o = item as Record<string, unknown>;
+        const name = o.company ?? o.公司 ?? o.公司名 ?? o.name;
+        if (typeof name === "string") return name.trim();
+      }
+      return "";
+    })
+    .filter(Boolean);
+};
+
+/** 查询公司列表 */
+export const getCompanyList = () => {
+  return http.request<CompanyListResponse>("get", "/company/list");
+};
+
 // ========== 部门管理接口 ==========
 
 /** 部门列表项类型 */
 export interface DepartmentListItem {
   部门名: string;
   负责人: string[];
+  company?: string;
 }
 
 /** 部门 select 接口中的用户项 */
@@ -59,6 +97,7 @@ export interface DepartmentSelectUser {
   role?: string[];
   department?: string;
   group?: string;
+  company?: string;
   workchat_username?: string;
   button_permissions?: string[];
   email_address?: string;
@@ -93,16 +132,68 @@ const isLegacyDepartmentSelectResult = (
   );
 };
 
-const isNewDepartmentSelectResult = (
+const isDepartmentGroupMap = (
+  value: unknown
+): value is Record<string, DepartmentSelectUser[]> => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+  const entries = Object.entries(value);
+  if (entries.length === 0) return true;
+  return entries.every(([, users]) => isDepartmentUserArray(users));
+};
+
+const isDepartmentToGroupsMap = (
+  value: unknown
+): value is Record<string, Record<string, DepartmentSelectUser[]>> => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+  const entries = Object.entries(value);
+  if (entries.length === 0) return true;
+  return entries.every(([, groups]) => isDepartmentGroupMap(groups));
+};
+
+/** select_all_users：公司 -> 部门 -> 分组 -> 用户 */
+export type SelectAllUsersCompanyMap = Record<
+  string,
+  Record<string, Record<string, DepartmentSelectUser[]>>
+>;
+
+export const isSelectAllUsersCompanyWrapped = (
   result: unknown
-): result is Record<string, Record<string, DepartmentSelectUser[]>> => {
+): result is SelectAllUsersCompanyMap => {
   if (!result || typeof result !== "object" || Array.isArray(result)) {
     return false;
   }
   const entries = Object.entries(result);
   if (entries.length === 0) return true;
-  const [, groupMap] = entries[0];
-  return Boolean(groupMap && typeof groupMap === "object" && !Array.isArray(groupMap));
+  return entries.every(([, deptMap]) => isDepartmentToGroupsMap(deptMap));
+};
+
+const mergeCompanyWrappedDepartmentMap = (
+  companyMap: SelectAllUsersCompanyMap
+): Record<string, Record<string, DepartmentSelectUser[]>> => {
+  const merged: Record<string, Record<string, DepartmentSelectUser[]>> = {};
+  Object.values(companyMap).forEach(deptMap => {
+    Object.entries(deptMap).forEach(([department, groups]) => {
+      if (!merged[department]) merged[department] = {};
+      Object.entries(groups).forEach(([groupKey, users]) => {
+        if (!isDepartmentUserArray(users)) return;
+        if (!merged[department][groupKey]) {
+          merged[department][groupKey] = [];
+        }
+        merged[department][groupKey].push(...users);
+      });
+    });
+  });
+  return merged;
+};
+
+const isNewDepartmentSelectResult = (
+  result: unknown
+): result is Record<string, Record<string, DepartmentSelectUser[]>> => {
+  return isDepartmentToGroupsMap(result);
 };
 
 /** 部门分组展示名称，#ungroup 显示为默认分组 */
@@ -138,22 +229,46 @@ const isFlatDepartmentUsersMap = (
   return isDepartmentUserArray(entries[0][1]);
 };
 
-/** 合并 select_all_users 返回的 [{ 部门: 成员[] }, ...] 数组 */
+/** 合并 select_all_users 返回的 [{ 部门: 成员[] }, ...] 数组（兼容项内为分组结构） */
 const mergeDepartmentUserMapArray = (
   result: unknown[]
 ): Record<string, DepartmentSelectUser[]> => {
   const merged: Record<string, DepartmentSelectUser[]> = {};
   result.forEach(entry => {
     if (!entry || typeof entry !== "object" || Array.isArray(entry)) return;
-    Object.entries(entry as Record<string, DepartmentSelectUser[]>).forEach(
-      ([department, users]) => {
-        if (isDepartmentUserArray(users)) {
-          merged[department] = users;
+    Object.entries(entry as Record<string, unknown>).forEach(
+      ([department, value]) => {
+        if (isDepartmentUserArray(value)) {
+          merged[department] = value;
+          return;
+        }
+        if (isDepartmentGroupMap(value)) {
+          merged[department] = Object.values(value).flat();
         }
       }
     );
   });
   return merged;
+};
+
+/** 将可能为数组的 select_all_users / select result 规范为对象再解析 */
+const normalizeDepartmentSelectPayload = (result: unknown): unknown => {
+  if (!Array.isArray(result) || result.length === 0) {
+    return result;
+  }
+  const mergedFlat = mergeDepartmentUserMapArray(result);
+  if (Object.keys(mergedFlat).length > 0) {
+    return mergedFlat;
+  }
+  if (
+    result.length === 1 &&
+    result[0] &&
+    typeof result[0] === "object" &&
+    !Array.isArray(result[0])
+  ) {
+    return result[0];
+  }
+  return mergedFlat;
 };
 
 /** 解析部门 select 接口 result 为 部门 -> 分组 -> 用户 结构 */
@@ -177,10 +292,7 @@ export const parseDepartmentSelectMap = (
     return map;
   }
 
-  let normalized: unknown = result;
-  if (Array.isArray(result) && result.length > 0) {
-    normalized = mergeDepartmentUserMapArray(result);
-  }
+  const normalized = normalizeDepartmentSelectPayload(result);
 
   if (isFlatDepartmentUsersMap(normalized)) {
     const map: Record<string, Record<string, DepartmentSelectUser[]>> = {};
@@ -190,6 +302,10 @@ export const parseDepartmentSelectMap = (
     return map;
   }
 
+  if (isSelectAllUsersCompanyWrapped(normalized)) {
+    return mergeCompanyWrappedDepartmentMap(normalized);
+  }
+
   if (isNewDepartmentSelectResult(normalized)) {
     return normalized;
   }
@@ -197,9 +313,70 @@ export const parseDepartmentSelectMap = (
   return {};
 };
 
+/** 解析 select_all_users 的 result（保留公司层级，非公司包裹时返回 null） */
+export const parseSelectAllUsersCompanyMap = (
+  result: unknown
+): SelectAllUsersCompanyMap | null => {
+  if (!result) return null;
+  const normalized = normalizeDepartmentSelectPayload(result);
+  if (isSelectAllUsersCompanyWrapped(normalized)) {
+    return normalized;
+  }
+  return null;
+};
+
+/**
+ * 将 select_all_users result 转为 [{ 部门名: 成员[] }, ...]（兼容批量分配等旧消费方式）
+ */
+export const selectAllUsersToDepartmentMaps = (
+  result: unknown
+): Array<Record<string, DepartmentSelectUser[]>> => {
+  const deptMap = parseDepartmentSelectMap(result);
+  return Object.entries(deptMap).map(([department, groups]) => ({
+    [department]: Object.values(groups).flat()
+  }));
+};
+
 /** 从部门 select result 提取部门名称列表 */
 export const getDepartmentNames = (result: unknown): string[] => {
   return Object.keys(parseDepartmentSelectMap(result));
+};
+
+/** 从 select_all_users result 提取指定公司下的部门名称（无该公司或无部门则 []） */
+export const getDepartmentNamesByCompany = (
+  result: unknown,
+  company?: string
+): string[] => {
+  const companyName = company?.trim();
+  if (!companyName || !result) return [];
+  const companyMap = parseSelectAllUsersCompanyMap(result);
+  if (companyMap) {
+    const deptMap = companyMap[companyName];
+    if (!deptMap) return [];
+    return Object.keys(deptMap);
+  }
+  return getDepartmentNames(result);
+};
+
+/** 获取指定公司、部门下的分组下拉选项（基于 select_all_users 结构） */
+export const getDepartmentGroupOptionsByCompany = (
+  result: unknown,
+  company?: string,
+  department?: string
+): Array<{ value: string; label: string }> => {
+  const deptName = department?.trim();
+  if (!deptName) return [];
+  const companyName = company?.trim();
+  const companyMap = parseSelectAllUsersCompanyMap(result);
+  if (companyMap && companyName) {
+    const groups = companyMap[companyName]?.[deptName];
+    if (!groups) return [];
+    return Object.keys(groups).map(value => ({
+      value,
+      label: formatDepartmentGroupLabel(value)
+    }));
+  }
+  return getDepartmentGroupOptions(result, department);
 };
 
 /** 提取部门负责人（DepartmentManager） */
@@ -249,6 +426,31 @@ export const flattenDepartmentSelectUsers = (
       });
     });
   });
+  return users;
+};
+
+/** 是否为业务部门（部门名称包含「业务」） */
+export const isBusinessDepartmentName = (department?: string): boolean => {
+  const name = department?.trim();
+  return !!name && name.includes("业务");
+};
+
+/** 从 select_all_users result 提取所有公司下业务部门的成员（username 去重） */
+export const flattenBusinessDepartmentSelectUsers = (
+  result: unknown
+): DepartmentSelectUser[] => {
+  const seen = new Set<string>();
+  const users: DepartmentSelectUser[] = [];
+  flattenDepartmentSelectUsers(result).forEach(user => {
+    if (!isBusinessDepartmentName(user.department)) return;
+    const username = user.username?.trim();
+    if (!username || seen.has(username)) return;
+    seen.add(username);
+    users.push(user);
+  });
+  users.sort((a, b) =>
+    (a.username || "").localeCompare(b.username || "", "zh-CN")
+  );
   return users;
 };
 
@@ -303,9 +505,9 @@ export const getNextStateUserList = (params: {
 };
 
 /** 新增部门 */
-export const addDepartment = (department: string) => {
+export const addDepartment = (data: { department: string; company: string }) => {
   return http.request<ApiResponse<any>>("post", "/department/add", {
-    data: { department }
+    data
   });
 };
 /** 部门用户映射类型 */
@@ -315,16 +517,26 @@ export interface DepartmentUserMap {
     password: string;
     role: string[];
     department: string;
+    company?: string;
+    group?: string;
     button_permissions: string[];
   }>;
 }
 
-/** 查询所有部门人员（result 多为 [{ 部门名: 成员[] }, ...]） */
+/** 查询所有部门人员（result 为公司 -> 部门 -> 分组 -> 用户，兼容旧格式） */
 export const selectAllUsers = () => {
   return http.request<{
     code: number;
-    result: DepartmentUserMap[] | DepartmentUserMap;
-    data?: DepartmentUserMap[] | DepartmentUserMap;
+    result:
+      | SelectAllUsersCompanyMap
+      | DepartmentUserMap[]
+      | DepartmentUserMap
+      | Record<string, Record<string, DepartmentSelectUser[]>>;
+    data?:
+      | SelectAllUsersCompanyMap
+      | DepartmentUserMap[]
+      | DepartmentUserMap
+      | Record<string, Record<string, DepartmentSelectUser[]>>;
   }>("get", "/department/select_all_users");
 };
 
@@ -332,6 +544,7 @@ export interface DepartmentUserItem {
   username?: string;
   nickname?: string;
   department?: string;
+  company?: string;
   role?: string[];
 }
 
@@ -365,6 +578,7 @@ export interface UserListResponse {
     password: string;
     role: string[];
     department: string;
+    company?: string;
     group?: string;
     button_permissions: string[];
     workchat_username?: string;
@@ -372,7 +586,11 @@ export interface UserListResponse {
 }
 
 /** 获取用户列表 */
-export const getUserList = (data: { username: string; department: string }) => {
+export const getUserList = (data: {
+  username: string;
+  department: string;
+  company: string;
+}) => {
   return http.request<UserListResponse>("post", "/admin/select_user", {
     data
   });
@@ -384,6 +602,7 @@ export interface AddUserParams {
   password: string;
   role: string[];
   department: string;
+  company: string;
   group?: string;
   workchat_username?: string;
 }

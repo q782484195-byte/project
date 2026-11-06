@@ -12,7 +12,7 @@ import { ref, nextTick, onBeforeUnmount, watch } from "vue";
 import { useEditor, EditorContent } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
-import { ElMessage } from "element-plus";
+import { ElMessage, useFormItem } from "element-plus";
 import type { DescribeContent } from "@/api/project";
 import { uploadFile } from "@/api/project";
 import { collectImageFiles } from "@/utils/excelPaste";
@@ -32,6 +32,7 @@ const props = withDefaults(defineProps<Props>(), {
   readonly: false
 });
 const emit = defineEmits<Emits>();
+const { formItem } = useFormItem();
 
 // 标志位：防止循环更新导致光标位置丢失
 const isInternalUpdate = ref(false);
@@ -174,6 +175,7 @@ const editor = useEditor({
     const html = editor.getHTML();
     const content = htmlToContent(html);
     emit("update:modelValue", content);
+    void formItem?.validate?.("change").catch(() => undefined);
     // 使用 nextTick 确保在下一个事件循环中重置标志
     setTimeout(() => {
       isInternalUpdate.value = false;

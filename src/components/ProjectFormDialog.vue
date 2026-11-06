@@ -48,11 +48,22 @@
         <el-row v-if="isAppFeatureDevelopment" :gutter="16">
           <el-col :span="12">
             <el-form-item label="业务负责人" prop="business_owner">
-              <el-input
+              <el-select
                 v-model="projectForm.business_owner"
-                placeholder="业务负责人"
+                placeholder="请选择业务负责人"
+                clearable
+                filterable
+                style="width: 100%"
+                :loading="businessOwnersLoading"
                 :disabled="isEdit"
-              />
+              >
+                <el-option
+                  v-for="owner in businessOwners"
+                  :key="owner.value"
+                  :label="owner.label"
+                  :value="owner.value"
+                />
+              </el-select>
             </el-form-item>
           </el-col>
         </el-row>
@@ -108,11 +119,22 @@
               <el-input v-model="projectForm.shadow_app" placeholder="马甲包名称" />
             </el-form-item>
             <el-form-item v-else label="业务负责人" prop="business_owner">
-              <el-input
+              <el-select
                 v-model="projectForm.business_owner"
-                placeholder="业务负责人"
+                placeholder="请选择业务负责人"
+                clearable
+                filterable
+                style="width: 100%"
+                :loading="businessOwnersLoading"
                 :disabled="isEdit"
-              />
+              >
+                <el-option
+                  v-for="owner in businessOwners"
+                  :key="owner.value"
+                  :label="owner.label"
+                  :value="owner.value"
+                />
+              </el-select>
             </el-form-item>
           </el-col>
         </el-row>
@@ -364,7 +386,11 @@ import { mockUsers } from "@/mock/users";
 import { useProjectTypeStoreHook } from "@/store/modules/projectType";
 import { useProjectTemplateStoreHook } from "@/store/modules/projectTemplate";
 import { getAllProjectTemplates } from "@/mock/projectTemplates";
-import { selectAllUsers, flattenDepartmentSelectUsers } from "@/api/system";
+import {
+  selectAllUsers,
+  flattenDepartmentSelectUsers,
+  flattenBusinessDepartmentSelectUsers
+} from "@/api/system";
 import RichTextEditor from "./RichTextEditor.vue";
 import {
   APP_FEATURE_DEVELOPMENT_TYPE,
@@ -397,6 +423,8 @@ const proposalFileList = ref<UploadFile[]>([]); // 立项文件列表
 const submitting = ref(false); // 提交状态
 const projectManagersLoading = ref(false); // 项目负责人列表加载状态
 const projectManagers = ref<Array<{ label: string; value: string }>>([]); // 项目负责人列表
+const businessOwnersLoading = ref(false);
+const businessOwners = ref<Array<{ label: string; value: string }>>([]);
 
 const projectForm = reactive({
   project_type: "",
@@ -539,7 +567,7 @@ const formRules = computed<FormRules>(() => {
       : [{ required: true, message: "请输入分辨率", trigger: "blur" }],
     business_owner: featureDevOnly
       ? []
-      : [{ required: true, message: "请输入业务负责人", trigger: "blur" }],
+      : [{ required: true, message: "请选择业务负责人", trigger: "change" }],
     app_protocol: [],
     shadow_app: []
   };
@@ -589,9 +617,30 @@ const handleTypeChange = () => {
   projectForm.templateId = ""; // 清空模板选择
 };
 
-// 加载项目负责人列表
+const buildBusinessOwnerOptions = (
+  rawResult: unknown
+): Array<{ label: string; value: string }> => {
+  return flattenBusinessDepartmentSelectUsers(rawResult).map(user => {
+    const username = user.username || "";
+    const dept = user.department?.trim();
+    return {
+      label: dept ? `${username}（${dept}）` : username,
+      value: username
+    };
+  });
+};
+
+const ensureBusinessOwnerOption = () => {
+  const username = projectForm.business_owner?.trim();
+  if (!username) return;
+  if (businessOwners.value.some(item => item.value === username)) return;
+  businessOwners.value.unshift({ label: username, value: username });
+};
+
+// 加载项目负责人、业务负责人列表（共用 select_all_users）
 const loadProjectManagers = async () => {
   projectManagersLoading.value = true;
+  businessOwnersLoading.value = true;
   try {
     const response = await selectAllUsers();
     const rawResult = response.result ?? response.data;
@@ -619,18 +668,23 @@ const loadProjectManagers = async () => {
       });
 
       projectManagers.value = managers;
+      businessOwners.value = buildBusinessOwnerOptions(rawResult);
+      ensureBusinessOwnerOption();
     } else {
       projectManagers.value = [];
-      ElMessage.error("加载项目负责人列表失败");
+      businessOwners.value = [];
+      ElMessage.error("加载项目人员列表失败");
     }
   } catch (error: any) {
-    console.error("加载项目负责人列表失败:", error);
+    console.error("加载项目人员列表失败:", error);
     ElMessage.error(
-      error?.response?.data?.message || error?.message || "加载项目负责人列表失败"
+      error?.response?.data?.message || error?.message || "加载项目人员列表失败"
     );
     projectManagers.value = [];
+    businessOwners.value = [];
   } finally {
     projectManagersLoading.value = false;
+    businessOwnersLoading.value = false;
   }
 };
 
@@ -892,6 +946,7 @@ watch(
     if (!visible) return;
     if (project) {
       fillFormFromProject(project);
+      ensureBusinessOwnerOption();
     } else {
       resetProjectForm();
     }

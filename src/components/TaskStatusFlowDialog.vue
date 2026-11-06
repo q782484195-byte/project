@@ -124,10 +124,11 @@ import {
   selectNotificationPerson,
   addNotification,
   selectAllUsers,
+  selectAllUsersToDepartmentMaps,
   getDepartmentNameList,
   flattenDepartmentList,
   type DepartmentListItem,
-  type DepartmentUserMap
+  type DepartmentSelectUser
 } from "@/api/system";
 import { sendWorkchatMessage } from "@/api/report";
 import { useUserStoreHook } from "@/store/modules/user";
@@ -720,15 +721,24 @@ const handleBeforeUpload = (file: File) => {
 /** 构建全部门人员树（用于超时提醒人选择，与 tasks/index 批量分配一致） */
 const buildNotificationRecipientsTree = (
   departmentList: DepartmentListItem[],
-  userMaps: DepartmentUserMap[]
+  userMaps: Array<Record<string, DepartmentSelectUser[]>>
 ): TreeNode[] => {
   if (!Array.isArray(departmentList)) return [];
 
   const departmentUsersMap: Record<string, string[]> = {};
   if (Array.isArray(userMaps)) {
     userMaps.forEach(map => {
-      Object.keys(map).forEach(department => {
-        departmentUsersMap[department] = map[department].map(user => user.username);
+      Object.entries(map).forEach(([department, users]) => {
+        if (!Array.isArray(users)) return;
+        const names = users.map(user => user.username).filter(Boolean);
+        if (!departmentUsersMap[department]) {
+          departmentUsersMap[department] = [];
+        }
+        names.forEach(name => {
+          if (!departmentUsersMap[department].includes(name)) {
+            departmentUsersMap[department].push(name);
+          }
+        });
       });
     });
   }
@@ -769,10 +779,11 @@ const loadNotificationRecipientsTree = async () => {
 
     const departmentList = flattenDepartmentList(departmentResponse.result);
     const usersResponse = await selectAllUsers();
-    if (usersResponse.code === 200 && Array.isArray(usersResponse.result)) {
+    const usersRaw = usersResponse.result ?? usersResponse.data;
+    if (usersResponse.code === 200 && usersRaw != null) {
       notificationRecipientsTree.value = buildNotificationRecipientsTree(
         departmentList,
-        usersResponse.result
+        selectAllUsersToDepartmentMaps(usersRaw)
       );
     } else {
       notificationRecipientsTree.value = buildNotificationRecipientsTree(

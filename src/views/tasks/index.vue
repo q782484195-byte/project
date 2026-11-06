@@ -276,7 +276,7 @@ import {
   type ProjectListItem
 } from "@/api/project";
 import { createProjectReport } from "@/api/report";
-import { getDepartmentNameList, selectAllUsers, selectNotificationPerson, sendNotification, flattenDepartmentList, type DepartmentUserItem, type DepartmentListItem, type DepartmentUserMap } from "@/api/system";
+import { getDepartmentNameList, selectAllUsers, selectAllUsersToDepartmentMaps, selectNotificationPerson, sendNotification, flattenDepartmentList, type DepartmentUserItem, type DepartmentListItem, type DepartmentSelectUser } from "@/api/system";
 import type { Project } from "@/types";
 import { TaskStatus } from "@/types";
 import TaskStatusFlowDialog from "@/components/TaskStatusFlowDialog.vue";
@@ -1188,17 +1188,27 @@ const handleSelectionChange = (selection: any[]) => {
 };
 
 // 构建所有用户的树形数据（用于批量分配）
-const buildBatchAssignDepartmentLeadersTree = (departmentList: DepartmentListItem[], userMaps: DepartmentUserMap[]): any[] => {
+const buildBatchAssignDepartmentLeadersTree = (
+  departmentList: DepartmentListItem[],
+  userMaps: Array<Record<string, DepartmentSelectUser[]>>
+): any[] => {
   if (!Array.isArray(departmentList)) return [];
 
   // 将用户映射数组转换为对象，方便查找
   const departmentUsersMap: Record<string, string[]> = {};
   if (Array.isArray(userMaps)) {
     userMaps.forEach(map => {
-      Object.keys(map).forEach(department => {
-        departmentUsersMap[department] = map[department].map(
-          user => user.username
-        );
+      Object.entries(map).forEach(([department, users]) => {
+        if (!Array.isArray(users)) return;
+        const names = users.map(user => user.username).filter(Boolean);
+        if (!departmentUsersMap[department]) {
+          departmentUsersMap[department] = [];
+        }
+        names.forEach(name => {
+          if (!departmentUsersMap[department].includes(name)) {
+            departmentUsersMap[department].push(name);
+          }
+        });
       });
     });
   }
@@ -1240,10 +1250,11 @@ const loadBatchAssignDepartmentLeaders = async () => {
 
     const departmentList = flattenDepartmentList(departmentResponse.result);
     const usersResponse = await selectAllUsers();
-    if (usersResponse.code === 200 && Array.isArray(usersResponse.result)) {
+    const usersRaw = usersResponse.result ?? usersResponse.data;
+    if (usersResponse.code === 200 && usersRaw != null) {
       batchAssignDepartmentLeadersTree.value = buildBatchAssignDepartmentLeadersTree(
         departmentList,
-        usersResponse.result
+        selectAllUsersToDepartmentMaps(usersRaw)
       );
     } else {
       batchAssignDepartmentLeadersTree.value = buildBatchAssignDepartmentLeadersTree(

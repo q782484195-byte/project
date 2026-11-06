@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "mysql": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@liangshanli/mcp-server-mysql"],
+      "envFile": "${workspaceFolder}/.env.local",
+      "env": {
+        "ALLOW_DDL": "false",
+        "ALLOW_DROP": "false",
+        "ALLOW_DELETE": "false"
+      }
+    }
+  }
+}

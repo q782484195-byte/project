@@ -1018,7 +1018,6 @@ const saveDescribe = async () => {
       task_name: t.任务名 || t.task_name || t.title || "",
       describe: describeContents,
       priority: t.优先级 || t.priority || "",
-      default_person: t.default_person,
       attachment: t.attachment || []
     });
     if (res.code === 200) {
@@ -1108,7 +1107,6 @@ const handleBeforeUploadAttachment = async (file: File) => {
         task.value.任务名 || task.value.task_name || task.value.title || "",
       describe: task.value.describe || [],
       priority: task.value.优先级 || task.value.priority || "",
-      default_person: task.value.default_person,
       attachment: newAttachments
     });
     if (updateRes.code === 200) {
@@ -1167,7 +1165,6 @@ const handleDeleteAttachment = async (index: number) => {
       task_name: t.任务名 || t.task_name || t.title || "",
       describe: t.describe || [],
       priority: t.优先级 || t.priority || "",
-      default_person: t.default_person,
       attachment: nextAttachments
     });
     if (res.code === 200) {
