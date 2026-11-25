@@ -1,9 +1,9 @@
 <template>
   <div class="app-version-page" ref="pageRef">
-    <el-card class="search-card mb-20">
+    <!-- <el-card class="search-card mb-20">
       <el-form :model="searchForm" :inline="true" class="search-form" @submit.prevent>
         <el-form-item label="记录 ID">
-          <el-input v-model="searchForm.version_id" clearable placeholder="请输入 _id" style="width: 220px"
+          <el-input v-model="searchForm.version_id" clearable placeholder="请输入 id" style="width: 220px"
             @keyup.enter="handleSearch" />
         </el-form-item>
         <el-form-item label="特征码">
@@ -15,9 +15,9 @@
           <el-button @click="handleSearchReset">重置</el-button>
         </el-form-item>
       </el-form>
-    </el-card>
+    </el-card> -->
 
-    <el-card v-loading="loading" ref="tableCardRef" shadow="never">
+    <el-card v-loading="loading" ref="tableCardRef" class="table-card" shadow="never">
       <TablePanel :loading="loading" @refresh="loadList" @fullscreen-change="calculateTableHeight">
         <template #toolbar-extra>
           <el-button type="primary" @click="openUploadDialog">
@@ -29,34 +29,29 @@
         </template>
 
         <el-table v-if="total > 0" :data="tableData" :style="{ width: '100%' }" :height="tableHeight">
-          <el-table-column label="序号" width="80" align="center">
-            <template #default="{ $index }">
-              {{ (currentPage - 1) * pageSize + $index + 1 }}
-            </template>
-          </el-table-column>
-          <el-table-column label="版本号" min-width="120" show-overflow-tooltip>
+          <el-table-column label="版本号" show-overflow-tooltip>
             <template #default="{ row }">
               {{ formatAppVersionField(row, "version") }}
             </template>
           </el-table-column>
-          <el-table-column label="特征码" width="100" align="center">
+          <el-table-column label="特征码" align="center">
             <template #default="{ row }">
               {{ formatAppVersionField(row, "feature_code") }}
             </template>
           </el-table-column>
-          <el-table-column label="版本描述" min-width="160" show-overflow-tooltip>
+          <el-table-column label="版本描述" show-overflow-tooltip>
             <template #default="{ row }">
               {{ formatAppVersionField(row, "description") }}
             </template>
           </el-table-column>
-          <el-table-column label="强制升级" width="100" align="center">
+          <el-table-column label="强制升级" align="center">
             <template #default="{ row }">
               <el-tag :type="row.force_update ? 'danger' : 'info'" size="small">
                 {{ formatAppVersionField(row, "force_update") }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="安装包" min-width="200" show-overflow-tooltip>
+          <el-table-column label="安装包" width="300" show-overflow-tooltip>
             <template #default="{ row }">
               <el-link v-if="row.file_path" type="primary" :href="getAppFileUrl(row.file_path)" target="_blank"
                 :underline="false">
@@ -65,12 +60,12 @@
               <span v-else>-</span>
             </template>
           </el-table-column>
-          <el-table-column label="上传时间" width="170" show-overflow-tooltip>
+          <el-table-column label="上传时间" show-overflow-tooltip>
             <template #default="{ row }">
               {{ formatAppVersionField(row, "upload_date") }}
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="140" fixed="right" align="center">
+          <el-table-column label="操作" fixed="right" align="center">
             <template #default="{ row }">
               <el-button type="primary" link @click="openEditDialog(row)">
                 编辑
@@ -146,7 +141,7 @@ import {
   selectAppVersions,
   unwrapAppVersionList,
   formatAppVersionField,
-  uploadAppVersion,
+  addAppVersion,
   updateAppVersion,
   deleteAppVersion,
   type AppVersionListItem
@@ -304,18 +299,18 @@ const handleDialogSubmit = async () => {
   try {
     const payload = {
       version: uploadForm.version.trim(),
-      feature_code: uploadForm.feature_code.trim(),
-      description: uploadForm.description.trim(),
-      force_update: uploadForm.force_update
+      vercode: uploadForm.feature_code.trim(),
+      remark: uploadForm.description.trim(),
+      is_up: uploadForm.force_update ? 1 : 0
     };
 
     const response = isEditMode.value
       ? await updateAppVersion({
-          version_id: editingVersionId.value,
+          id: editingVersionId.value,
           ...payload,
           file: uploadForm.packageFile || undefined
         })
-      : await uploadAppVersion({
+      : await addAppVersion({
           file: uploadForm.packageFile as File,
           ...payload
         });
@@ -357,7 +352,7 @@ const handleDelete = async (row: AppVersionListItem) => {
   }
 
   try {
-    const response = await deleteAppVersion({ version_id: row._id });
+    const response = await deleteAppVersion({ id: row._id });
     if (response.code !== 200) {
       message(response.message || "删除失败", { type: "error" });
       return;
@@ -398,8 +393,8 @@ const loadList = async () => {
   loading.value = true;
   try {
     const response = await selectAppVersions({
-      version_id: searchForm.version_id.trim(),
-      feature_code: searchForm.feature_code.trim(),
+      id: searchForm.version_id.trim(),
+      vercode: searchForm.feature_code.trim(),
       page: currentPage.value,
       page_size: pageSize.value
     });
@@ -456,13 +451,38 @@ onUnmounted(() => {
 });
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .app-version-page {
-  padding: 0;
+  background: #f5f7fa;
+  min-height: calc(100vh - 200px);
+  padding-bottom: 16px;
+  box-sizing: border-box;
+
+  :deep(.el-card) {
+    margin-bottom: 20px;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
 }
 
 .search-card {
-  margin-bottom: 16px;
+  :deep(.el-card__body) {
+    padding: 20px;
+  }
+}
+
+.table-card {
+  :deep(.el-card__body) {
+    padding: 20px;
+  }
+}
+
+.search-form {
+  :deep(.el-form-item) {
+    margin-bottom: 0;
+  }
 }
 
 .mb-20 {
@@ -479,5 +499,26 @@ onUnmounted(() => {
   margin-top: 8px;
   font-size: 12px;
   color: var(--el-text-color-secondary);
+}
+
+@media (max-width: 640px) {
+  .app-version-page {
+    padding-bottom: 12px;
+
+    .search-card,
+    .table-card {
+      :deep(.el-card__body) {
+        padding: 12px;
+      }
+    }
+
+    .search-form {
+      :deep(.el-form-item) {
+        width: 100%;
+        margin-right: 0;
+        margin-bottom: 12px;
+      }
+    }
+  }
 }
 </style>

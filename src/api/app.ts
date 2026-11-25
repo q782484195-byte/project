@@ -1,5 +1,8 @@
 import { http } from "@/utils/http";
 
+/** 公网 multipart 上传安装包超时（默认 axios 为 10s） */
+const APP_VERSION_UPLOAD_TIMEOUT_MS = 600_000;
+
 /** 通用 API 响应 */
 export interface ApiResponse<T = unknown> {
   code: number;
@@ -10,7 +13,20 @@ export interface ApiResponse<T = unknown> {
   total?: number;
 }
 
-/** APP 版本列表项 */
+/** `/app/select` 接口原始列表项 */
+export interface AppVersionApiItem {
+  id: string;
+  version: string;
+  path: string;
+  remark?: string;
+  status?: number;
+  vercode: number;
+  is_up?: number;
+  create_time?: string;
+  update_time?: string;
+}
+
+/** APP 版本列表项（页面展示用，由接口字段归一化而来） */
 export interface AppVersionListItem {
   _id: string;
   file_path: string;
@@ -19,20 +35,48 @@ export interface AppVersionListItem {
   force_update: boolean;
   feature_code: number;
   upload_date: string;
+  status?: number;
 }
 
 /** 分页查询 APP 版本列表参数 */
 export interface SelectAppVersionsParams {
-  version_id?: string;
-  feature_code?: string;
+  /** 记录 id */
+  id?: string;
+  /** 版本号整数 vercode */
+  vercode?: string;
   page: number;
   page_size: number;
 }
 
 /** APP 版本列表响应 */
 export type AppVersionListResponse = ApiResponse<
-  AppVersionListItem[] | { list?: AppVersionListItem[]; records?: AppVersionListItem[] }
+  | AppVersionApiItem[]
+  | AppVersionListItem[]
+  | { list?: AppVersionApiItem[] | AppVersionListItem[]; records?: AppVersionApiItem[] | AppVersionListItem[] }
 >;
+
+const isAppVersionApiItem = (
+  item: AppVersionApiItem | AppVersionListItem
+): item is AppVersionApiItem => "vercode" in item || ("id" in item && !("_id" in item));
+
+/** 将 select 接口记录转为列表展示结构 */
+export const normalizeAppVersionItem = (
+  item: AppVersionApiItem | AppVersionListItem
+): AppVersionListItem => {
+  if (!isAppVersionApiItem(item)) {
+    return item;
+  }
+  return {
+    _id: item.id,
+    file_path: item.path ?? "",
+    version: item.version ?? "",
+    description: item.remark,
+    force_update: item.is_up === 1,
+    feature_code: item.vercode,
+    upload_date: item.create_time ?? item.update_time ?? "",
+    status: item.status
+  };
+};
 
 /** 分页查询 APP 版本列表 */
 export const selectAppVersions = (params: SelectAppVersionsParams) => {
@@ -41,54 +85,76 @@ export const selectAppVersions = (params: SelectAppVersionsParams) => {
     page_size: params.page_size
   };
 
-  const versionId = params.version_id?.trim();
-  if (versionId) {
-    query.version_id = versionId;
+  const recordId = params.id?.trim();
+  if (recordId) {
+    query.id = recordId;
   }
 
-  const featureCode = params.feature_code?.trim();
-  if (featureCode) {
-    query.feature_code = Number(featureCode);
+  const vercode = params.vercode?.trim();
+  if (vercode) {
+    query.vercode = Number(vercode);
   }
 
-  return http.request<AppVersionListResponse>("get", "/app/select", {
-    params: query
+  return http.request<AppVersionListResponse>("post", "/app/select", {
+    data: query
   });
 };
 
-/** 上传 APP 版本参数 */
-export interface UploadAppVersionParams {
+const appendAppVersionIsUp = (
+  formData: FormData,
+  isUp?: boolean | number
+) => {
+  if (typeof isUp === "boolean") {
+    formData.append("is_up", String(isUp ? 1 : 0));
+    return;
+  }
+  if (isUp !== undefined) {
+    formData.append("is_up", String(isUp));
+  }
+};
+
+/** 新增 APP 版本参数（POST /app/add） */
+export interface AddAppVersionParams {
   file: File;
   version: string;
-  feature_code: string;
-  description?: string;
-  force_update?: boolean;
+  vercode: string | number;
+  remark?: string;
+  status?: number;
+  is_up?: boolean | number;
 }
 
-/** 上传 APP 版本（multipart 直传安装包） */
-export const uploadAppVersion = (params: UploadAppVersionParams) => {
+/** 新增 APP 版本（multipart 上传 apk） */
+export const addAppVersion = (params: AddAppVersionParams) => {
   const formData = new FormData();
   formData.append("file", params.file);
   formData.append("version", params.version);
-  formData.append("feature_code", params.feature_code);
-  formData.append("description", params.description ?? "");
-  formData.append("force_update", String(params.force_update ?? false));
+  formData.append("vercode", String(params.vercode));
+  formData.append("remark", params.remark ?? "");
+  if (params.status !== undefined) {
+    formData.append("status", String(params.status));
+  }
+  appendAppVersionIsUp(formData, params.is_up);
 
-  return http.request<ApiResponse>("post", "/app/upload", {
+  return http.request<ApiResponse>("post", "/app/add", {
     data: formData,
+    timeout: APP_VERSION_UPLOAD_TIMEOUT_MS,
     headers: {
       "Content-Type": "multipart/form-data"
     }
   });
 };
 
+/** @deprecated 使用 addAppVersion */
+export const uploadAppVersion = addAppVersion;
+
 /** 更新 APP 版本参数 */
 export interface UpdateAppVersionParams {
-  version_id: string;
+  id: string;
   version: string;
-  feature_code: string;
-  description?: string;
-  force_update?: boolean;
+  vercode: string | number;
+  remark?: string;
+  status?: number;
+  is_up?: boolean | number;
   /** 不传则保留原安装包 */
   file?: File;
 }
@@ -96,17 +162,21 @@ export interface UpdateAppVersionParams {
 /** 更新 APP 版本 */
 export const updateAppVersion = (params: UpdateAppVersionParams) => {
   const formData = new FormData();
-  formData.append("version_id", params.version_id);
+  formData.append("id", params.id);
   formData.append("version", params.version);
-  formData.append("feature_code", params.feature_code);
-  formData.append("description", params.description ?? "");
-  formData.append("force_update", String(params.force_update ?? false));
+  formData.append("vercode", String(params.vercode));
+  formData.append("remark", params.remark ?? "");
+  if (params.status !== undefined) {
+    formData.append("status", String(params.status));
+  }
+  appendAppVersionIsUp(formData, params.is_up);
   if (params.file) {
     formData.append("file", params.file);
   }
 
   return http.request<ApiResponse>("post", "/app/update", {
     data: formData,
+    timeout: APP_VERSION_UPLOAD_TIMEOUT_MS,
     headers: {
       "Content-Type": "multipart/form-data"
     }
@@ -115,42 +185,40 @@ export const updateAppVersion = (params: UpdateAppVersionParams) => {
 
 /** 删除 APP 版本参数 */
 export interface DeleteAppVersionParams {
-  version_id: string;
+  id: string;
 }
 
 /** 删除 APP 版本 */
 export const deleteAppVersion = (params: DeleteAppVersionParams) => {
   return http.request<ApiResponse>("post", "/app/delete", {
     data: {
-      version_id: params.version_id
+      id: params.id
     }
   });
+};
+
+const extractRawAppVersionList = (
+  response: AppVersionListResponse
+): (AppVersionApiItem | AppVersionListItem)[] => {
+  const payload = response.result ?? response.data;
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+  if (payload && typeof payload === "object") {
+    const wrapped = payload as {
+      list?: (AppVersionApiItem | AppVersionListItem)[];
+      records?: (AppVersionApiItem | AppVersionListItem)[];
+    };
+    return wrapped.list || wrapped.records || [];
+  }
+  return [];
 };
 
 /** 从列表响应中提取数据与总数 */
 export const unwrapAppVersionList = (
   response: AppVersionListResponse
 ): { list: AppVersionListItem[]; total: number } => {
-  let list: AppVersionListItem[] = [];
-
-  if (Array.isArray(response.result)) {
-    list = response.result;
-  } else if (Array.isArray(response.data)) {
-    list = response.data;
-  } else if (response.result && typeof response.result === "object") {
-    const result = response.result as {
-      list?: AppVersionListItem[];
-      records?: AppVersionListItem[];
-    };
-    list = result.list || result.records || [];
-  } else if (response.data && typeof response.data === "object") {
-    const data = response.data as {
-      list?: AppVersionListItem[];
-      records?: AppVersionListItem[];
-    };
-    list = data.list || data.records || [];
-  }
-
+  const list = extractRawAppVersionList(response).map(normalizeAppVersionItem);
   const total = response.total_count ?? response.total ?? list.length;
 
   return { list, total };

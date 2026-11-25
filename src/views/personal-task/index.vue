@@ -196,7 +196,9 @@ import {
 } from "@/api/daily-task";
 import {
   getDepartmentNameList,
-  flattenDepartmentList
+  flattenDepartmentList,
+  selectAllUsers,
+  flattenBusinessDepartmentSelectUsers
 } from "@/api/system";
 import { useUserStoreHook } from "@/store/modules/user";
 
@@ -307,25 +309,49 @@ const goToDetail = (id: string) => {
 const loadDepartmentManagers = async () => {
   departmentManagersLoading.value = true;
   try {
-    const response = await getDepartmentNameList();
-    if (response.code === 200 && response.result != null) {
-      const departmentList = flattenDepartmentList(response.result);
-      const managers = new Set<string>();
+    const assignees = new Set<string>();
+    let deptOk = false;
+    let businessOk = false;
+
+    const [deptResponse, usersResponse] = await Promise.all([
+      getDepartmentNameList(),
+      selectAllUsers()
+    ]);
+
+    if (deptResponse.code === 200 && deptResponse.result != null) {
+      deptOk = true;
+      const departmentList = flattenDepartmentList(deptResponse.result);
       departmentList.forEach(dept => {
         (dept.负责人 || []).forEach(name => {
           const trimmed = String(name).trim();
-          if (trimmed) managers.add(trimmed);
+          if (trimmed) assignees.add(trimmed);
         });
       });
-      departmentManagers.value = Array.from(managers);
+    }
+
+    const rawUserResult = usersResponse.result ?? usersResponse.data;
+    if (usersResponse.code === 200 && rawUserResult != null) {
+      businessOk = true;
+      flattenBusinessDepartmentSelectUsers(rawUserResult).forEach(user => {
+        const username = user.username?.trim();
+        if (username) assignees.add(username);
+      });
+    }
+
+    if (assignees.size > 0) {
+      departmentManagers.value = Array.from(assignees).sort((a, b) =>
+        a.localeCompare(b, "zh-CN")
+      );
     } else {
       departmentManagers.value = [];
-      ElMessage.error("加载部门负责人列表失败");
+      if (!deptOk && !businessOk) {
+        ElMessage.error("加载指派人列表失败");
+      }
     }
   } catch (error: any) {
     departmentManagers.value = [];
     ElMessage.error(
-      error?.response?.data?.message || error?.message || "加载部门负责人列表失败"
+      error?.response?.data?.message || error?.message || "加载指派人列表失败"
     );
   } finally {
     departmentManagersLoading.value = false;

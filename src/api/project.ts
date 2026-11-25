@@ -125,6 +125,46 @@ export interface CreateAppProjectParams {
   project_proposal?: string[];
 }
 
+/** 编辑 APP 功能开发项目参数 */
+export interface UpdateAppProjectParams {
+  project_id: string;
+  project_name: string;
+  customer_name: string;
+  product_type: string;
+  platform_name: string;
+  resolution: string;
+  app_protocol: string;
+  shadow_app: string;
+  project_initiation_date: string;
+  plant_start_time: string;
+  plant_end_time: string;
+  describe: string[];
+  attachment: string[];
+  project_proposal?: string[];
+}
+
+/** 编辑 APP 功能开发项目 */
+export const updateAppProject = (params: UpdateAppProjectParams) => {
+  return http.request<ApiResponse<any>>("post", "/project/update_app_project", {
+    data: {
+      project_id: params.project_id,
+      project_name: params.project_name,
+      customer_name: params.customer_name || "",
+      product_type: params.product_type || "",
+      platform_name: params.platform_name || "",
+      resolution: params.resolution || "",
+      app_protocol: params.app_protocol || "",
+      shadow_app: params.shadow_app || "",
+      project_initiation_date: params.project_initiation_date || "",
+      plant_start_time: params.plant_start_time,
+      plant_end_time: params.plant_end_time,
+      describe: params.describe,
+      attachment: params.attachment,
+      project_proposal: params.project_proposal ?? []
+    }
+  });
+};
+
 /** 创建 APP 功能开发项目 */
 export const createAppProject = (params: CreateAppProjectParams) => {
   return http.request<ApiResponse<any>>("post", "/project/add_app_project", {

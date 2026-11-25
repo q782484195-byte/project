@@ -20,7 +20,7 @@ export default {
         title: "待办任务",
         showLink: true,
         showParent: false,
-        roles: ["Admin", "DepartmentManager", "Member"]
+        roles: ["Admin", "DepartmentManager", "Member", 'ProjectManager']
       }
     }
   ]

@@ -30,10 +30,12 @@
               </label>
               <el-select v-model="selectedProjectType" class="filter-control" placeholder="请选择项目类型" clearable
                 size="default">
-                <el-option label="定制项目" value="定制项目" />
-                <el-option label="公模项目" value="公模项目" />
-                <el-option label="功能开发" value="功能开发" />
-                <el-option label="APP功能开发" value="APP功能开发" />
+                <el-option
+                  v-for="type in PROJECT_OVERVIEW_TYPE_TABS"
+                  :key="type"
+                  :label="type"
+                  :value="type"
+                />
               </el-select>
             </div>
             <div class="filter-field">
@@ -206,8 +208,11 @@ import { CaretBottom, CaretTop } from "@element-plus/icons-vue";
 import { deviceDetection } from "@pureadmin/utils";
 import { selectTaskStatistics } from "@/api/project";
 import { selectAllUsers, flattenDepartmentSelectUsers } from "@/api/system";
-import { getTaskAssigneeText } from "@/api/daily-task";
-import { getProjectDetailRouteName } from "@/utils/projectRoute";
+import { getDailyTaskId, getTaskAssigneeText } from "@/api/daily-task";
+import {
+  getProjectDetailRouteName,
+  PROJECT_OVERVIEW_TYPE_TABS
+} from "@/utils/projectRoute";
 import DailyTaskAssigneeTags from "@/components/DailyTaskAssigneeTags.vue";
 import TablePanel from "@/components/TablePanel/index.vue";
 import { TABLE_PANEL_TOOLBAR_HEIGHT } from "@/components/TablePanel/constants";
@@ -324,6 +329,9 @@ const getProjectId = (row: Record<string, unknown>): string => {
 };
 
 const getTaskId = (row: Record<string, unknown>): string => {
+  if (row.daily_task === true) {
+    return getDailyTaskId(row);
+  }
   const v = row._id ?? row.id;
   return v != null && v !== "" ? String(v).trim() : "";
 };
@@ -356,6 +364,16 @@ const goTaskDetail = (row: Record<string, unknown>) => {
   const tid = getTaskId(row);
   if (!tid) {
     ElMessage.warning("缺少任务信息，无法跳转");
+    return;
+  }
+  if (row.daily_task === true) {
+    router
+      .push({
+        name: "PersonalTaskDetail",
+        params: { id: tid },
+        query: { from: "department-task-statistics" }
+      })
+      .catch(() => {});
     return;
   }
   try {

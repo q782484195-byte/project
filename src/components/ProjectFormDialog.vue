@@ -32,7 +32,7 @@
           <el-input v-model="projectForm.name" placeholder="请输入项目名称" />
         </el-form-item>
 
-        <el-row :gutter="16">
+        <el-row v-if="!isRectificationOptimization" :gutter="16">
           <el-col :span="12">
             <el-form-item label="客户名称" prop="customer_name">
               <el-input v-model="projectForm.customer_name" placeholder="客户名称" />
@@ -87,7 +87,7 @@
         </el-form-item>
       </section>
 
-      <section class="form-section">
+      <section v-if="!isRectificationOptimization" class="form-section">
         <div class="form-section__title">项目属性</div>
         <el-row :gutter="16">
           <el-col :span="12">
@@ -374,11 +374,13 @@ import type {
   DescribeContent,
   CreateProjectParams,
   CreateAppProjectParams,
+  UpdateAppProjectParams,
   UpdateProjectParams
 } from "@/api/project";
 import {
   createProject,
   createAppProject,
+  updateAppProject,
   updateProject,
   uploadFile
 } from "@/api/project";
@@ -395,7 +397,8 @@ import RichTextEditor from "./RichTextEditor.vue";
 import {
   APP_FEATURE_DEVELOPMENT_TYPE,
   isAppFeatureDevelopmentType,
-  isFeatureDevelopmentType
+  isFeatureDevelopmentType,
+  isRectificationOptimizationType
 } from "@/utils/projectRoute";
 
 interface Props {
@@ -461,12 +464,24 @@ const isAppFeatureDevelopment = computed(() =>
   )
 );
 
+const isRectificationOptimization = computed(() =>
+  isRectificationOptimizationType(
+    props.defaultProjectType || projectForm.project_type
+  )
+);
+
 const hideMotherboard = computed(
-  () => isFeatureDevelopmentOnly.value || isAppFeatureDevelopment.value
+  () =>
+    isFeatureDevelopmentOnly.value ||
+    isAppFeatureDevelopment.value ||
+    isRectificationOptimization.value
 );
 
 const isStandardProjectForm = computed(
-  () => !isFeatureDevelopmentOnly.value && !isAppFeatureDevelopment.value
+  () =>
+    !isFeatureDevelopmentOnly.value &&
+    !isAppFeatureDevelopment.value &&
+    !isRectificationOptimization.value
 );
 
 const showProposalUpload = computed(() => isStandardProjectForm.value);
@@ -474,6 +489,7 @@ const showProposalUpload = computed(() => isStandardProjectForm.value);
 const formRules = computed<FormRules>(() => {
   const featureDevOnly = isFeatureDevelopmentOnly.value;
   const appDev = isAppFeatureDevelopment.value;
+  const rectification = isRectificationOptimization.value;
   const showProposal = showProposalUpload.value;
 
   return {
@@ -550,22 +566,22 @@ const formRules = computed<FormRules>(() => {
         trigger: "change"
       }
     ],
-    customer_name: [
-      { required: true, message: "请输入客户名称", trigger: "blur" }
-    ],
-    product_type: [
-      { required: true, message: "请输入产品类型", trigger: "blur" }
-    ],
-    platform_name: appDev
+    customer_name: rectification
+      ? []
+      : [{ required: true, message: "请输入客户名称", trigger: "blur" }],
+    product_type: rectification
+      ? []
+      : [{ required: true, message: "请输入产品类型", trigger: "blur" }],
+    platform_name: appDev || rectification
       ? []
       : [{ required: true, message: "请输入平台名称", trigger: "blur" }],
     motherboard_name: hideMotherboard.value
       ? []
       : [{ required: true, message: "请输入主板名称", trigger: "blur" }],
-    resolution: appDev
+    resolution: appDev || rectification
       ? []
       : [{ required: true, message: "请输入分辨率", trigger: "blur" }],
-    business_owner: featureDevOnly
+    business_owner: featureDevOnly || rectification
       ? []
       : [{ required: true, message: "请选择业务负责人", trigger: "change" }],
     app_protocol: [],
@@ -594,6 +610,10 @@ const disabledEndDate = (time: Date): boolean => {
 };
 
 const isEdit = computed(() => !!props.project);
+
+/** 整改优化：红线字段统一提交空字符串 */
+const fieldForSubmit = (value: string) =>
+  isRectificationOptimization.value ? "" : value || "";
 
 const dialogVisible = computed({
   get: () => props.visible,
@@ -857,7 +877,13 @@ const fillFormFromProject = (project: Project) => {
     describeContent = [{ type: "text" as const, content: project.description }];
   }
 
-  const startDate = normalizeDate((project as any).plant_start_time || "");
+  const startDate = normalizeDate(
+    (project as any).plant_start_time ||
+      project.startDate ||
+      (project as any).start_time ||
+      (project as any).start_date ||
+      ""
+  );
   const endDate = normalizeDate(
     project.endDate ||
     (project as any).plant_end_time ||
@@ -1123,28 +1149,49 @@ const handleSubmit = async () => {
 
     if (isEdit.value && props.project) {
 
-      // 编辑模式 - 使用新的参数格式
-      const submitData: UpdateProjectParams = {
-        project_id: props.project.id,
-        project_type: projectForm.project_type,
-        project_name: projectForm.name,
-        customer_name: projectForm.customer_name,
-        product_type: projectForm.product_type,
-        platform_name: projectForm.platform_name,
-        motherboard_name: projectForm.motherboard_name,
-        resolution: projectForm.resolution,
-        state_description: projectForm.state_description || '',
-        business_owner: projectForm.business_owner,
-        creator: projectForm.creator,
-        plant_start_time: projectForm.startDate,
-        plant_end_time: projectForm.endDate,
-        describe: describeUrls,
-        attachment: allAttachmentUrls,
-        project_proposal: allProposalUrls,
-        project_initiation_date: projectForm.project_initiation_date || ""
-      };
+      // 编辑模式
       try {
-        const response = await updateProject(submitData);
+        let response;
+        if (isAppFeatureDevelopment.value) {
+          const submitData: UpdateAppProjectParams = {
+            project_id: props.project.id,
+            project_name: projectForm.name,
+            customer_name: projectForm.customer_name,
+            product_type: projectForm.product_type,
+            platform_name: projectForm.platform_name,
+            resolution: projectForm.resolution,
+            app_protocol: projectForm.app_protocol,
+            shadow_app: projectForm.shadow_app,
+            project_initiation_date: projectForm.project_initiation_date || "",
+            plant_start_time: projectForm.startDate,
+            plant_end_time: projectForm.endDate,
+            describe: describeUrls,
+            attachment: allAttachmentUrls,
+            project_proposal: allProposalUrls
+          };
+          response = await updateAppProject(submitData);
+        } else {
+          const submitData: UpdateProjectParams = {
+            project_id: props.project.id,
+            project_type: projectForm.project_type,
+            project_name: projectForm.name,
+            customer_name: fieldForSubmit(projectForm.customer_name),
+            product_type: fieldForSubmit(projectForm.product_type),
+            platform_name: fieldForSubmit(projectForm.platform_name),
+            motherboard_name: fieldForSubmit(projectForm.motherboard_name),
+            resolution: fieldForSubmit(projectForm.resolution),
+            state_description: projectForm.state_description || "",
+            business_owner: fieldForSubmit(projectForm.business_owner),
+            creator: projectForm.creator,
+            plant_start_time: projectForm.startDate,
+            plant_end_time: projectForm.endDate,
+            describe: describeUrls,
+            attachment: allAttachmentUrls,
+            project_proposal: allProposalUrls,
+            project_initiation_date: projectForm.project_initiation_date || ""
+          };
+          response = await updateProject(submitData);
+        }
 
         if (response.code === 200) {
           ElMessage.success("项目更新成功");
@@ -1219,12 +1266,12 @@ const handleSubmit = async () => {
           const submitData: CreateProjectParams = {
             project_type: projectForm.project_type,
             project_name: projectForm.name,
-            customer_name: projectForm.customer_name,
-            product_type: projectForm.product_type,
-            platform_name: projectForm.platform_name,
-            motherboard_name: projectForm.motherboard_name,
-            resolution: projectForm.resolution,
-            business_owner: projectForm.business_owner,
+            customer_name: fieldForSubmit(projectForm.customer_name),
+            product_type: fieldForSubmit(projectForm.product_type),
+            platform_name: fieldForSubmit(projectForm.platform_name),
+            motherboard_name: fieldForSubmit(projectForm.motherboard_name),
+            resolution: fieldForSubmit(projectForm.resolution),
+            business_owner: fieldForSubmit(projectForm.business_owner),
             creator: projectForm.creator,
             plant_start_time: projectForm.startDate,
             plant_end_time: projectForm.endDate,

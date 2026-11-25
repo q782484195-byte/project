@@ -105,7 +105,7 @@
           </div>
 
           <!-- 第二行：客户名称，产品类型 -->
-          <div class="project-row project-row-first">
+          <div v-if="!isRectificationOptimization" class="project-row project-row-first">
             <div class="field-item">
               <span class="field-label">客户名称:</span>
               <el-tooltip :content="project.customer_name || '-'" placement="top">
@@ -121,7 +121,7 @@
           </div>
 
           <!-- 第三行：平台名称，主板名称 / APP 协议 -->
-          <div class="project-row project-row-second">
+          <div v-if="!isRectificationOptimization" class="project-row project-row-second">
             <div class="field-item" :class="{ 'field-item--full': isFeatureDevelopmentOnly }">
               <span class="field-label">平台名称:</span>
               <el-tooltip :content="project.platform_name || '-'" placement="top">
@@ -143,7 +143,7 @@
           </div>
 
           <!-- 第四行：分辨率，业务负责人 / 马甲包名称 -->
-          <div class="project-row project-row-third">
+          <div v-if="!isRectificationOptimization" class="project-row project-row-third">
             <div class="field-item" :class="{ 'field-item--full': isFeatureDevelopmentOnly }">
               <span class="field-label">分辨率:</span>
               <el-tooltip :content="project.resolution || '-'" placement="top">
@@ -156,7 +156,7 @@
                 <span class="field-value">{{ project.shadow_app || "-" }}</span>
               </el-tooltip>
             </div>
-            <div v-if="!isFeatureDevelopmentOnly" class="field-item">
+            <div v-if="!isFeatureDevelopmentOnly && !isRectificationOptimization" class="field-item">
               <span class="field-label">业务负责人:</span>
               <el-tooltip :content="project.business_owner || '-'" placement="top">
                 <span class="field-value">{{ project.business_owner || "-" }}</span>
@@ -244,13 +244,17 @@
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="customer_name" label="客户名称" show-overflow-tooltip />
-          <el-table-column prop="product_type" label="产品类型" show-overflow-tooltip />
-          <el-table-column prop="platform_name" label="平台名称" show-overflow-tooltip />
-          <el-table-column prop="resolution" label="分辨率" show-overflow-tooltip />
+          <el-table-column v-if="!isRectificationOptimization" prop="customer_name" label="客户名称"
+            show-overflow-tooltip />
+          <el-table-column v-if="!isRectificationOptimization" prop="product_type" label="产品类型"
+            show-overflow-tooltip />
+          <el-table-column v-if="!isRectificationOptimization" prop="platform_name" label="平台名称"
+            show-overflow-tooltip />
+          <el-table-column v-if="!isRectificationOptimization" prop="resolution" label="分辨率" show-overflow-tooltip />
           <el-table-column v-if="isAppFeatureDevelopment" prop="app_protocol" label="APP协议" show-overflow-tooltip />
           <el-table-column v-if="isAppFeatureDevelopment" prop="shadow_app" label="马甲包名称" show-overflow-tooltip />
-          <el-table-column v-if="!isFeatureDevelopmentOnly" prop="business_owner" label="业务负责人" show-overflow-tooltip />
+          <el-table-column v-if="!isFeatureDevelopmentOnly && !isRectificationOptimization" prop="business_owner"
+            label="业务负责人" show-overflow-tooltip />
           <el-table-column v-if="!isFeatureDevelopmentOnly" prop="project_initiation_date" label="立项时间"
             show-overflow-tooltip />
           <el-table-column label="进度">
@@ -343,7 +347,8 @@ import {
 import {
   getProjectDetailRouteName,
   isAppFeatureDevelopmentType,
-  isFeatureDevelopmentType
+  isFeatureDevelopmentType,
+  isRectificationOptimizationType
 } from "@/utils/projectRoute";
 
 const projectStore = useProjectStoreHook();
@@ -364,8 +369,14 @@ const isFeatureDevelopmentOnly = computed(() =>
 const isAppFeatureDevelopment = computed(() =>
   isAppFeatureDevelopmentType(fixedProjectType.value)
 );
+const isRectificationOptimization = computed(() =>
+  isRectificationOptimizationType(fixedProjectType.value)
+);
 const isStandardProjectList = computed(
-  () => !isFeatureDevelopmentOnly.value && !isAppFeatureDevelopment.value
+  () =>
+    !isFeatureDevelopmentOnly.value &&
+    !isAppFeatureDevelopment.value &&
+    !isRectificationOptimization.value
 );
 
 const searchKeyword = ref("");
@@ -865,11 +876,13 @@ watch(
     const isListRoute =
       path === "/projects/index" ||
       path === "/feature-development/index" ||
-      path === "/app-feature-development/index";
+      path === "/app-feature-development/index" ||
+      path === "/rectification-optimization/index";
     const wasListRoute =
       oldPath === "/projects/index" ||
       oldPath === "/feature-development/index" ||
-      oldPath === "/app-feature-development/index";
+      oldPath === "/app-feature-development/index" ||
+      oldPath === "/rectification-optimization/index";
     if (isListRoute && wasListRoute && path !== oldPath) {
       searchKeyword.value = "";
       statusFilter.value = "";

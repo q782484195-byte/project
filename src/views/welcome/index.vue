@@ -88,6 +88,14 @@ const allQuickLinks: QuickLink[] = [
     roles: ["Admin", "ProjectManager", "Member", "DepartmentManager", "ProjectDirector", "BusinessDepartmentMembers"]
   },
   {
+    title: "整改优化",
+    desc: "管理整改优化类项目",
+    path: "/rectification-optimization/index",
+    icon: CodeBoxLine,
+    color: "#f56c6c",
+    roles: ["Admin", "ProjectManager", "Member", "DepartmentManager", "ProjectDirector", "BusinessDepartmentMembers"]
+  },
+  {
     title: "日常任务",
     desc: "记录与跟进日常工作",
     path: "/personal-task/list",
