@@ -170,12 +170,55 @@
               </el-button>
             </el-descriptions-item>
 
-            <el-descriptions-item label="项目负责人">
+            <template v-if="!isRectificationOptimization">
+              <el-descriptions-item label="客户名称">{{
+                project.customer_name || "-"
+              }}</el-descriptions-item>
+              <el-descriptions-item label="产品类型">{{
+                project.product_type || "-"
+              }}</el-descriptions-item>
+            </template>
+            <el-descriptions-item v-if="isAppFeatureDevelopment" label="业务负责人">
+              <el-tag v-if="project.business_owner" type="primary" size="small">
+                {{ project.business_owner }}
+              </el-tag>
+              <span v-else>-</span>
+            </el-descriptions-item>
+            <el-descriptions-item v-if="!isAppFeatureDevelopment" label="项目负责人">
               <el-tag v-if="project.creator" type="primary" size="small">
                 {{ project.creator }}
               </el-tag>
               <span v-else>-</span>
             </el-descriptions-item>
+            <template v-if="!isRectificationOptimization">
+              <el-descriptions-item label="平台名称">{{
+                project.platform_name || "-"
+              }}</el-descriptions-item>
+              <el-descriptions-item v-if="isStandardProjectDetail" label="主板名称">{{
+                project.motherboard_name || "-"
+              }}</el-descriptions-item>
+              <el-descriptions-item v-if="isAppFeatureDevelopment" label="APP协议">{{
+                project.app_protocol || "-"
+              }}</el-descriptions-item>
+              <el-descriptions-item label="分辨率">{{
+                project.resolution || "-"
+              }}</el-descriptions-item>
+              <el-descriptions-item v-if="isAppFeatureDevelopment" label="马甲包名称">{{
+                project.shadow_app || "-"
+              }}</el-descriptions-item>
+              <el-descriptions-item
+                v-if="isStandardProjectDetail"
+                label="业务负责人"
+              >
+                {{ project.business_owner || "-" }}
+              </el-descriptions-item>
+              <el-descriptions-item
+                v-if="!isFeatureDevelopmentOnly"
+                label="立项时间"
+              >
+                {{ project.project_initiation_date || "-" }}
+              </el-descriptions-item>
+            </template>
             <el-descriptions-item label="计划开始时间">{{
               formatDate(project.startDate)
             }}</el-descriptions-item>
@@ -379,6 +422,11 @@ import { useProjectStoreHook } from "@/store/modules/project";
 import { useUserStoreHook } from "@/store/modules/user";
 import ProjectStructureTree, { StructureTreeNode } from "@/components/ProjectStructureTree.vue";
 import RequirementTaskTree from "@/components/RequirementTaskTree.vue";
+import {
+  isAppFeatureDevelopmentType,
+  isFeatureDevelopmentType,
+  isRectificationOptimizationType
+} from "@/utils/projectRoute";
 
 const route = useRoute();
 const router = useRouter();
@@ -389,6 +437,22 @@ const projectType = computed(
     project.value?.project_type ||
     (route.meta.defaultProjectType as string) ||
     ""
+);
+
+const isAppFeatureDevelopment = computed(() =>
+  isAppFeatureDevelopmentType(projectType.value)
+);
+const isFeatureDevelopmentOnly = computed(() =>
+  isFeatureDevelopmentType(projectType.value)
+);
+const isRectificationOptimization = computed(() =>
+  isRectificationOptimizationType(projectType.value)
+);
+const isStandardProjectDetail = computed(
+  () =>
+    !isFeatureDevelopmentOnly.value &&
+    !isAppFeatureDevelopment.value &&
+    !isRectificationOptimization.value
 );
 
 const projectIndexPath = computed(
@@ -727,6 +791,15 @@ const applyProjectFromListItem = (item: ProjectListItem & Record<string, any>) =
     endDate: item.plant_end_time,
     status,
     creator: item.creator,
+    customer_name: item.customer_name || "",
+    product_type: item.product_type || "",
+    platform_name: item.platform_name || "",
+    motherboard_name: item.motherboard_name || "",
+    resolution: item.resolution || "",
+    business_owner: item.business_owner || "",
+    app_protocol: (item as any).app_protocol || "",
+    shadow_app: (item as any).shadow_app || "",
+    project_initiation_date: (item as any).project_initiation_date || "",
     describe: normalizeDescribeContent(item.describe),
     attachment: item.attachment || [],
     project_proposal: item.project_proposal || [],

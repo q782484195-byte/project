@@ -308,22 +308,75 @@
                 <span>项目基本信息</span>
               </template>
               <div class="project-info-grid">
-                <div class="project-info-row">
-                  <span class="info-label">产品类型</span>
-                  <span class="info-value">{{ projectInfo.product_type || "-" }}</span>
-                </div>
-                <div class="project-info-row">
-                  <span class="info-label">平台</span>
-                  <span class="info-value">{{ projectInfo.platform_name || "-" }}</span>
-                </div>
-                <div class="project-info-row">
-                  <span class="info-label">主板</span>
-                  <span class="info-value">{{ projectInfo.motherboard_name || "-" }}</span>
-                </div>
-                <div class="project-info-row">
-                  <span class="info-label">分辨率</span>
-                  <span class="info-value">{{ projectInfo.resolution || "-" }}</span>
-                </div>
+                <template v-if="isAppFeatureDevelopmentProject">
+                  <div class="project-info-row">
+                    <span class="info-label">客户名称</span>
+                    <span class="info-value">{{ projectInfo.customer_name || "-" }}</span>
+                  </div>
+                  <div class="project-info-row">
+                    <span class="info-label">产品类型</span>
+                    <span class="info-value">{{ projectInfo.product_type || "-" }}</span>
+                  </div>
+                  <div class="project-info-row">
+                    <span class="info-label">业务负责人</span>
+                    <span class="info-value">{{ projectInfo.business_owner || "-" }}</span>
+                  </div>
+                  <div class="project-info-row">
+                    <span class="info-label">平台名称</span>
+                    <span class="info-value">{{ projectInfo.platform_name || "-" }}</span>
+                  </div>
+                  <div class="project-info-row">
+                    <span class="info-label">APP协议</span>
+                    <span class="info-value">{{ projectInfo.app_protocol || "-" }}</span>
+                  </div>
+                  <div class="project-info-row">
+                    <span class="info-label">分辨率</span>
+                    <span class="info-value">{{ projectInfo.resolution || "-" }}</span>
+                  </div>
+                  <div class="project-info-row">
+                    <span class="info-label">马甲包名称</span>
+                    <span class="info-value">{{ projectInfo.shadow_app || "-" }}</span>
+                  </div>
+                  <div class="project-info-row">
+                    <span class="info-label">立项时间</span>
+                    <span class="info-value">{{
+                      formatProjectInfoDate(projectInfo.project_initiation_date)
+                    }}</span>
+                  </div>
+                  <div class="project-info-row">
+                    <span class="info-label">计划开始时间</span>
+                    <span class="info-value">{{
+                      formatProjectInfoDate(projectInfo.plant_start_time)
+                    }}</span>
+                  </div>
+                  <div class="project-info-row">
+                    <span class="info-label">计划结束时间</span>
+                    <span class="info-value">{{
+                      formatProjectInfoDate(projectInfo.plant_end_time)
+                    }}</span>
+                  </div>
+                </template>
+                <template v-else-if="!isRectificationOptimizationProject">
+                  <div class="project-info-row">
+                    <span class="info-label">产品类型</span>
+                    <span class="info-value">{{ projectInfo.product_type || "-" }}</span>
+                  </div>
+                  <div class="project-info-row">
+                    <span class="info-label">平台名称</span>
+                    <span class="info-value">{{ projectInfo.platform_name || "-" }}</span>
+                  </div>
+                  <div
+                    v-if="isStandardProjectInfo"
+                    class="project-info-row"
+                  >
+                    <span class="info-label">主板名称</span>
+                    <span class="info-value">{{ projectInfo.motherboard_name || "-" }}</span>
+                  </div>
+                  <div class="project-info-row">
+                    <span class="info-label">分辨率</span>
+                    <span class="info-value">{{ projectInfo.resolution || "-" }}</span>
+                  </div>
+                </template>
               </div>
               <div v-if="projectInfo.describe && projectInfo.describe.length > 0" class="project-desc-section">
                 <div class="section-label">项目描述</div>
@@ -435,34 +488,6 @@
             </el-card>
           </el-tab-pane>
 
-          <!-- BUG记录 Tab -->
-          <el-tab-pane label="BUG记录" name="bugs">
-            <el-card class="bugs-card" shadow="never">
-              <template #header>
-                <div class="bugs-header">
-                  <span>BUG记录</span>
-                  <el-button v-if="canRecordBug(task?.状态 || task?.status)" type="primary" size="small"
-                    @click="openBugDialog">
-                    记录BUG
-                  </el-button>
-                </div>
-              </template>
-              <div v-loading="bugsLoading" ref="bugTableContainerRef">
-                <el-table :data="bugList" :style="{ width: '100%' }" :height="bugTableHeight" v-if="bugList.length > 0">
-                  <el-table-column prop="bug_name" label="BUG名称" min-width="200" />
-                  <el-table-column prop="describe" label="BUG描述" min-width="300" show-overflow-tooltip />
-                  <el-table-column prop="create_time" label="创建时间" width="180" />
-                  <el-table-column prop="creator" label="创建人" width="120" />
-                </el-table>
-                <el-empty v-else description="暂无BUG记录" :image-size="100" />
-                <el-pagination v-if="bugTotal > 0" v-model:current-page="bugPage" v-model:page-size="bugPageSize"
-                  :total="bugTotal" :page-sizes="[10, 20, 50, 100]" layout="total, sizes, prev, pager, next, jumper"
-                  @size-change="handleBugPageSizeChange" @current-change="handleBugPageChange"
-                  style="margin-top: 16px; justify-content: flex-end" />
-              </div>
-            </el-card>
-          </el-tab-pane>
-
           <!-- 任务节点 Tab -->
           <el-tab-pane label="任务节点" name="nodes">
             <el-card class="nodes-card" shadow="never">
@@ -493,29 +518,6 @@
         </template>
       </el-dialog>
 
-      <!-- BUG记录对话框 -->
-      <el-dialog v-model="bugDialogVisible" title="记录BUG" width="600px" append-to-body>
-        <el-form ref="bugFormRef" :model="bugForm" :rules="bugFormRules" label-width="100px">
-          <el-form-item label="BUG名称" prop="bug_name">
-            <el-input v-model="bugForm.bug_name" placeholder="请输入BUG名称" />
-          </el-form-item>
-          <el-form-item label="BUG描述" prop="describe">
-            <el-input v-model="bugForm.describe" type="textarea" :rows="4" placeholder="请输入BUG描述" />
-          </el-form-item>
-          <el-form-item label="关联项目">
-            <el-input v-model="bugForm.project_name" disabled />
-          </el-form-item>
-          <el-form-item label="关联任务">
-            <el-input v-model="bugForm.task_name" disabled />
-          </el-form-item>
-        </el-form>
-        <template #footer>
-          <span class="dialog-footer">
-            <el-button @click="bugDialogVisible = false">取消</el-button>
-            <el-button type="primary" :loading="bugSubmitting" @click="submitBug">提交</el-button>
-          </span>
-        </template>
-      </el-dialog>
     </div>
   </div>
 </template>
@@ -538,7 +540,6 @@ import { useMultiTagsStoreHook } from "@/store/modules/multiTags";
 import TaskStatusFlowDialog from "@/components/TaskStatusFlowDialog.vue";
 import RichTextEditor from "@/components/RichTextEditor.vue";
 import type { DescribeContent } from "@/types";
-import { createBug, selectBugsByTask, type BugRecord } from "@/api/bug";
 import {
   selectReportList,
   selectTaskInfo,
@@ -553,6 +554,11 @@ import {
 import { getNextStateUserList } from "@/api/system";
 import type { FormInstance, FormRules } from "element-plus";
 import { useUserStore } from "@/store/modules/user";
+import {
+  isAppFeatureDevelopmentType,
+  isFeatureDevelopmentType,
+  isRectificationOptimizationType
+} from "@/utils/projectRoute";
 const userStore = useUserStore();
 const route = useRoute();
 const router = useRouter();
@@ -700,14 +706,56 @@ const infoDescriptionsColumn = computed(() => (isMobile.value ? 1 : 2));
 
 // 项目基本信息（来自 info 接口返回的 project）
 const projectInfo = computed(() => task.value?.project || null);
+const projectInfoProjectType = computed(
+  () =>
+    (projectInfo.value as any)?.project_type ||
+    (route.query.project_type as string) ||
+    (route.meta.defaultProjectType as string) ||
+    ""
+);
+const isAppFeatureDevelopmentProject = computed(() =>
+  isAppFeatureDevelopmentType(projectInfoProjectType.value)
+);
+const isFeatureDevelopmentProject = computed(() =>
+  isFeatureDevelopmentType(projectInfoProjectType.value)
+);
+const isRectificationOptimizationProject = computed(() =>
+  isRectificationOptimizationType(projectInfoProjectType.value)
+);
+const isStandardProjectInfo = computed(
+  () =>
+    !isFeatureDevelopmentProject.value &&
+    !isAppFeatureDevelopmentProject.value &&
+    !isRectificationOptimizationProject.value
+);
+const formatProjectInfoDate = (value?: string) => {
+  const text = value != null ? String(value).trim() : "";
+  return text || "-";
+};
+
 const hasProjectInfo = computed(() => {
   const p = projectInfo.value;
   if (!p) return false;
+  if (isAppFeatureDevelopmentType((p as any).project_type)) return true;
   const proposal = p.project_proposal || (p as any).project_proposal;
-  return !!(p.product_type || p.platform_name || p.motherboard_name || p.resolution ||
+  const appFields =
+    (p as any).app_protocol ||
+    (p as any).shadow_app ||
+    (p as any).customer_name ||
+    (p as any).business_owner;
+  return !!(
+    p.product_type ||
+    p.platform_name ||
+    p.motherboard_name ||
+    p.resolution ||
+    appFields ||
+    (p as any).project_initiation_date ||
+    (p as any).plant_start_time ||
+    (p as any).plant_end_time ||
     (p.describe && p.describe.length > 0) ||
     (Array.isArray(proposal) && proposal.length > 0) ||
-    (p.attachment && p.attachment.length > 0));
+    (p.attachment && p.attachment.length > 0)
+  );
 });
 const projectProposalList = computed(() => {
   const p = projectInfo.value;
@@ -746,13 +794,6 @@ const getProjectImageIndex = (index: number): number => {
   return imageIndex;
 };
 
-// BUG记录相关
-const bugList = ref<BugRecord[]>([]);
-const bugsLoading = ref(false);
-const bugPage = ref(1);
-const bugPageSize = ref(10);
-const bugTotal = ref(0);
-
 // 汇报记录相关
 const reportList = ref<any[]>([]);
 const reportsLoading = ref(false);
@@ -761,27 +802,8 @@ const reportPageSize = ref(10);
 const reportTotal = ref(0);
 
 // 表格高度相关
-const bugTableContainerRef = ref<HTMLElement>();
-const bugTableHeight = ref<number>(400);
 const reportTableContainerRef = ref<HTMLElement>();
 const reportTableHeight = ref<number>(400);
-
-// 计算BUG表格高度
-const calculateBugTableHeight = () => {
-  nextTick(() => {
-    if (!bugTableContainerRef.value) return;
-
-    const viewportHeight = window.innerHeight;
-    const containerRect = bugTableContainerRef.value.getBoundingClientRect();
-    const containerTopToViewportBottom = viewportHeight - containerRect.top;
-    const cardHeaderHeight = 50; // card header高度
-    const cardPadding = 40;
-    const paginationHeight = 60;
-    const bottomPadding = 20;
-    const availableHeight = containerTopToViewportBottom - cardHeaderHeight - cardPadding - paginationHeight - bottomPadding;
-    bugTableHeight.value = Math.max(300, availableHeight);
-  });
-};
 
 // 计算汇报表格高度
 const calculateReportTableHeight = () => {
@@ -803,33 +825,8 @@ const calculateReportTableHeight = () => {
 // 窗口大小改变时重新计算
 const handleResize = () => {
   windowWidth.value = window.innerWidth;
-  calculateBugTableHeight();
   calculateReportTableHeight();
 };
-
-// BUG记录对话框
-const bugDialogVisible = ref(false);
-const bugFormRef = ref<FormInstance>();
-const bugSubmitting = ref(false);
-const bugForm = ref({
-  bug_name: "",
-  describe: "",
-  project_id: "",
-  task_id: "",
-  task_name: "",
-  project_name: ""
-});
-
-const bugFormRules: FormRules = {
-  bug_name: [
-    { required: true, message: "请输入BUG名称", trigger: "blur" }
-  ],
-  describe: [
-    { required: true, message: "请输入BUG描述", trigger: "blur" }
-  ]
-};
-
-
 
 // 获取状态类型
 const getStatusType = (
@@ -1504,58 +1501,6 @@ const goBack = () => {
   }
 };
 
-// 判断是否可以记录BUG（测试或审阅状态）
-const canRecordBug = (status: string): boolean => {
-  if (!status) return false;
-  const testReviewStatuses = [
-    TaskStatus.PENDING_TEST,
-    TaskStatus.TESTING,
-    TaskStatus.TEST_COMPLETED,
-    TaskStatus.PENDING_REVIEW,
-    TaskStatus.REVIEWING,
-    TaskStatus.REVIEW_COMPLETED,
-    "待测试", "测试中", "测试完毕",
-    "待审阅", "审阅中", "审阅完毕",
-    "测试审阅中"
-  ];
-  return testReviewStatuses.includes(status);
-};
-
-// 加载BUG记录
-const loadBugs = async () => {
-  if (!task.value) return;
-  const currentTaskId = task.value._id || task.value.id;
-  if (!currentTaskId) return;
-
-  bugsLoading.value = true;
-  try {
-    const response = await selectBugsByTask({
-      task_id: currentTaskId,
-      page: bugPage.value,
-      page_size: bugPageSize.value
-    });
-
-    if (response.code === 200) {
-      bugList.value = response.result || response.data || [];
-      bugTotal.value = response.total_count || response.total || bugList.value.length;
-    } else {
-      ElMessage.error(response.message || "加载BUG记录失败");
-      bugList.value = [];
-      bugTotal.value = 0;
-    }
-  } catch (error: any) {
-    console.error("加载BUG记录失败:", error);
-    ElMessage.error(
-      error?.response?.data?.message || error?.message || "加载BUG记录失败"
-    );
-    bugList.value = [];
-    bugTotal.value = 0;
-  } finally {
-    bugsLoading.value = false;
-  }
-};
-
-// 打开BUG记录对话框
 const openDelayReasonDialog = () => {
   delayReasonForm.value.development_delay_message = "";
   delayReasonDialogVisible.value = true;
@@ -1626,78 +1571,6 @@ const saveTaskDelayMessage = async () => {
   }
 };
 
-const openBugDialog = () => {
-  if (!task.value) return;
-  bugForm.value = {
-    bug_name: "",
-    describe: "",
-    project_id: task.value.project_id || "",
-    task_id: task.value._id || task.value.id || "",
-    task_name: task.value.任务名 || task.value.task_name || task.value.title || "",
-    project_name: task.value.project_name || ""
-  };
-  bugDialogVisible.value = true;
-  nextTick(() => {
-    bugFormRef.value?.clearValidate();
-  });
-};
-
-// 提交BUG记录
-const submitBug = async () => {
-  if (!bugFormRef.value) return;
-
-  await bugFormRef.value.validate(async (valid) => {
-    if (!valid) return;
-
-    bugSubmitting.value = true;
-    try {
-      const response = await createBug({
-        bug_name: bugForm.value.bug_name,
-        describe: bugForm.value.describe,
-        project_id: bugForm.value.project_id,
-        task_id: bugForm.value.task_id,
-        task_name: bugForm.value.task_name
-      });
-
-      if (response.code === 200) {
-        ElMessage.success("BUG记录成功");
-        bugDialogVisible.value = false;
-        bugForm.value = {
-          bug_name: "",
-          describe: "",
-          project_id: "",
-          task_id: "",
-          task_name: "",
-          project_name: ""
-        };
-        // 重新加载BUG记录列表
-        await loadBugs();
-      } else {
-        ElMessage.error(response.message || "BUG记录失败");
-      }
-    } catch (error: any) {
-      console.error("提交BUG失败:", error);
-      ElMessage.error(
-        error?.response?.data?.message || error?.message || "BUG记录失败"
-      );
-    } finally {
-      bugSubmitting.value = false;
-    }
-  });
-};
-
-// BUG分页处理
-const handleBugPageSizeChange = (size: number) => {
-  bugPageSize.value = size;
-  bugPage.value = 1;
-  loadBugs();
-};
-
-const handleBugPageChange = (page: number) => {
-  bugPage.value = page;
-  loadBugs();
-};
-
 // 加载汇报记录
 const loadReports = async () => {
   if (!task.value) return;
@@ -1756,16 +1629,6 @@ const handleDetailTabBeforeLeave = (activeName: string | number) => {
   return true;
 };
 
-// 监听activeTab变化，切换到BUG记录tab时加载数据
-watch(
-  () => activeTab.value,
-  (newTab) => {
-    if (newTab === "bugs" && task.value) {
-      loadBugs();
-    }
-  }
-);
-
 watch(
   () => route.params.id,
   () => {
@@ -1775,7 +1638,6 @@ watch(
 
 onMounted(() => {
   loadTask();
-  calculateBugTableHeight();
   calculateReportTableHeight();
   window.addEventListener('resize', handleResize);
 });
@@ -2335,13 +2197,6 @@ onUnmounted(() => {
           }
         }
 
-        .bugs-card {
-          .bugs-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-          }
-        }
       }
     }
   }
